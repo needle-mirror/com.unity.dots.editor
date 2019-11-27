@@ -8,6 +8,13 @@ namespace Unity.Editor
     {
         const string k_IconsDirectory = Constants.EditorDefaultResourcesPath + "/icons";
 
+        public static Texture2D RuntimeComponent { get; private set; }
+        public static Texture2D Remove { get; private set; }
+        public static Texture2D RoundedCorners { get; private set; }
+        public static Texture2D Entity { get; private set;}
+        public static Texture2D Filter { get; private set;}
+        public static Texture2D Convert { get; private set;}
+        
         static Icons()
         {
             LoadIcons();
@@ -15,9 +22,14 @@ namespace Unity.Editor
 
         static void LoadIcons()
         {
-            // Actually load the icons
+            RuntimeComponent = LoadIcon(nameof(RuntimeComponent));
+            Remove = LoadIcon(nameof(Remove));
+            RoundedCorners = LoadIcon(nameof(RoundedCorners));
+            Entity = LoadIcon(nameof(Entity));
+            Filter = LoadIcon(nameof(Filter));
+            Convert = LoadIcon(nameof(Convert));
         }
-
+        
         /// <summary>
         /// Workaround for `EditorGUIUtility.LoadIcon` not working with packages. This can be removed once it does
         /// </summary>
@@ -39,6 +51,7 @@ namespace Unity.Editor
             if (Bridge.GUIUtility.pixelsPerPoint > 1.0)
             {
                 var texture = LoadIconTexture($"{k_IconsDirectory}/{name}@2x.png");
+
                 if (null != texture)
                 {
                     return texture;

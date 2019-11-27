@@ -2,6 +2,10 @@
     "name": "Unity.Dots.Editor.Tests",
     "references": [
         "Unity.Entities",
+        "Unity.Collections",
+        "Unity.Entities.Hybrid",
+        "Unity.Scenes.Hybrid",
+        "Unity.Scenes.Editor",
         "Unity.DOTS.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
