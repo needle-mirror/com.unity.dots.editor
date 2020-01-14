@@ -1,5 +1,5 @@
 {
-    "name": "Unity.Dots.Editor.Tests",
+    "name": "Unity.DOTS.Editor.Tests",
     "references": [
         "Unity.Entities",
         "Unity.Collections",
@@ -23,5 +23,6 @@
     "defineConstraints": [
         "UNITY_INCLUDE_TESTS"
     ],
-    "versionDefines": []
+    "versionDefines": [],
+    "noEngineReferences": false
 }
