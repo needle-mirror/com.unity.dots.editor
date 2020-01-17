@@ -186,7 +186,7 @@ namespace Unity.DOTS.Editor
 
                 if (m_GameObjectTargets.Count != conversionData.Count)
                 {
-                    GUILayout.Label(EditorGUIUtility.TrTempContent("Entity conversion can only be previewed when all selected GameObjects are converted."), Styles.EntityConversionWarningMessage);
+                    GUILayout.Label(EditorGUIUtility.TrTempContent("Entity conversion can only be previewed for GameObjects converted by a SubScene."), Styles.EntityConversionWarningMessage);
                     return;
                 }
 
