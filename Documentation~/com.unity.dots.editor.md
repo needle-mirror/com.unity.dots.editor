@@ -8,22 +8,21 @@ To install this package, follow the instructions in the [Package Manager documen
 # Technical details
 ## Requirements
 This version of com.unity.dots.editor is compatible with the following versions of the Unity Editor:
-* 2019.1.0f1 and later (recommended)
+* 2019.3.0f1 and later (recommended)
 
 Using this package will add the following dependencies:
 
 |Package|Version|
 |---|---|
-| com.unity.entities| 0.1.0-preview|
-
-## Package contents
-The following table indicates the root folders of major features provided by the com.unity.dots.editor package:
-
-|Location|Description|
-|---|---|
+| com.unity.entities| 0.5.1-preview.11|
+| com.unity.properties| 0.10.3-preview|
+| com.unity.serialization| 0.6.3-preview|
+| com.unity.jobs| 0.2.4-preview.11|
+| com.unity.burst| 1.3.0-preview.2|
 
 ## Document revision history
 
 |Date|Reason|
 |---|---|
-|July 17, 2019|Initial version.|
+|February, 2020|Documentation update|
+|July 17, 2019|Initial version|

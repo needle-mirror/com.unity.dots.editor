@@ -7,6 +7,7 @@
         "Unity.Scenes.Hybrid",
         "Unity.Scenes.Editor",
         "Unity.DOTS.Editor",
+        "Unity.InternalAPIEngineBridge.002",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

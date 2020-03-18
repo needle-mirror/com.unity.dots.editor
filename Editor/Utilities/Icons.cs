@@ -14,7 +14,7 @@ namespace Unity.Editor
         public static Texture2D Entity { get; private set;}
         public static Texture2D Filter { get; private set;}
         public static Texture2D Convert { get; private set;}
-        
+
         static Icons()
         {
             LoadIcons();
@@ -29,7 +29,7 @@ namespace Unity.Editor
             Filter = LoadIcon(nameof(Filter));
             Convert = LoadIcon(nameof(Convert));
         }
-        
+
         /// <summary>
         /// Workaround for `EditorGUIUtility.LoadIcon` not working with packages. This can be removed once it does
         /// </summary>
@@ -64,11 +64,11 @@ namespace Unity.Editor
 
         static Texture2D LoadIconTexture(string path)
         {
-            var texture = (Texture2D) AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
+            var texture = (Texture2D)AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
 
             if (texture != null &&
-                !Mathf.Approximately(texture.GetPixelsPerPoint(), (float) Bridge.GUIUtility.pixelsPerPoint) &&
-                !Mathf.Approximately((float) Bridge.GUIUtility.pixelsPerPoint % 1f, 0.0f))
+                !Mathf.Approximately(texture.GetPixelsPerPoint(), (float)Bridge.GUIUtility.pixelsPerPoint) &&
+                !Mathf.Approximately((float)Bridge.GUIUtility.pixelsPerPoint % 1f, 0.0f))
             {
                 texture.filterMode = FilterMode.Bilinear;
             }

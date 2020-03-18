@@ -14,10 +14,60 @@ using Object = UnityEngine.Object;
 namespace Unity.DOTS.Editor
 {
     [CustomPreview(typeof(GameObject))]
-    public class EntityConversionPreview : ObjectPreview
+    class EntityConversionPreview : ObjectPreview
     {
         const string k_SharedStateKey = nameof(EntityConversionPreview) + "." + nameof(SharedState);
         static readonly ComponentTypeNameComparer s_ComponentTypeNameComparer = new ComponentTypeNameComparer();
+
+        // internal for tests
+        internal static class Worlds
+        {
+            const WorldFlags MustMatchMask = WorldFlags.Live | WorldFlags.Conversion;
+            const WorldFlags MustNotMatchMask = WorldFlags.Streaming | WorldFlags.Shadow;
+
+            static ulong s_AllWorldsHash;
+            static readonly List<World> s_FilteredWorlds = new List<World>();
+            static string[] s_WorldNames = Array.Empty<string>();
+
+            static void Update()
+            {
+                ulong newHash = 0;
+                foreach (var world in World.All)
+                    newHash += world.SequenceNumber;
+
+                if (newHash == s_AllWorldsHash)
+                    return;
+
+                s_AllWorldsHash = newHash;
+                s_FilteredWorlds.Clear();
+
+                foreach (var world in World.All)
+                {
+                    if ((world.Flags & MustMatchMask) != 0 && (world.Flags & MustNotMatchMask) == 0)
+                        s_FilteredWorlds.Add(world);
+                }
+
+                s_WorldNames = s_FilteredWorlds.Select(w => w.Name).ToArray();
+            }
+
+            public static List<World> FilteredWorlds
+            {
+                get
+                {
+                    Update();
+                    return s_FilteredWorlds;
+                }
+            }
+
+            public static string[] FilteredWorldNames
+            {
+                get
+                {
+                    Update();
+                    return s_WorldNames;
+                }
+            }
+        }
 
         static class Styles
         {
@@ -82,10 +132,10 @@ namespace Unity.DOTS.Editor
         /// Helper class to detect changes to entities that derive from a given set of gameObjects.
         /// </summary>
         GameObjectConversionChangeTracker m_ChangeTracker;
-        
+
         /// <summary>
         /// This is used to keep the current targets of the preview. This should be used instead of `ObjectPreview.target`
-        /// and `ObjectPreview.m_Targets` because we need to override the default behaviour of multi-selection. This is 
+        /// and `ObjectPreview.m_Targets` because we need to override the default behaviour of multi-selection. This is
         /// achieved by "forcing" single selection on the preview <see cref="Initialize"/>.
         /// </summary>
         readonly List<GameObject> m_GameObjectTargets = new List<GameObject>();
@@ -103,14 +153,14 @@ namespace Unity.DOTS.Editor
         {
             var state = SessionState<SharedState>.GetOrCreateState(k_SharedStateKey);
 
-            if (World.AllWorlds.Count == 0)
+            if (Worlds.FilteredWorlds.Count == 0)
             {
                 state.SelectedWorldIndex = -1;
                 return null;
             }
-            
-            state.SelectedWorldIndex = state.SelectedWorldIndex >= 0 && state.SelectedWorldIndex < World.AllWorlds.Count ? state.SelectedWorldIndex : 0;
-            return World.AllWorlds[state.SelectedWorldIndex];
+
+            state.SelectedWorldIndex = state.SelectedWorldIndex >= 0 && state.SelectedWorldIndex < Worlds.FilteredWorlds.Count ? state.SelectedWorldIndex : 0;
+            return Worlds.FilteredWorlds[state.SelectedWorldIndex];
         }
 
         /// <summary>
@@ -124,7 +174,7 @@ namespace Unity.DOTS.Editor
 
             var mainTarget = m_GameObjectTargets.FirstOrDefault();
             var instanceId = mainTarget.GetInstanceID();
-            
+
             m_State = SessionState<State>.GetOrCreateState($"{nameof(EntityConversionPreview)}.{nameof(State)}.{instanceId}");
             m_SharedState = SessionState<SharedState>.GetOrCreateState(k_SharedStateKey);
             m_RuntimeComponentsDrawer = new RuntimeComponentsDrawer();
@@ -157,7 +207,7 @@ namespace Unity.DOTS.Editor
         /// </summary>
         public override void OnPreviewSettings()
         {
-            m_SharedState.SelectedWorldIndex = EditorGUILayout.Popup(GUIContent.none, m_SharedState.SelectedWorldIndex, WorldGUIContent.AllWorldNames());
+            m_SharedState.SelectedWorldIndex = EditorGUILayout.Popup(GUIContent.none, m_SharedState.SelectedWorldIndex, Worlds.FilteredWorldNames);
         }
 
         /// <summary>
@@ -355,7 +405,7 @@ namespace Unity.DOTS.Editor
                 InspectorWindowBridge.RepaintAllInspectors();
             }
         }
-        
+
         static bool ValidateGameObjectConversionData(IReadOnlyList<EntityConversionData> conversionData, out string message)
         {
             if (conversionData.Count == 0)
@@ -528,24 +578,7 @@ namespace Unity.DOTS.Editor
                 EditorGUIUtility.wideMode = m_Previous;
             }
         }
-        
-        static class WorldGUIContent
-        {
-            static GUIContent[] s_AllWorldNames;
 
-            public static GUIContent[] AllWorldNames()
-            {
-                var worlds = World.AllWorlds;
-            
-                if (null == s_AllWorldNames || s_AllWorldNames.Length != worlds.Count)
-                    s_AllWorldNames = new GUIContent[worlds.Count];
-            
-                for (var i = 0; i < worlds.Count; i++) s_AllWorldNames[i] = new GUIContent(worlds[i].Name);
-
-                return s_AllWorldNames;
-            }
-        }
-        
         class GameObjectConversionChangeTracker
         {
             World m_LastWorld;
@@ -557,12 +590,12 @@ namespace Unity.DOTS.Editor
             {
                 if (null == world)
                     return false;
-                
+
                 var result = DidChangeInternal(world, targets, selectedComponentTypes);
                 m_LastGlobalSystemVersion = world.EntityManager.GlobalSystemVersion;
                 return result;
             }
-            
+
             unsafe bool DidChangeInternal(World world, IEnumerable<GameObject> targets, IEnumerable<int> selectedComponentTypes)
             {
                 if (world != m_LastWorld)
@@ -580,7 +613,7 @@ namespace Unity.DOTS.Editor
                     {
                         m_LastChunk = world.EntityManager.GetChunk(m_LastConversionData.PrimaryEntity);
                     }
-                    
+
                     return true;
                 }
 
@@ -591,21 +624,21 @@ namespace Unity.DOTS.Editor
                     m_LastChunk = chunk;
                     return true;
                 }
-                
+
                 foreach (var typeIndex in selectedComponentTypes)
                 {
                     var typeIndexInArchetype = ChunkDataUtility.GetIndexInTypeArray(m_LastChunk.m_Chunk->Archetype, typeIndex);
                     if (typeIndexInArchetype == -1) continue;
                     var typeChangeVersion = m_LastChunk.m_Chunk->GetChangeVersion(typeIndexInArchetype);
-                    
+
                     if (ChangeVersionUtility.DidChange(typeChangeVersion, m_LastGlobalSystemVersion))
                     {
                         m_LastGlobalSystemVersion = world.EntityManager.GlobalSystemVersion;
-                        
+
                         return true;
                     }
                 }
-                
+
                 return false;
             }
         }
