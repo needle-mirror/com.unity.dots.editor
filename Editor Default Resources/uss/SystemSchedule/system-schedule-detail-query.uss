@@ -1,0 +1,17 @@
+
+/**********************************************************************************************************************/
+/* System Details Query Style                                                                                         */
+/**********************************************************************************************************************/
+
+.system-schedule-detail_content-query-row-container
+{
+	flex-direction: row;
+	justify-content: space-between;
+}
+
+.system-schedule-detail__content-all-component-container
+{
+	flex-direction: row;
+	flex-wrap: wrap;
+	padding: 0px 2px 0px 2px;
+}

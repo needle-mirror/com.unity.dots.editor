@@ -5,10 +5,16 @@
 	justify-content: space-between;
 }
 
+.system-schedule__toolbar-right-side-container {
+	flex-direction: row;
+	justify-content: flex-end;
+}
+
 .system-schedule__search-field {
 	flex: 1;
 	max-width: 100px;
 }
+
 
 /**********************************************************************************************************************/
 /* TreeView Header                                                                                                    */

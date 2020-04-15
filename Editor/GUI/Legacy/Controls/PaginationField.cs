@@ -33,6 +33,63 @@ namespace Unity.Editor.Controls
 
         public int LastPage => (Count - 1) / ItemsPerPage;
 
+
+        public void OnGUI()
+        {
+            var indent = EditorGUI.indentLevel;
+            var labelWidth = EditorGUIUtility.labelWidth;
+            var enabled = GUI.enabled;
+
+            EditorGUILayout.BeginHorizontal();
+            try
+            {
+                EditorGUI.indentLevel = 0;
+                GUI.enabled = Count > 0;
+
+                InitStyles();
+                
+                GUILayout.FlexibleSpace();
+                
+                var pageLabel = new GUIContent(L10n.Tr("Page"));
+                var pageContLabel = new GUIContent($"{Page + 1} of {LastPage + 1}");
+                
+                var pageLabelWidth = EditorStyles.label.CalcSize(pageLabel).x + 2.0f;
+
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.FirstKey"), s_ToolbarButtonStyle, GUILayout.Width(k_ButtonSize)))
+                {
+                    Page = 0;
+                }
+
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.PrevKey"), s_ToolbarButtonStyle, GUILayout.Width(k_ButtonSize)))
+                {
+                    Page -= 1;
+                }
+
+                EditorGUIUtility.labelWidth = pageLabelWidth;
+                Page = EditorGUILayout.IntField( pageLabel, Page + 1) - 1;
+                
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.NextKey"), s_ToolbarButtonStyle, GUILayout.Width(k_ButtonSize)))
+                {
+                    Page += 1;
+                }
+
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.LastKey"), s_ToolbarButtonStyle, GUILayout.Width(k_ButtonSize)))
+                {
+                    Page = LastPage;
+                }
+
+                GUILayout.Label(pageContLabel);
+            }
+            finally
+            {
+                // Restore global state
+                EditorGUI.indentLevel = indent;
+                EditorGUIUtility.labelWidth = labelWidth;
+                GUI.enabled = enabled;
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+        
         public void OnGUI(Rect rect)
         {
             // Cache global state

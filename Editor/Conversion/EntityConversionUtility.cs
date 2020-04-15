@@ -1,5 +1,4 @@
 using UnityEngine;
-using Unity.Entities;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Burst;
@@ -8,7 +7,7 @@ using Unity.Entities.Conversion;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-namespace Unity.DOTS.Editor
+namespace Unity.Entities.Editor
 {
     static class EntityConversionUtility
     {

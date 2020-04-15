@@ -1,7 +1,7 @@
 using System.IO;
 using System.Linq;
 
-namespace Unity.Editor
+namespace Unity.Entities.Editor
 {
     static class DirectoryInfoExtensions
     {

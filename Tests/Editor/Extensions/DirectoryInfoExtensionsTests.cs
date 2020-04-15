@@ -3,7 +3,7 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Unity.Editor.Tests
+namespace Unity.Entities.Editor.Tests
 {
     class DirectoryInfoExtensionsTests
     {

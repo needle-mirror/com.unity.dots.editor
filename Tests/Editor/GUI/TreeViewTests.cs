@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine.UIElements;
 using Unity.Editor.Bridge;
 
-namespace Unity.DOTS.Editor.Tests
+namespace Unity.Entities.Editor.Tests
 {
     [TestFixture]
     class TreeViewTests

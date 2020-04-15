@@ -1,12 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
-using Unity.Editor;
-using Unity.Editor.Bridge;
-using Unity.Entities;
 using UnityEditor;
 using UnityEngine;
 
-namespace Unity.DOTS.Editor
+namespace Unity.Entities.Editor
 {
     [InitializeOnLoad]
     class EntityConversionHeader
@@ -39,7 +36,7 @@ namespace Unity.DOTS.Editor
 
             using (new EditorGUILayout.HorizontalScope(EditorStyles.largeLabel))
             {
-                EditorGUILayout.LabelField(EditorGUIUtility.TrTextContentWithIcon(ConvertToEntityHeaderTextStrings.ConvertToEntity, Icons.Convert), EditorStyles.label, GUILayout.MaxWidth(130));
+                EditorGUILayout.LabelField(EditorGUIUtility.TrTextContentWithIcon(ConvertToEntityHeaderTextStrings.ConvertToEntity, EditorIcons.Convert), EditorStyles.label, GUILayout.MaxWidth(130));
 
                 // Multi-selection
                 List<GameObject> TargetsList = new List<GameObject>();

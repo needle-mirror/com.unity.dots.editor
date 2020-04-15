@@ -1,7 +1,7 @@
 using System;
 using UnityEditor;
 
-namespace Unity.Editor
+namespace Unity.Entities.Editor
 {
     class ProgressBarScope : IDisposable
     {

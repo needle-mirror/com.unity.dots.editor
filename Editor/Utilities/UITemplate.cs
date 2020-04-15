@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine.UIElements;
 
-namespace Unity.Editor
+namespace Unity.Entities.Editor
 {
     readonly struct UITemplate
     {

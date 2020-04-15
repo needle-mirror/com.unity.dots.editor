@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Unity.Entities;
 
-namespace Unity.Editor
+namespace Unity.Entities.Editor
 {
     class TypeCache
     {

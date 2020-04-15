@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Unity.DOTS.Editor
+namespace Unity.Entities.Editor
 {
     struct PooledHashSet<T> : IDisposable
     {

@@ -1,3 +1,8 @@
+.common__resources
+{
+    --settings-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Settings/Settings.png");
+}
+
 .system-schedule__resources
 {
     /* Textures */
@@ -11,6 +16,7 @@
     --readonly-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Read Only/Read Only.png");
     --readwrite-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Read Write/Read Write.png");
     --writeonly-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Write Only/Write Only.png");
-    --script-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Script/Script.png");
+    --scripts-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Scripts/Scripts.png");
+	--close-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Close/Close.png");
     --system-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/System/System.png");
 }

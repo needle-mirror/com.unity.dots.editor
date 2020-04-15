@@ -1,9 +1,8 @@
 using System.Collections.Generic;
-using Unity.Entities;
 using Unity.Scenes.Editor;
 using UnityEngine;
 
-namespace Unity.DOTS.Editor
+namespace Unity.Entities.Editor
 {
     enum GameObjectConversionResultStatus
     {

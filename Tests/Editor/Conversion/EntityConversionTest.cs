@@ -3,14 +3,13 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Unity.Entities;
 using System.IO;
 using System.Linq;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Scenes.Editor;
 
-namespace Unity.DOTS.Editor.Tests
+namespace Unity.Entities.Editor.Tests
 {
     class EntityConversionTest
     {

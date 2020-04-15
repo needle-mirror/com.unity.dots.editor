@@ -1,8 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
-using System;
 
-namespace Unity.DOTS.Editor.Tests
+namespace Unity.Entities.Editor.Tests
 {
     class PoolTest
     {

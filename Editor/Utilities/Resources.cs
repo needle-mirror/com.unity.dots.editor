@@ -1,6 +1,6 @@
 using UnityEditor;
 
-namespace Unity.Editor
+namespace Unity.Entities.Editor
 {
     static class Resources
     {
@@ -28,6 +28,11 @@ namespace Unity.Editor
             public static readonly UITemplate CommonResources = new UITemplate("Common/common-resources");
             public static readonly UITemplate SystemSchedule = new UITemplate("SystemSchedule/system-schedule");
             public static readonly UITemplate SystemScheduleItem = new UITemplate("SystemSchedule/system-schedule-item");
+            public static readonly UITemplate SystemScheduleDetailHeader = new UITemplate("SystemSchedule/system-schedule-detail-header");
+            public static readonly UITemplate SystemScheduleDetailContent = new UITemplate("SystemSchedule/system-schedule-detail-content");
+            public static readonly UITemplate SystemScheduleDetailQuery = new UITemplate("SystemSchedule/system-schedule-detail-query");
+            public static readonly UITemplate CustomToolbarToggle = new UITemplate("Common/custom-toolbar-toggle");
+            public static readonly UITemplate Settings = new UITemplate("Settings/settings");
         }
     }
 }

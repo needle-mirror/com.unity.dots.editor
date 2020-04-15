@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace Unity.Editor
+namespace Unity.Entities.Editor
 {
     static class StringExtensions
     {

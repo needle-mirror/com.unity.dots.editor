@@ -1,0 +1,24 @@
+
+.custom-toolbar-toggle__label-parent
+{
+	margin-bottom: -0.5px;
+}
+
+.custom-toolbar-toggle__label
+{
+ 	padding: 2px 4px 2px 4px; 
+	border-radius: 0px 4px 4px 0px;
+}
+
+.custom-toolbar-toggle__only-label
+{
+ 	padding: 1px 4px 1px 4px; 
+	border-radius: 4px;
+}
+
+.custom-toolbar-toggle
+{
+	align-items: center;
+	border-radius: 4px;
+	padding: 0px;
+}

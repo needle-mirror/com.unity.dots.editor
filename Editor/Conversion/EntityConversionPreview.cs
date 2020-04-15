@@ -2,16 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Collections;
-using Unity.Editor;
 using Unity.Editor.Bridge;
 using Unity.Editor.Legacy;
-using Unity.Entities;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace Unity.DOTS.Editor
+namespace Unity.Entities.Editor
 {
     [CustomPreview(typeof(GameObject))]
     class EntityConversionPreview : ObjectPreview
@@ -25,20 +23,15 @@ namespace Unity.DOTS.Editor
             const WorldFlags MustMatchMask = WorldFlags.Live | WorldFlags.Conversion;
             const WorldFlags MustNotMatchMask = WorldFlags.Streaming | WorldFlags.Shadow;
 
-            static ulong s_AllWorldsHash;
+            static readonly WorldsChangeDetector WorldsChangeDetector = new WorldsChangeDetector();
             static readonly List<World> s_FilteredWorlds = new List<World>();
             static string[] s_WorldNames = Array.Empty<string>();
 
             static void Update()
             {
-                ulong newHash = 0;
-                foreach (var world in World.All)
-                    newHash += world.SequenceNumber;
-
-                if (newHash == s_AllWorldsHash)
+                if (!WorldsChangeDetector.WorldsChanged())
                     return;
 
-                s_AllWorldsHash = newHash;
                 s_FilteredWorlds.Clear();
 
                 foreach (var world in World.All)
@@ -178,7 +171,7 @@ namespace Unity.DOTS.Editor
             m_State = SessionState<State>.GetOrCreateState($"{nameof(EntityConversionPreview)}.{nameof(State)}.{instanceId}");
             m_SharedState = SessionState<SharedState>.GetOrCreateState(k_SharedStateKey);
             m_RuntimeComponentsDrawer = new RuntimeComponentsDrawer();
-            m_RuntimeComponentsDrawer.onRemoveComponent += typeIndex => m_State.SelectedComponentTypes.Remove(typeIndex);
+            m_RuntimeComponentsDrawer.OnDeselectComponent += typeIndex => m_State.SelectedComponentTypes.Remove(typeIndex);
             m_ChangeTracker = new GameObjectConversionChangeTracker();
             m_Targets = new Object[] { mainTarget };
             m_LastSelectedComponentIdx = -1;
@@ -261,7 +254,7 @@ namespace Unity.DOTS.Editor
                 if (hasAdditionalEntities)
                 {
                     m_State.ShowAdditionalEntities = EditorGUILayout.Foldout(m_State.ShowAdditionalEntities,
-                                                                             EditorGUIUtility.TrTextContentWithIcon($"{entityName} + {additionalEntitiesCount} {(additionalEntitiesCount > 1 ? "Entities" : "Entity")}", Icons.Entity),
+                                                                             EditorGUIUtility.TrTextContentWithIcon($"{entityName} + {additionalEntitiesCount} {(additionalEntitiesCount > 1 ? "Entities" : "Entity")}", EditorIcons.Entity),
                                                                              new GUIStyle(EditorStyles.foldout)
                                                                              {
                                                                                  fixedWidth = 650.0f,
@@ -300,7 +293,7 @@ namespace Unity.DOTS.Editor
                 }
                 else
                 {
-                    EditorGUILayout.LabelField(EditorGUIUtility.TrTextContentWithIcon(entityName, Icons.Entity), EditorStyles.boldLabel);
+                    EditorGUILayout.LabelField(EditorGUIUtility.TrTextContentWithIcon(entityName, EditorIcons.Entity), EditorStyles.boldLabel);
                     GUILayout.Space(4);
                 }
 
@@ -332,8 +325,7 @@ namespace Unity.DOTS.Editor
                     {
                         using (new WideModeScope(338))
                         {
-                            var rect = GUILayoutUtility.GetRect(0, m_RuntimeComponentsDrawer.GetTotalHeight());
-                            m_RuntimeComponentsDrawer.OnGUI(rect);
+                            m_RuntimeComponentsDrawer.OnGUI();
                         }
                     }
 
@@ -497,9 +489,9 @@ namespace Unity.DOTS.Editor
                             }
                             else
                             {
-                                foreach (var type in componentTypes)
+                                foreach (var type in hash.Set)
                                 {
-                                    if (!hash.Set.Contains(type))
+                                    if (!componentTypes.Contains(type))
                                     {
                                         intersection.List.Remove(type);
                                     }
@@ -534,7 +526,7 @@ namespace Unity.DOTS.Editor
 
             // Draw icon
             labelRect.width = kIconWidth;
-            GUI.Label(labelRect, Icons.Entity, Styles.AdditionalEntityIconTag);
+            GUI.Label(labelRect, EditorIcons.Entity, Styles.AdditionalEntityIconTag);
             labelRect.x += labelRect.width;
             labelRect.width = labelWidth;
 

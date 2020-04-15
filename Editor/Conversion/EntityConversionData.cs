@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Unity.Entities;
 using Unity.Entities.Conversion;
 
-namespace Unity.DOTS.Editor
+namespace Unity.Entities.Editor
 {
     struct EntityConversionData : IDisposable, IEquatable<EntityConversionData>
     {

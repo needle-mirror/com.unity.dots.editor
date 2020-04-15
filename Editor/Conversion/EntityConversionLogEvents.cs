@@ -5,7 +5,7 @@ using Unity.Entities.Conversion;
 using UnityEditor;
 using UnityEngine;
 
-namespace Unity.DOTS.Editor
+namespace Unity.Entities.Editor
 {
     [InitializeOnLoad]
     static class EntityConversionLogEvents

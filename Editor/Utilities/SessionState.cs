@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Unity.Serialization.Json;
 using UnityEditor;
 
-namespace Unity.DOTS.Editor
+namespace Unity.Entities.Editor
 {
     static class SessionState<T>
         where T : class, new()
@@ -14,7 +14,7 @@ namespace Unity.DOTS.Editor
             AssemblyReloadEvents.beforeAssemblyReload += () =>
             {
                 foreach (var kvp in s_Cache)
-                    SessionState.SetString(kvp.Key, JsonSerialization.Serialize(kvp.Value));
+                    SessionState.SetString(kvp.Key, JsonSerialization.ToJson(kvp.Value));
             };
         }
         
@@ -22,7 +22,7 @@ namespace Unity.DOTS.Editor
         {
             if (s_Cache.TryGetValue(key, out var value)) return value;
             var json = SessionState.GetString(key, string.Empty);
-            value = string.IsNullOrEmpty(json) ? new T() : JsonSerialization.DeserializeFromString<T>(json);
+            value = string.IsNullOrEmpty(json) ? new T() : JsonSerialization.FromJson<T>(json);
             s_Cache.Add(key, value);
             return value;
         }

@@ -1,8 +1,7 @@
 ﻿using System;
 using NUnit.Framework;
-using Unity.Entities;
 
-namespace Unity.Editor.Tests
+namespace Unity.Entities.Editor.Tests
 {
     class TypeCacheTests
     {

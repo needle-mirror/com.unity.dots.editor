@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 
-namespace Unity.Editor
+namespace Unity.Entities.Editor
 {
     static class TimeSpanExtensions
     {

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.0] - 2020-04-09
+[Changed]
+* Updated package dependencies
+
 ## [0.4.0] - 2020-03-17
 [Changed]
 * Updated package dependencies
