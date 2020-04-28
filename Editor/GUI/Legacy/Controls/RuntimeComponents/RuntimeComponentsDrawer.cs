@@ -20,7 +20,7 @@ namespace Unity.Editor.Legacy
             public PathScope(RuntimeComponentsDrawer context) => m_Drawer = context;
             public void Dispose() => m_Drawer.m_Path.Pop();
         }
-        
+
         static readonly GUIContent s_PropertyLabelContent = new GUIContent();
         static readonly GUIContent s_PropertyValueContent = new GUIContent();
 
@@ -36,12 +36,12 @@ namespace Unity.Editor.Legacy
         /// The key is the hash code of <see cref="DynamicBufferContainer{TElement}"/>.
         /// </remarks>
         readonly Dictionary<int, PaginationField> m_Pagination = new Dictionary<int, PaginationField>();
-        
+
         /// <summary>
         /// Set of entity targets we are currently inspecting.
         /// </summary>
         readonly List<EntityContainer> m_Targets = new List<EntityContainer>();
-        
+
         /// <summary>
         /// Set of components that are currently selected in the UI.
         /// </summary>
@@ -61,7 +61,7 @@ namespace Unity.Editor.Legacy
         {
             AddAdapter(this);
         }
-        
+
         /// <summary>
         /// Sets the entity targets that should be inspected.
         /// </summary>
@@ -69,13 +69,13 @@ namespace Unity.Editor.Legacy
         public void SetTargets(IEnumerable<EntityContainer> targets)
         {
             m_Targets.Clear();
-            
+
             foreach (var target in targets)
             {
                 m_Targets.Add(target);
             }
         }
-        
+
         /// <summary>
         /// Sets the component types which should be drawn.
         /// </summary>
@@ -83,7 +83,7 @@ namespace Unity.Editor.Legacy
         public void SetComponentTypes(IEnumerable<int> components)
         {
             m_SelectedComponentTypes.Clear();
-            
+
             foreach (var component in components)
             {
                 m_SelectedComponentTypes.Add(component);
@@ -99,34 +99,34 @@ namespace Unity.Editor.Legacy
 
             if (m_Targets.Count == 0)
                 return;
-            
+
             var target = m_Targets.First();
-            
+
             PropertyContainer.Visit(ref target, this);
         }
-        
+
         /// <summary>
         /// Invoked by the <see cref="PropertyVisitor"/> base class when encountering ANY property value not consumed by an adapter.
         /// </summary>
         protected override void VisitProperty<TContainer, TValue>(Property<TContainer, TValue> property, ref TContainer container, ref TValue value)
         {
             if (!BeginProperty(property, value)) return;
-            
+
             property.Visit(this, ref value);
-            
+
             EndProperty(property);
         }
-        
+
         protected override void VisitCollection<TContainer, TCollection, TElement>(Property<TContainer, TCollection> property, ref TContainer container, ref TCollection value)
         {
             if (!BeginProperty(property, value)) return;
-            
+
             LabelField("Size", value.Count, IsMixedSize<TCollection, TElement>(value));
-            
+
             var count = GetMinCount<TCollection, TElement>(value);
 
             EditorGUI.indentLevel++;
-            
+
             if (count <= k_BufferPageLength)
             {
                 for (var i = 0; i < count; i++)
@@ -138,7 +138,7 @@ namespace Unity.Editor.Legacy
             {
                 if (!m_Pagination.TryGetValue(container.GetHashCode(), out var scrollData))
                 {
-                    scrollData = new PaginationField {ItemsPerPage = k_BufferPageLength};
+                    scrollData = new PaginationField { ItemsPerPage = k_BufferPageLength };
                     m_Pagination.Add(container.GetHashCode(), scrollData);
                 }
 
@@ -146,27 +146,27 @@ namespace Unity.Editor.Legacy
 
                 var start = scrollData.Page * k_BufferPageLength;
                 var end = (scrollData.Page + 1) * k_BufferPageLength;
-                
+
                 for (var index = start; index < end && index < count; index++)
                 {
                     property.Visit(this, ref value, index);
                 }
-                
+
                 scrollData.OnGUI();
             }
-            
+
             EditorGUI.indentLevel--;
-            
+
             EndProperty(property);
         }
 
         protected override void VisitSet<TContainer, TSet, TElement>(Property<TContainer, TSet> property, ref TContainer container, ref TSet value)
         {
             if (!BeginProperty(property, value)) return;
-            
+
             if (IsMixedSize<TSet, TElement>(value))
             {
-                EditorGUILayout.LabelField(property.Name, "No support for mixed value sets.");  
+                EditorGUILayout.LabelField(property.Name, "No support for mixed value sets.");
             }
             else
             {
@@ -175,18 +175,18 @@ namespace Unity.Editor.Legacy
                 property.Visit(this, ref value);
                 EditorGUI.indentLevel--;
             }
-            
+
             EndProperty(property);
         }
 
         protected override void VisitDictionary<TContainer, TDictionary, TKey, TValue>(Property<TContainer, TDictionary> property, ref TContainer container, ref TDictionary value)
         {
             if (!BeginProperty(property, value)) return;
-            
-            
+
+
             if (IsMixedSize<TDictionary, KeyValuePair<TKey, TValue>>(value))
             {
-                EditorGUILayout.LabelField(property.Name, "No support for mixed value dictionary.");  
+                EditorGUILayout.LabelField(property.Name, "No support for mixed value dictionary.");
             }
             else
             {
@@ -195,7 +195,7 @@ namespace Unity.Editor.Legacy
                 property.Visit(this, ref value);
                 EditorGUI.indentLevel--;
             }
-            
+
             EndProperty(property);
         }
 
@@ -220,9 +220,9 @@ namespace Unity.Editor.Legacy
                     : new Color32(0xE4, 0xE4, 0xE4, 0xFF);
 
                 EditorGUILayout.BeginVertical(style);
-            
+
                 GUI.color = Color.white;
-            
+
                 var content = new GUIContent
                 {
                     text = " " + TypeManager.GetType(typeIndex).Name + " " + GetComponentCategory(typeIndex),
@@ -239,24 +239,24 @@ namespace Unity.Editor.Legacy
                         GUIUtility.ExitGUI();
                     }
                 }
-                
+
                 // Always use the name when dealing with component types. Even if they are indexable.
                 m_Path.PushName(property.Name);
             }
             else
             {
                 m_Path.PushProperty(property);
-                
+
                 if (IsMixedType<TValue>(value))
                 {
                     EditorGUILayout.LabelField(new GUIContent(GetDisplayName(property)), Bridge.EditorGUIBridge.mixedValueContent);
                     m_Path.Pop();
                     return false;
                 }
-                
+
                 EditorGUILayout.LabelField(GetDisplayName(property));
             }
-            
+
             EditorGUI.indentLevel++;
             return true;
         }
@@ -264,7 +264,7 @@ namespace Unity.Editor.Legacy
         void EndProperty<TContainer, TValue>(Property<TContainer, TValue> property)
         {
             EditorGUI.indentLevel--;
-            
+
             m_Path.Pop();
 
             if (typeof(TContainer) == typeof(EntityContainer))
@@ -273,7 +273,7 @@ namespace Unity.Editor.Legacy
                 EditorGUILayout.Space(2f);
             }
         }
-        
+
         static Type GetComponentType(Type type)
         {
             if (typeof(IComponentData).IsAssignableFrom(type) || typeof(ISharedComponentData).IsAssignableFrom(type))
@@ -284,7 +284,7 @@ namespace Unity.Editor.Legacy
 
             return null;
         }
-                
+
         static string GetComponentCategory(int t)
         {
             if (TypeManager.IsManagedComponent(t)) return "(Managed)";
@@ -338,19 +338,19 @@ namespace Unity.Editor.Legacy
             EditorGUILayout.LabelField(label, content);
             EditorStyles.label.richText = richText;
         }
-        
+
         PathScope MakePathScope(string name)
         {
             m_Path.PushName(name);
             return new PathScope(this);
         }
-        
+
         PathScope MakePathScope(IProperty property)
         {
             m_Path.PushProperty(property);
             return new PathScope(this);
         }
-        
+
         bool IsMixedValue<TValue>(IProperty property, TValue value)
         {
             using (MakePathScope(property))
@@ -358,7 +358,7 @@ namespace Unity.Editor.Legacy
                 return IsMixedValue(value);
             }
         }
-        
+
         bool IsMixedValue<TValue>(string path, TValue value)
         {
             using (MakePathScope(path))
@@ -377,7 +377,7 @@ namespace Unity.Editor.Legacy
                 {
                     return true;
                 }
-                
+
                 if (value == null)
                 {
                     if (null != otherValue)
@@ -387,7 +387,7 @@ namespace Unity.Editor.Legacy
 
                     continue;
                 }
-                
+
                 if (null == otherValue)
                 {
                     return true;
@@ -401,7 +401,7 @@ namespace Unity.Editor.Legacy
 
             return false;
         }
-        
+
         bool IsMixedValue<TValue>(TValue value)
         {
             for (var index = 1; index < m_Targets.Count; index++)
@@ -452,7 +452,7 @@ namespace Unity.Editor.Legacy
 
                     continue;
                 }
-                
+
                 if (null == otherValue)
                 {
                     return true;
@@ -470,7 +470,7 @@ namespace Unity.Editor.Legacy
         int GetMinCount<TCollection, TElement>(TCollection value) where TCollection : ICollection<TElement>
         {
             var min = value.Count;
-            
+
             for (var index = 1; index < m_Targets.Count; index++)
             {
                 var target = m_Targets[index];
@@ -507,7 +507,7 @@ namespace Unity.Editor.Legacy
             s_PropertyLabelContent.text = label;
             return s_PropertyLabelContent;
         }
-        
+
         static GUIContent GetValueContent<TValue>(TValue value)
         {
             string label;

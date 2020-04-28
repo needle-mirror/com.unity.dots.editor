@@ -25,7 +25,7 @@ namespace Unity.Entities.Editor
                 Internal = isInternal;
             }
         }
-        
+
         static readonly Dictionary<string, List<SettingWrapper>> s_Settings = new Dictionary<string, List<SettingWrapper>>();
         static readonly string k_Prefix = $"{typeof(Settings<T>).FullName}: ";
 
@@ -87,7 +87,7 @@ namespace Unity.Entities.Editor
                 var attributes = type.GetCustomAttributes<T>();
                 foreach (var attribute in attributes)
                 {
-                    var setting = (ISetting) getOrCreateMethod.Invoke(null, new object[] {attribute.SectionName});
+                    var setting = (ISetting)getOrCreateMethod.Invoke(null, new object[] { attribute.SectionName });
                     if (!s_Settings.TryGetValue(attribute.SectionName, out var list))
                     {
                         s_Settings[attribute.SectionName] = list = new List<SettingWrapper>();
@@ -112,12 +112,12 @@ namespace Unity.Entities.Editor
         }
 
         protected virtual string Title { get; }
-        
-        protected Settings(string path, SettingsScope scope, IEnumerable<string> keywords = null) : base(PathForScope(scope) +  path, scope, keywords)
+
+        protected Settings(string path, SettingsScope scope, IEnumerable<string> keywords = null) : base(PathForScope(scope) + path, scope, keywords)
         {
             Title = path.Replace("/", " ");
         }
-        
+
         public override void OnActivate(string searchContext, VisualElement rootElement)
         {
             // TODO: Switch to use uxml/uss for this.
@@ -130,22 +130,22 @@ namespace Unity.Entities.Editor
             title.style.unityTextAlign = TextAnchor.MiddleLeft;
             title.style.height = 26;
             root.Add(title);
-            
+
             Resources.Templates.Settings.AddStyles(rootElement);
             foreach (var kvp in s_Settings)
             {
                 if (kvp.Value.All(w => w.Internal) && !Unsupported.IsDeveloperMode())
                     continue;
-                
-                var label = new Label {text = kvp.Key};
+
+                var label = new Label { text = kvp.Key };
                 label.style.unityFontStyleAndWeight = FontStyle.Bold;
                 root.Add(label);
-                
+
                 foreach (var wrapper in kvp.Value)
                 {
                     if (wrapper.Internal && !Unsupported.IsDeveloperMode())
                         continue;
-                    
+
                     var setting = wrapper.Setting;
                     var element = new PropertyElement();
                     element.SetAttributeFilter(AttributeFilter);

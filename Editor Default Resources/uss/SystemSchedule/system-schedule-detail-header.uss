@@ -46,17 +46,17 @@
 /* System Details Header Styles                                                                                       */
 /**********************************************************************************************************************/
 
-.system-schedule-detail_header-left {
-	flex-direction: row;
-	justify-content: flex-start;
-	align-items: center;
+.system-schedule-detail__header-left {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .system-schedule-detail_header-right {
-	flex-direction: row;
-	align-items: center;
+    flex-direction: row;
+    align-items: center;
 }
 
 .system-schedule__detail-content-container {
-	padding: 4px 4px 4px 4px;
+    padding: 4px 4px 4px 4px;
 }

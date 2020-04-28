@@ -7,22 +7,22 @@ namespace Unity.Entities.Editor
     struct EntityConversionData : IDisposable, IEquatable<EntityConversionData>
     {
         public static readonly EntityConversionData Null = default;
-        
+
         public Entity PrimaryEntity;
         public List<Entity> AdditionalEntities;
         public List<LogEventData> LogEvents;
         public EntityManager EntityManager;
-        
+
         public void Dispose()
         {
         }
 
-        public static bool operator ==(EntityConversionData lhs, EntityConversionData rhs)
+        public static bool operator==(EntityConversionData lhs, EntityConversionData rhs)
         {
             return lhs.Equals(rhs);
         }
 
-        public static bool operator !=(EntityConversionData lhs, EntityConversionData rhs)
+        public static bool operator!=(EntityConversionData lhs, EntityConversionData rhs)
         {
             return !(lhs == rhs);
         }

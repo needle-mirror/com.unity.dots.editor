@@ -10,14 +10,14 @@ namespace Unity.Entities.Editor
         /// This <see cref="GameObject"/> will not be converted.
         /// </summary>
         NotConverted,
-        
+
         /// <summary>
         /// This <see cref="GameObject"/> will be converted as part of a sub-scene.
         /// </summary>
         ConvertedBySubScene,
         /// <summary>
         /// This <see cref="GameObject"/> will be converted as a result of having the <see cref="ConvertToEntity"/> directly on it.
-        /// </summary> 
+        /// </summary>
         ConvertedByConvertToEntity,
 
         /// <summary>
@@ -29,7 +29,7 @@ namespace Unity.Entities.Editor
         /// This <see cref="GameObject"/> will not be converted as a result of the <see cref="StopConvertToEntity"/> existing in it's hierarchy.
         /// </summary>
         NotConvertedByStopConvertToEntityComponent,
-        
+
         /// <summary>
         /// This <see cref="GameObject"/> will not be converted as a result of the <see cref="ConvertToEntity"/> using <see cref="ConvertToEntity.Mode.ConvertAndInjectGameObject"/> mode.
         /// </summary>
@@ -38,7 +38,7 @@ namespace Unity.Entities.Editor
         /// </remarks>
         NotConvertedByConvertAndInjectMode
     }
-    
+
     static class GameObjectConversionEditorUtility
     {
         static readonly List<ConvertToEntity> s_ConvertToEntity = new List<ConvertToEntity>(8);
@@ -55,29 +55,29 @@ namespace Unity.Entities.Editor
             {
                 return GameObjectConversionResultStatus.NotConverted;
             }
-            
+
             if (EditorEntityScenes.IsEntitySubScene(gameObject.scene))
             {
                 // Any gameObject in a sub-scene will ignore special conversion components and always result in a converted entity.
                 return GameObjectConversionResultStatus.ConvertedBySubScene;
             }
-            
+
             s_StopConvertToEntity.Clear();
             gameObject.GetComponentsInParent(true, s_StopConvertToEntity);
             if (s_StopConvertToEntity.Count > 0)
             {
-                // This gameObject or an ancestor has the StopConvertToEntity component. 
+                // This gameObject or an ancestor has the StopConvertToEntity component.
                 // This means all of its children (including itself) are not converted.
                 return GameObjectConversionResultStatus.NotConvertedByStopConvertToEntityComponent;
             }
-            
+
             s_ConvertToEntity.Clear();
             gameObject.GetComponentsInParent(true, s_ConvertToEntity);
             foreach (var convertToEntity in s_ConvertToEntity)
             {
                 if (convertToEntity.gameObject != gameObject && convertToEntity.ConversionMode == ConvertToEntity.Mode.ConvertAndInjectGameObject)
                 {
-                    // An ancestor is being converted and injected. 
+                    // An ancestor is being converted and injected.
                     // This means all of its children are not converted.
                     return GameObjectConversionResultStatus.NotConvertedByConvertAndInjectMode;
                 }
@@ -87,7 +87,7 @@ namespace Unity.Entities.Editor
             {
                 if (convertToEntity.gameObject != gameObject && convertToEntity.ConversionMode == ConvertToEntity.Mode.ConvertAndDestroy)
                 {
-                    // An ancestor is being converted and destroyed. 
+                    // An ancestor is being converted and destroyed.
                     // This means all of its children are converted.
                     return GameObjectConversionResultStatus.ConvertedByAncestor;
                 }
@@ -95,12 +95,12 @@ namespace Unity.Entities.Editor
 
             var convertToEntityOnCurrentGO = gameObject.GetComponent<ConvertToEntity>();
             return (convertToEntityOnCurrentGO && convertToEntityOnCurrentGO.enabled)
-                    ? GameObjectConversionResultStatus.ConvertedByConvertToEntity
-                    : GameObjectConversionResultStatus.NotConverted;
+                ? GameObjectConversionResultStatus.ConvertedByConvertToEntity
+                : GameObjectConversionResultStatus.NotConverted;
         }
 
         public static bool IsConverted(this GameObjectConversionResultStatus status) =>
-            status == GameObjectConversionResultStatus.ConvertedBySubScene || 
+            status == GameObjectConversionResultStatus.ConvertedBySubScene ||
             status == GameObjectConversionResultStatus.ConvertedByAncestor ||
             status == GameObjectConversionResultStatus.ConvertedByConvertToEntity;
 

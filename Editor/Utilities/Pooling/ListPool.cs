@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Unity.Entities.Editor
@@ -20,7 +20,7 @@ namespace Unity.Entities.Editor
                 s_Pool.Release(toRelease);
             }
         }
-        
+
         public readonly List<T> List;
 
         internal static PooledList<T> Make()

@@ -19,7 +19,7 @@ namespace Unity.Entities.Editor
 
         static PlayerLoopSystemGraph()
         {
-            ParsePlayerLoopSystem(ScriptBehaviourUpdateOrder.CurrentPlayerLoop, Current);
+            ParsePlayerLoopSystem(PlayerLoop.GetCurrentPlayerLoop(), Current);
             s_LastValidate = DateTime.Now;
             EditorApplication.update += ValidateCurrentGraph;
         }
@@ -34,7 +34,7 @@ namespace Unity.Entities.Editor
             s_LastValidate = now;
 
             var graph = new PlayerLoopSystemGraph();
-            ParsePlayerLoopSystem(ScriptBehaviourUpdateOrder.CurrentPlayerLoop, graph);
+            ParsePlayerLoopSystem(PlayerLoop.GetCurrentPlayerLoop(), graph);
             if (!DidChange(Current, graph))
             {
                 graph.Reset();
@@ -174,7 +174,7 @@ namespace Unity.Entities.Editor
             AddToGraph(graph, node, parent);
         }
 
-        static void AddToGraph(PlayerLoopSystemGraph graph,  IPlayerLoopNode node, IPlayerLoopNode parent = null)
+        static void AddToGraph(PlayerLoopSystemGraph graph, IPlayerLoopNode node, IPlayerLoopNode parent = null)
         {
             if (null == parent)
             {

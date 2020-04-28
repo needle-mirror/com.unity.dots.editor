@@ -12,7 +12,7 @@ namespace Unity.Entities.Editor
         /// The name of the section to use for the setting.
         /// </summary>
         public string SectionName { get; }
-        
+
         /// <summary>
         /// Constructs a new instance of <see cref="SettingsAttribute"/> with the provided section name.
         /// </summary>

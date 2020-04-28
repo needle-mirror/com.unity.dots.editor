@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using Unity.Serialization.Editor;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -8,19 +7,35 @@ namespace Unity.Entities.Editor
 {
     abstract class DOTSEditorWindow : EditorWindow
     {
-        const string k_NoWorldString = "No World";
+        static readonly string k_NoWorldString = L10n.Tr("No World");
 
         ToolbarMenu m_WorldSelector;
+        VisualElement m_SearchFieldContainer;
         ToolbarSearchField m_SearchField;
+        Image m_SearchIcon;
 
-        SharedStateContainer m_SharedState;
-        string SharedStateKey => $"{GetType().Name}.{nameof(SharedStateContainer)}";
-        SharedStateContainer SharedState => m_SharedState ?? (m_SharedState = SessionState<SharedStateContainer>.GetOrCreateState(SharedStateKey));
+        BaseStateContainer m_BaseState;
+        string BaseStateKey => $"{GetType().Name}.{nameof(BaseStateContainer)}";
+        BaseStateContainer BaseState => m_BaseState ?? (m_BaseState = SessionState<BaseStateContainer>.GetOrCreateState(BaseStateKey));
 
-        class SharedStateContainer
+        class BaseStateContainer
         {
             public string SelectedWorldName;
             public string SearchFilter;
+        }
+
+        protected string SearchFilter
+        {
+            get => BaseState.SearchFilter;
+            set
+            {
+                BaseState.SearchFilter = value;
+
+                UIElementHelper.Show(m_SearchField);
+                m_SearchField.Q("unity-text-input").Focus();
+
+                m_SearchField.value = value;
+            }
         }
 
         protected World GetCurrentlySelectedWorld()
@@ -33,7 +48,7 @@ namespace Unity.Entities.Editor
             World selectedWorld = null;
             foreach (var world in World.All)
             {
-                if (world.Name == SharedState.SelectedWorldName)
+                if (world.Name == BaseState.SelectedWorldName)
                 {
                     selectedWorld = world;
                     break;
@@ -45,7 +60,7 @@ namespace Unity.Entities.Editor
                 selectedWorld = World.All[0];
             }
 
-            SharedState.SelectedWorldName = selectedWorld.Name;
+            BaseState.SelectedWorldName = selectedWorld.Name;
             return selectedWorld;
         }
 
@@ -63,15 +78,53 @@ namespace Unity.Entities.Editor
 
             return m_WorldSelector;
         }
-        
-        protected void AddSearchField(VisualElement parent, string ussClass)
+
+        protected void AddSearchFieldContainer(VisualElement parent, string ussClass)
         {
-            m_SearchField = new ToolbarSearchField();
+            m_SearchFieldContainer = new VisualElement();
+            m_SearchFieldContainer.AddToClassList(ussClass);
+
+            CreateSearchField(UssClasses.DotsEditorCommon.SearchField);
+            m_SearchFieldContainer.Add(m_SearchField);
+
+            parent.Add(m_SearchFieldContainer);
+        }
+
+        void CreateSearchField(string ussClass)
+        {
+            m_SearchField = new ToolbarSearchField
+            {
+                value = string.IsNullOrEmpty(BaseState.SearchFilter) ? string.Empty : BaseState.SearchFilter
+            };
             m_SearchField.AddToClassList(ussClass);
+            m_SearchField.Q("unity-cancel").AddToClassList(UssClasses.DotsEditorCommon.SearchFieldCancelButton);
             m_SearchField.RegisterValueChangedCallback(OnFilterChanged);
-            parent.Add(m_SearchField);
-        } 
-        
+            UIElementHelper.Hide(m_SearchField);
+        }
+
+        protected void AddSearchIcon(VisualElement parent, string ussClass)
+        {
+            m_SearchIcon = new Image();
+            Resources.Templates.DotsEditorCommon.AddStyles(m_SearchIcon);
+            m_SearchIcon.AddToClassList(UssClasses.DotsEditorCommon.CommonResources);
+            m_SearchIcon.AddToClassList(ussClass);
+
+            m_SearchIcon.RegisterCallback<MouseUpEvent>(evt =>
+            {
+                if (UIElementHelper.IsVisible(m_SearchField))
+                {
+                    UIElementHelper.Hide(m_SearchField);
+                }
+                else
+                {
+                    UIElementHelper.Show(m_SearchField);
+                    m_SearchField.Q("unity-text-input").Focus();
+                }
+            });
+
+            parent.Add(m_SearchIcon);
+        }
+
         protected ToolbarMenu CreateDropDownSettings(string ussClass)
         {
             var dropdownSettings = new ToolbarMenu()
@@ -79,8 +132,9 @@ namespace Unity.Entities.Editor
                 name = "dropdownSettings",
                 variant = ToolbarMenu.Variant.Popup
             };
-            Resources.Templates.CommonResources.AddStyles(dropdownSettings);
-            dropdownSettings.AddToClassList(UssClasses.Resources.Common);
+
+            Resources.Templates.DotsEditorCommon.AddStyles(dropdownSettings);
+            dropdownSettings.AddToClassList(UssClasses.DotsEditorCommon.CommonResources);
             dropdownSettings.AddToClassList(ussClass);
 
             var arrow = dropdownSettings.Q(className: "unity-toolbar-menu__arrow");
@@ -88,11 +142,9 @@ namespace Unity.Entities.Editor
 
             return dropdownSettings;
         }
-        
+
         public void Update()
         {
-            m_SearchField.value = string.IsNullOrEmpty(SharedState.SearchFilter) ? string.Empty : SharedState.SearchFilter;
-
             // Worlds could have been added or removed without this window knowing
             if (m_WorldSelector != null)
             {
@@ -117,8 +169,8 @@ namespace Unity.Entities.Editor
                 menu.RemoveItemAt(0);
             }
 
-            var advancedSettings = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings); 
-                
+            var advancedSettings = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings);
+
             if (World.All.Count > 0)
             {
                 AppendWorldMenu(menu, advancedSettings.ShowAdvancedWorlds);
@@ -153,10 +205,10 @@ namespace Unity.Entities.Editor
         {
             foreach (var world in category.Worlds)
             {
-                menu.AppendAction(world.Name, OnWorldSelected, a => 
-                    (SharedState.SelectedWorldName == world.Name) 
-                        ? DropdownMenuAction.Status.Checked 
-                        : DropdownMenuAction.Status.Normal, world);
+                menu.AppendAction(world.Name, OnWorldSelected, a =>
+                    (BaseState.SelectedWorldName == world.Name)
+                    ? DropdownMenuAction.Status.Checked
+                    : DropdownMenuAction.Status.Normal, world);
             }
         }
 
@@ -166,7 +218,7 @@ namespace Unity.Entities.Editor
             if (world != null)
             {
                 m_WorldSelector.text = world.Name;
-                SharedState.SelectedWorldName = world.Name;
+                BaseState.SelectedWorldName = world.Name;
             }
             else
             {
@@ -178,7 +230,7 @@ namespace Unity.Entities.Editor
 
         void OnFilterChanged(ChangeEvent<string> evt)
         {
-            SharedState.SearchFilter = evt.newValue;
+            BaseState.SearchFilter = evt.newValue;
             OnFilterChanged(evt.newValue);
         }
 

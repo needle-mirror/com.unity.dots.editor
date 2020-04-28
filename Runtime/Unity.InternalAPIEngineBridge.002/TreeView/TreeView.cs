@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine.Assertions;
 using System.Linq;
-using UnityEngine.UIElements;
 using UnityEngine;
+using UnityEngine.Assertions;
+using UnityEngine.UIElements;
 
 namespace Unity.Editor.Bridge
 {
@@ -356,13 +356,22 @@ namespace Unity.Editor.Bridge
             return index;
         }
 
-#if UNITY_2020_1_OR_NEWER
         public void ClearSelection()
         {
+#if UNITY_2020_1_OR_NEWER
             m_ListView.ClearSelection();
+#else
+            m_ListView.selectedIndex = -1;
+#endif
         }
 
-#endif
+        public void Select(int id)
+        {
+            var index = GetItemIndex(id, true);
+            Refresh();
+            m_ListView.ScrollToItem(index);
+            m_ListView.selectedIndex = index;
+        }
 
         public void ScrollTo(VisualElement visualElement)
         {

@@ -97,7 +97,7 @@ namespace Unity.Entities.Editor.Tests
             Assert.AreEqual(1.ToString(), iterator.Current.Q<Label>(s_LabelSiblingIndexName).text);
         }
 
-#if UNITY_2020_1_OR_NEWER        
+#if UNITY_2020_1_OR_NEWER
         [Test]
         public void NoDataSource()
         {
@@ -107,6 +107,7 @@ namespace Unity.Entities.Editor.Tests
             // Nothing should happen.
             emptyTreeView.Refresh();
         }
+
 #endif
 
         [Test]
@@ -132,7 +133,7 @@ namespace Unity.Entities.Editor.Tests
             m_TreeView.showBorder = false;
             Assert.IsFalse(m_ListView.ClassListContains(ListView.borderUssClassName));
         }
-#endif
 
+#endif
     }
 }

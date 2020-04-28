@@ -1,7 +1,3 @@
-.common__resources
-{
-    --settings-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Settings/Settings.png");
-}
 
 .system-schedule__resources
 {
@@ -17,6 +13,13 @@
     --readwrite-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Read Write/Read Write.png");
     --writeonly-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Write Only/Write Only.png");
     --scripts-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Scripts/Scripts.png");
-	--close-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Close/Close.png");
+    --close-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Close/Close.png");
     --system-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/System/System.png");
+}
+
+.entity-hierarchy__resources
+{
+    --entity-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/Entity.png");
+    --scene-icon: resource('SceneAsset Icon');
+    --go-to-systems-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Go To Systems/Go to Systems.png");
 }

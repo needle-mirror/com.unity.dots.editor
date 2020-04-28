@@ -17,6 +17,7 @@ namespace Unity.Entities.Editor
         public static class MenuItems
         {
             public const string SystemScheduleWindow = "internal:Window/DOTS/Systems Schedule";
+            public const string EntityHierarchyWindow = "internal:Window/DOTS/Entity Hierarchy";
         }
 
         public static class Settings

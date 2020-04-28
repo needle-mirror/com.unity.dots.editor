@@ -94,4 +94,3 @@ namespace Unity.Entities.Editor
         }
     }
 }
-

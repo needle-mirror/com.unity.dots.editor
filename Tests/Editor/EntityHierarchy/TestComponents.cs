@@ -14,5 +14,10 @@ namespace Unity.Entities.Editor.Tests
     struct EcsTestSharedComp : ISharedComponentData
     {
         public int value;
+
+        public override string ToString()
+        {
+            return $"{nameof(value)}: {value}";
+        }
     }
 }

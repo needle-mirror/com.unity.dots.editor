@@ -2,7 +2,6 @@ using System;
 using Unity.Entities;
 using Unity.Properties;
 using UnityEditor;
-using UnityEngine;
 
 namespace Unity.Editor.Legacy
 {
@@ -13,18 +12,18 @@ namespace Unity.Editor.Legacy
             if (typeof(TValue).IsEnum)
             {
                 // @TODO Handle mixed values.
-                
+
                 var options = Enum.GetNames(typeof(TValue));
                 var local = value;
 
                 var index = Array.FindIndex(options, name => name == local.ToString());
 
                 EditorGUILayout.Popup
-                (
-                    GetDisplayName(property),
-                    index,
-                    options
-                );
+                    (
+                        GetDisplayName(property),
+                        index,
+                        options
+                    );
 
                 return VisitStatus.Handled;
             }

@@ -1,4 +1,3 @@
-using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Burst;
@@ -6,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities.Conversion;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace Unity.Entities.Editor
 {
@@ -17,7 +17,7 @@ namespace Unity.Entities.Editor
         static EntityConversionUtility()
         {
             TypeManager.Initialize();
-            
+
             EntityGuidQueryDesc = new EntityQueryDesc
             {
                 All = new ComponentType[]
@@ -26,7 +26,7 @@ namespace Unity.Entities.Editor
                 },
                 Options = EntityQueryOptions.IncludeDisabled | EntityQueryOptions.IncludePrefab
             };
-            
+
             PrefabQueryDesc = new EntityQueryDesc
             {
                 All = new ComponentType[]
@@ -37,7 +37,7 @@ namespace Unity.Entities.Editor
                 Options = EntityQueryOptions.IncludeDisabled | EntityQueryOptions.IncludePrefab
             };
         }
-        
+
         public static IEnumerable<EntityConversionData> GetConversionData(IEnumerable<GameObject> gameObjects, World world)
         {
             foreach (var gameObject in gameObjects)
@@ -46,17 +46,17 @@ namespace Unity.Entities.Editor
                 if (data != EntityConversionData.Null) yield return data;
             }
         }
-        
+
         public static EntityConversionData GetConvertedComponentsInfo(GameObject gameObject, World world)
         {
             if (null == world || !IsGameObjectConverted(gameObject))
             {
                 return EntityConversionData.Null;
             }
-            
+
             var instanceId = gameObject.GetInstanceID();
             var mappingSystem = world.GetExistingSystem<GameObjectConversionMappingSystem>();
-            
+
             if (null == mappingSystem)
             {
                 using (var entities = GetEntitiesByInstanceId(world.EntityManager, instanceId))
@@ -65,7 +65,7 @@ namespace Unity.Entities.Editor
                     {
                         return EntityConversionData.Null;
                     }
-                    
+
                     return new EntityConversionData
                     {
                         PrimaryEntity = entities[0],
@@ -75,7 +75,7 @@ namespace Unity.Entities.Editor
                     };
                 }
             }
-            
+
             if (!mappingSystem.JournalData.TryGetPrimaryEntity(instanceId, out var entity))
             {
                 return EntityConversionData.Null;
@@ -98,7 +98,7 @@ namespace Unity.Entities.Editor
         {
             return GameObjectConversionEditorUtility.GetGameObjectConversionResultStatus(gameObject).IsConverted();
         }
-        
+
         /// <summary>
         /// Given an instanceId. This method will return an array of all <see cref="Entity"/> that sourced from the <see cref="GameObject"/>.
         /// </summary>
@@ -116,7 +116,7 @@ namespace Unity.Entities.Editor
                     return entities.ToArray(allocator);
                 }
             }
-            
+
             // If we didn't find any, query and return any entity with the given instanceId.
             using (var entities = GetEntitiesByInstanceId(entityManager.CreateEntityQuery(EntityGuidQueryDesc), instanceId))
             {
@@ -127,7 +127,7 @@ namespace Unity.Entities.Editor
         static NativeList<Entity> GetEntitiesByInstanceId(EntityQuery query, int instanceId, Allocator allocator = Allocator.TempJob)
         {
             var result = new NativeList<Entity>(allocator);
-            
+
             using (var entities = query.ToEntityArray(Allocator.TempJob))
             using (var guids = query.ToComponentDataArray<EntityGuid>(Allocator.TempJob))
             {
@@ -162,9 +162,9 @@ namespace Unity.Entities.Editor
                 for (var i = 0; i < Entities.Length; i++)
                 {
                     var entityGuid = EntityGuids[i];
-                    if ((int) entityGuid.a == InstanceId)
+                    if ((int)entityGuid.a == InstanceId)
                     {
-                        var b = (int) entityGuid.b;
+                        var b = (int)entityGuid.b;
                         if (b >= temp.Length)
                         {
                             var length = math.max(b + 1, math.min(temp.Length * 2, Entities.Length));

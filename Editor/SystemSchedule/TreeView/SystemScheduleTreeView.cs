@@ -1,18 +1,18 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine.UIElements;
 using Unity.Editor.Bridge;
+using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
 {
     class SystemScheduleTreeView : VisualElement
     {
-        public readonly TreeView SystemTreeView;
-        public readonly VisualElement SystemDetailsContainer = new VisualElement();
+        readonly TreeView SystemTreeView;
         readonly IList<ITreeViewItem> m_TreeRootItems = new List<ITreeViewItem>();
+        SystemDetailsVisualElement m_SystemDetailsVisualElement;
+        SystemTreeViewItem m_LastSelectedItem;
+        int m_LastSelectedItemId;
         World m_World;
-
         public string SearchFilter { get; set; }
 
         /// <summary>
@@ -22,23 +22,42 @@ namespace Unity.Entities.Editor
         {
             SystemTreeView = new TreeView(m_TreeRootItems, 20, MakeItem, BindItem);
             SystemTreeView.style.flexGrow = 1;
-            SystemTreeView.Filter = OnFilter;
             Add(SystemTreeView);
 
             // System details.
+            m_SystemDetailsVisualElement = new SystemDetailsVisualElement();
             SystemTreeView.onSelectionChange += (selectedItems) =>
             {
                 var item = selectedItems.OfType<SystemTreeViewItem>().FirstOrDefault();
+
                 if (null == item)
                     return;
 
-                SystemDetailsContainer.Clear();
-                var bottomSystemDetails = new SystemDetails(item);
-                if (bottomSystemDetails.systemDetailContainer != null)
+                switch (item.System)
                 {
-                    SystemDetailsContainer.Add(bottomSystemDetails.systemDetailContainer);
-                    Add(SystemDetailsContainer);
+                    case null:
+                    case ComponentSystemGroup _:
+                    {
+                        if (this.Contains(m_SystemDetailsVisualElement))
+                            Remove(m_SystemDetailsVisualElement);
+
+                        return;
+                    }
                 }
+
+                // Remember last selected item id so that query information can be properly updated.
+                m_LastSelectedItemId = item.id;
+                m_LastSelectedItem = item;
+
+                // Start fresh.
+                if (this.Contains(m_SystemDetailsVisualElement))
+                    Remove(m_SystemDetailsVisualElement);
+
+                m_SystemDetailsVisualElement.Target = item;
+                m_SystemDetailsVisualElement.SearchFilter = SearchFilter;
+                m_SystemDetailsVisualElement.Parent = this;
+                m_SystemDetailsVisualElement.LastSelectedItem = m_LastSelectedItem;
+                this.Add(m_SystemDetailsVisualElement);
             };
         }
 
@@ -69,10 +88,31 @@ namespace Unity.Entities.Editor
                     continue;
 
                 var i = SystemSchedulePool.GetSystemTreeViewItem(graph, node, null, m_World, showInactiveSystems);
+                PopulateAllChildren(i, SearchFilter);
                 m_TreeRootItems.Add(i);
             }
 
             Refresh();
+        }
+
+        void PopulateAllChildren(SystemTreeViewItem item, string searchFilter)
+        {
+            if (!item.HasChildren)
+            {
+                if (item.id != m_LastSelectedItemId) return;
+
+                m_LastSelectedItem = item;
+                m_SystemDetailsVisualElement.LastSelectedItem = m_LastSelectedItem;
+
+                return;
+            }
+
+            item.PopulateChildren(searchFilter);
+
+            foreach (var child in item.children)
+            {
+                PopulateAllChildren(child as SystemTreeViewItem, searchFilter);
+            }
         }
 
         /// <summary>
@@ -83,6 +123,10 @@ namespace Unity.Entities.Editor
             // This is needed because `ListView.Refresh` will re-create all the elements.
             SystemSchedulePool.ReturnAllToPool(this);
             SystemTreeView.Refresh();
+
+            // System details need to be updated also.
+            m_SystemDetailsVisualElement.Target = m_LastSelectedItem;
+            m_SystemDetailsVisualElement.SearchFilter = SearchFilter;
         }
 
         void BindItem(VisualElement element, ITreeViewItem item)
@@ -95,21 +139,6 @@ namespace Unity.Entities.Editor
             systemInformationElement.Target = target;
             systemInformationElement.World = m_World;
             systemInformationElement.Update();
-        }
-
-        bool OnFilter(ITreeViewItem item)
-        {
-            if (string.IsNullOrEmpty(SearchFilter))
-                return true;
-
-            var itemAsData = item as SystemTreeViewItem;
-            if (itemAsData == null)
-                return false;
-
-            if (itemAsData.GetSystemName(m_World).IndexOf(SearchFilter.Trim(), StringComparison.OrdinalIgnoreCase) >= 0)
-                return true;
-
-            return false;
         }
     }
 }

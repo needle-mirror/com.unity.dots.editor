@@ -9,7 +9,7 @@ namespace Unity.Editor.Legacy
     static class CustomEditorGUILayout
     {
         static readonly GUIContent s_Text = new GUIContent();
-        
+
         internal static GUIContent TempContent(string t)
         {
             s_Text.image = null;
@@ -17,7 +17,7 @@ namespace Unity.Editor.Legacy
             s_Text.tooltip = null;
             return s_Text;
         }
-        
+
         public static void Vector2Label(
             string label,
             Vector2 value,
@@ -25,7 +25,7 @@ namespace Unity.Editor.Legacy
         {
             Vector2Label(TempContent(label), value, new bool2(), options);
         }
-        
+
         public static void Vector2Label(
             string label,
             Vector2 value,
@@ -43,7 +43,7 @@ namespace Unity.Editor.Legacy
         {
             CustomEditorGUI.Vector2Label(EditorGUILayoutBridge.s_LastRect = EditorGUILayout.GetControlRect(true, EditorGUI.GetPropertyHeight(SerializedPropertyType.Vector2, label), EditorStyles.numberField, options), label, value, mixed);
         }
-        
+
         public static void Vector3Label(
             string label,
             Vector3 value,
@@ -51,7 +51,7 @@ namespace Unity.Editor.Legacy
         {
             Vector3Label(TempContent(label), value, new bool3(), options);
         }
-        
+
         public static void Vector3Label(
             string label,
             Vector3 value,
@@ -69,7 +69,7 @@ namespace Unity.Editor.Legacy
         {
             CustomEditorGUI.Vector3Label(EditorGUILayoutBridge.s_LastRect = EditorGUILayout.GetControlRect(true, EditorGUI.GetPropertyHeight(SerializedPropertyType.Vector3, label), EditorStyles.numberField, options), label, value, mixed);
         }
-        
+
         public static void Vector4Label(
             string label,
             Vector4 value,
@@ -77,7 +77,7 @@ namespace Unity.Editor.Legacy
         {
             Vector4Label(TempContent(label), value, new bool4(), options);
         }
-        
+
         public static void Vector4Label(
             string label,
             Vector4 value,
@@ -95,9 +95,8 @@ namespace Unity.Editor.Legacy
         {
             CustomEditorGUI.Vector4Label(EditorGUILayoutBridge.s_LastRect = EditorGUILayout.GetControlRect(true, EditorGUI.GetPropertyHeight(SerializedPropertyType.Vector4, label), EditorStyles.numberField, options), label, value, mixed);
         }
-        
     }
-    
+
     static class CustomEditorGUI
     {
         static readonly int s_FoldoutHash = "Foldout".GetHashCode();
@@ -118,7 +117,7 @@ namespace Unity.Editor.Legacy
 
         static Rect m_Rect;
         static Rect m_LastRect;
-        
+
         static GUIContent TempContent(string text, Texture image, string tooltip)
         {
             return TempContent(s_TempContent1, text, image, tooltip);
@@ -189,7 +188,7 @@ namespace Unity.Editor.Legacy
             {
                 return EditorGUI.IndentedRect(totalPosition);
             }
-            
+
             if (EditorGUIUtility.wideMode)
             {
                 var labelPosition = new Rect(totalPosition.x + EditorGUIBridge.indent, totalPosition.y, EditorGUIUtility.labelWidth - EditorGUIBridge.indent, 18f);
@@ -197,7 +196,7 @@ namespace Unity.Editor.Legacy
                 rect.xMin += EditorGUIUtility.labelWidth + 2f;
                 if (columns == 2)
                 {
-                    var num = (float) ((rect.width - 8.0) / 3.0);
+                    var num = (float)((rect.width - 8.0) / 3.0);
                     rect.xMax -= num + 4f;
                 }
 
@@ -208,10 +207,10 @@ namespace Unity.Editor.Legacy
 
                 return rect;
             }
-            
+
             var labelPosition1 = new Rect(totalPosition.x + EditorGUIBridge.indent, totalPosition.y, totalPosition.width - EditorGUIBridge.indent, 18f);
             EditorGUI.HandlePrefixLabel(totalPosition, labelPosition1, label, id);
-            
+
             var rect1 = totalPosition;
             rect1.xMin += EditorGUI.indentLevel + 15f;
             rect1.yMin += 18f;
@@ -235,7 +234,7 @@ namespace Unity.Editor.Legacy
         static void MultiFloatFieldAsLabel(Rect position, GUIContent[] subLabels, float[] values, bool[] mixed, int count)
         {
             var length = count;
-            var num = (position.width - (float) (length - 1) * 4f) / (float) length;
+            var num = (position.width - (float)(length - 1) * 4f) / (float)length;
             var position1 = new Rect(position)
             {
                 width = num
@@ -245,7 +244,7 @@ namespace Unity.Editor.Legacy
             EditorGUI.indentLevel = 0;
             for (var index = 0; index < count; ++index)
             {
-                EditorGUIUtility.labelWidth = CalcPrefixLabelWidth(subLabels[index], (GUIStyle) null);
+                EditorGUIUtility.labelWidth = CalcPrefixLabelWidth(subLabels[index], (GUIStyle)null);
                 var richText = EditorStyles.label.richText;
                 EditorStyles.label.richText = true;
                 EditorGUI.LabelField(position1, subLabels[index], mixed[index] ? EditorGUIBridge.mixedValueContent : TempContent($"<b>{values[index]:0.##}</b>", null, string.Empty));

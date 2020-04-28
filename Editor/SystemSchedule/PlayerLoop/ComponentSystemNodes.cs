@@ -21,7 +21,7 @@ namespace Unity.Entities.Editor
         public override bool EnabledInHierarchy => Enabled && (Parent?.EnabledInHierarchy ?? true);
 
         public ComponentSystemBase System => Value;
-        public override int Hash => Name.GetHashCode();
+        public override int Hash => WorldName.GetHashCode();
 
         public override bool ShowForWorld(World world)
         {

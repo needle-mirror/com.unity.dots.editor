@@ -4,14 +4,27 @@ namespace Unity.Entities.Editor
     {
         public static class Resources
         {
-            public const string Common = "common__resources";
             public const string SystemSchedule = "system-schedule__resources";
+            public const string EntityHierarchy = "entity-hierarchy__resources";
         }
 
-        public static class Common
+        public static class DotsEditorCommon
         {
-            private const string Base = "common";
-            public const string SettingsIcon = Base + "__settings-icon";
+            public const string CommonResources = "common-resources";
+            public const string SettingsIcon = "settings-icon";
+            public const string SearchIcon = "search-icon";
+
+            public const string SearchFieldContainer = "search-field-container";
+            public const string SearchField = "search-field";
+            public const string SearchFieldCancelButton = SearchField + "__cancel-button";
+
+            public const string CustomToolbarToggle = "toolbar-toggle";
+            public const string CustomToolbarToggleLabelParent = CustomToolbarToggle + "__label-parent";
+            public const string CustomToolbarToggleLabel = CustomToolbarToggle + "__label-with-icon";
+            public const string CustomToolbarToggleOnlyLabel = CustomToolbarToggle + "__label-without-icon";
+            public const string CustomToolbarToggleIcon = CustomToolbarToggle + "__icon";
+
+            public const string CustomLabelUnderline = "label-with-underline";
         }
 
         public static class SystemScheduleWindow
@@ -71,17 +84,46 @@ namespace Unity.Entities.Editor
                 public const string MatchTitleLabel = Content + "-match-title-label";
                 public const string QueryRow2 = Content + "-query-row-2";
                 public const string QueryIconName = Content + "-query-icon";
-
+                public const string QueryIconAndResultContainer = Content + "-query-container";
                 public const string AllComponentContainer = Content + "-all-component-container";
                 public const string EachComponentContainer = Content + "-each-component-container";
-                public const string ComponentToggle = Content + "-component-toggle";
                 public const string ComponentAccessModeIcon = Content + "-component-access-icon";
                 public const string EntityMatchCountContainer = Content + "-match-container";
+                public const string ShowMoreLessLabel = Content + "-show-more-less-label";
 
                 public const string SchedulingTitle = Content + "-scheduling-title";
                 public const string SchedulingToggle = Content + "-scheduling-toggle";
                 public const string SchedulingFilterSystemIcon = "system-schedule-scheduling__close-icon";
                 public const string SchedulingFilterCloseIcon = "system-schedule-scheduling--close-icon";
+            }
+        }
+
+        public static class EntityHierarchyWindow
+        {
+            const string k_EntityHierarchyBase = "entity-hierarchy";
+
+            public static class Toolbar
+            {
+                const string k_Base = k_EntityHierarchyBase + "-toolbar";
+                public const string Container = k_Base + "__container";
+                public const string LeftSide = k_Base + "__left";
+                public const string RightSide = k_Base + "__right";
+                public const string SearchField = k_Base + "__search-field";
+            }
+
+            public static class Item
+            {
+                const string k_Base = k_EntityHierarchyBase + "-item";
+
+                public const string Icon = k_Base + "__icon";
+                public const string IconScene = Icon + "--scene";
+                public const string IconEntity = Icon + "--entity";
+
+                public const string NameLabel = k_Base + "__name-label";
+                public const string NameScene = NameLabel + "--scene";
+
+                public const string SystemButton = k_Base + "__system-button";
+                public const string SystemButtonEntity = SystemButton + "--entity";
             }
         }
     }

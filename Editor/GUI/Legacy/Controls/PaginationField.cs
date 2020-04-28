@@ -6,7 +6,7 @@ namespace Unity.Editor.Controls
     internal class PaginationField
     {
         private int m_Count = 0;
-        
+
         private static GUIStyle s_ToolbarButtonStyle;
         private const float k_ButtonSize = 20.0f;
         private const float k_PageSize = 50.0f;
@@ -47,12 +47,12 @@ namespace Unity.Editor.Controls
                 GUI.enabled = Count > 0;
 
                 InitStyles();
-                
+
                 GUILayout.FlexibleSpace();
-                
+
                 var pageLabel = new GUIContent(L10n.Tr("Page"));
                 var pageContLabel = new GUIContent($"{Page + 1} of {LastPage + 1}");
-                
+
                 var pageLabelWidth = EditorStyles.label.CalcSize(pageLabel).x + 2.0f;
 
                 if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.FirstKey"), s_ToolbarButtonStyle, GUILayout.Width(k_ButtonSize)))
@@ -66,8 +66,8 @@ namespace Unity.Editor.Controls
                 }
 
                 EditorGUIUtility.labelWidth = pageLabelWidth;
-                Page = EditorGUILayout.IntField( pageLabel, Page + 1) - 1;
-                
+                Page = EditorGUILayout.IntField(pageLabel, Page + 1) - 1;
+
                 if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.NextKey"), s_ToolbarButtonStyle, GUILayout.Width(k_ButtonSize)))
                 {
                     Page += 1;
@@ -89,7 +89,7 @@ namespace Unity.Editor.Controls
                 EditorGUILayout.EndHorizontal();
             }
         }
-        
+
         public void OnGUI(Rect rect)
         {
             // Cache global state
@@ -110,15 +110,15 @@ namespace Unity.Editor.Controls
 
                 var pageLabel = new GUIContent(L10n.Tr("Page"));
                 var pageContLabel = new GUIContent($"{Page + 1} of {LastPage + 1}");
-                var pageCountWidth = EditorStyles.label.CalcSize(pageContLabel).x + 4.0f; 
-                
+                var pageCountWidth = EditorStyles.label.CalcSize(pageContLabel).x + 4.0f;
+
                 var pageLabelWidth = EditorStyles.label.CalcSize(pageLabel).x + 2.0f;
 
                 var usedWidth = 4 * k_ButtonSize
-                                + pageLabelWidth 
-                                + k_PageSize
-                                + pageCountWidth;
-                
+                    + pageLabelWidth
+                    + k_PageSize
+                    + pageCountWidth;
+
                 rect.x += width - usedWidth;
                 rect.width = usedWidth;
 

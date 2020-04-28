@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NUnit.Framework;
 
 namespace Unity.Entities.Editor.Tests
@@ -40,12 +40,12 @@ namespace Unity.Entities.Editor.Tests
                 TestColor = default
             };
         }
-        
-        
+
+
         struct NoAttributes
         {
         }
-        
+
         [Serializable]
         struct SomeAttributes
         {
@@ -58,11 +58,11 @@ namespace Unity.Entities.Editor.Tests
             Assert.That(MyAwesomeStruct.Default, Is.EqualTo(TypeCache.GetDefaultValueForStruct<MyAwesomeStruct>()));
             Assert.That(MyComponent.Default, Is.EqualTo(TypeCache.GetDefaultValueForStruct<MyComponent>()));
 
-            Assert.That(TestColor.Default, Is.EqualTo((TestColor) TypeCache.GetDefaultValue(typeof(TestColor))));
-            Assert.That(MyAwesomeStruct.Default, Is.EqualTo((MyAwesomeStruct) TypeCache.GetDefaultValue(typeof(MyAwesomeStruct))));
-            Assert.That(MyComponent.Default, Is.EqualTo((MyComponent) TypeCache.GetDefaultValue(typeof(MyComponent))));
+            Assert.That(TestColor.Default, Is.EqualTo((TestColor)TypeCache.GetDefaultValue(typeof(TestColor))));
+            Assert.That(MyAwesomeStruct.Default, Is.EqualTo((MyAwesomeStruct)TypeCache.GetDefaultValue(typeof(MyAwesomeStruct))));
+            Assert.That(MyComponent.Default, Is.EqualTo((MyComponent)TypeCache.GetDefaultValue(typeof(MyComponent))));
         }
-        
+
         [Test]
         public void CanQueryIfTypeHasAttribute()
         {

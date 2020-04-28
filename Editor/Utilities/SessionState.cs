@@ -17,8 +17,8 @@ namespace Unity.Entities.Editor
                     SessionState.SetString(kvp.Key, JsonSerialization.ToJson(kvp.Value));
             };
         }
-        
-        public static T GetOrCreateState(string key) 
+
+        public static T GetOrCreateState(string key)
         {
             if (s_Cache.TryGetValue(key, out var value)) return value;
             var json = SessionState.GetString(key, string.Empty);

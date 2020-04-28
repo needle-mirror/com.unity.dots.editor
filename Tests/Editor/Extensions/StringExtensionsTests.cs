@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 
 namespace Unity.Entities.Editor.Tests
 {
@@ -15,9 +15,9 @@ namespace Unity.Entities.Editor.Tests
         public void CanSingleQuoteAString(string value)
         {
             var trimmedValue = value.Trim('\'');
-            Assert.That(value.SingleQuoted(), Is.EqualTo( '\'' + trimmedValue + '\''));
+            Assert.That(value.SingleQuoted(), Is.EqualTo('\'' + trimmedValue + '\''));
         }
-        
+
         [Test]
         [TestCase("")]
         [TestCase("   ")]
@@ -47,10 +47,10 @@ namespace Unity.Entities.Editor.Tests
             }
             else
             {
-                Assert.That(value.ToHyperLink(key), Is.EqualTo($"<a {key}={value.DoubleQuoted()}>{value}</a>"));            
+                Assert.That(value.ToHyperLink(key), Is.EqualTo($"<a {key}={value.DoubleQuoted()}>{value}</a>"));
             }
         }
-        
+
         [Test]
         [TestCase("Simple", "Simple")]
         [TestCase("Simple With Space", "Simple_With_Space")]
@@ -60,7 +60,7 @@ namespace Unity.Entities.Editor.Tests
         {
             Assert.That(value.ToIdentifier(), Is.EqualTo(expected));
         }
-        
+
         [Test]
         [TestCase("Simple", "Simple")]
         [TestCase("/Simple", "/Simple")]

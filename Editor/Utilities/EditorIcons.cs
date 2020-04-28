@@ -6,14 +6,17 @@ namespace Unity.Entities.Editor
 {
     static class EditorIcons
     {
-        const string k_IconsDirectory = Constants.EditorDefaultResourcesPath + "/icons";
+        const string k_IconsLightDirectory = Constants.EditorDefaultResourcesPath + "icons/light";
+        const string k_IconsDarkDirectory = Constants.EditorDefaultResourcesPath + "icons/dark";
 
         public static Texture2D RuntimeComponent { get; private set; }
         public static Texture2D Remove { get; private set; }
         public static Texture2D RoundedCorners { get; private set; }
-        public static Texture2D Entity { get; private set;}
-        public static Texture2D Filter { get; private set;}
-        public static Texture2D Convert { get; private set;}
+        public static Texture2D Entity { get; private set; }
+        public static Texture2D EntityGroup { get; private set; }
+        public static Texture2D Filter { get; private set; }
+        public static Texture2D Convert { get; private set; }
+        public static Texture2D System { get; private set; }
 
         static EditorIcons()
         {
@@ -22,12 +25,14 @@ namespace Unity.Entities.Editor
 
         static void LoadIcons()
         {
-            RuntimeComponent = LoadIcon(nameof(RuntimeComponent));
-            Remove = LoadIcon(nameof(Remove));
-            RoundedCorners = LoadIcon(nameof(RoundedCorners));
-            Entity = LoadIcon(nameof(Entity));
-            Filter = LoadIcon(nameof(Filter));
-            Convert = LoadIcon(nameof(Convert));
+            RuntimeComponent = LoadIcon("RuntimeComponent/" + nameof(RuntimeComponent));
+            Remove = LoadIcon("Remove/" + nameof(Remove));
+            RoundedCorners = LoadIcon("RoundedCorners/" + nameof(RoundedCorners));
+            Entity = LoadIcon("Entity/" + nameof(Entity));
+            EntityGroup = LoadIcon("EntityGroup/" + nameof(EntityGroup));
+            Filter = LoadIcon("Filter/" + nameof(Filter));
+            Convert = LoadIcon("Convert/" + nameof(Convert));
+            System = LoadIcon("System/" + nameof(System));
         }
 
         /// <summary>
@@ -42,15 +47,16 @@ namespace Unity.Entities.Editor
                 return null;
             }
 
+            var iconsDirectory = k_IconsLightDirectory;
             if (EditorGUIUtility.isProSkin)
             {
-                name = "d_" + name;
+                iconsDirectory = k_IconsDarkDirectory;
             }
 
             // Try to use high DPI if possible
             if (Bridge.GUIUtility.pixelsPerPoint > 1.0)
             {
-                var texture = LoadIconTexture($"{k_IconsDirectory}/{name}@2x.png");
+                var texture = LoadIconTexture($"{iconsDirectory}/{name}@2x.png");
 
                 if (null != texture)
                 {
@@ -59,7 +65,7 @@ namespace Unity.Entities.Editor
             }
 
             // Fallback to low DPI if we couldn't find the high res or we are on a low res screen
-            return LoadIconTexture($"{k_IconsDirectory}/{name}.png");
+            return LoadIconTexture($"{iconsDirectory}/{name}.png");
         }
 
         static Texture2D LoadIconTexture(string path)

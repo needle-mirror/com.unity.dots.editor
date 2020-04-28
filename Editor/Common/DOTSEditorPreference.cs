@@ -7,10 +7,9 @@ namespace Unity.Entities.Editor
     class AdvancedSettings : ISetting
     {
         public bool ShowAdvancedWorlds;
-        
+
         public void OnSettingChanged(PropertyPath path)
         {
-            
         }
     }
 }

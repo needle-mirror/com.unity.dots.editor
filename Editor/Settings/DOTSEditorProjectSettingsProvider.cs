@@ -8,7 +8,7 @@ namespace Unity.Entities.Editor
         [SettingsProvider]
         public static SettingsProvider GetPreferences()
         {
-            return HasAnySettings 
+            return HasAnySettings
                 ? new DOTSEditorProjectSettingsProvider()
                 : null;
         }

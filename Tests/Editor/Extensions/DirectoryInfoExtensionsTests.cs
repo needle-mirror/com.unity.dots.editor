@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using UnityEngine;
@@ -43,11 +43,11 @@ namespace Unity.Entities.Editor.Tests
                 {
                     continue;
                 }
-                
+
                 directoryInfo.Delete(true);
             }
         }
-        
+
         [Test]
         public void CanCombineDirectoryInfoFromNames()
         {
@@ -65,10 +65,10 @@ namespace Unity.Entities.Editor.Tests
 
             // Wrong extensions
             Assert.That(m_RootTestDirectory.GetFile(m_TestFileName + ".wrongextension").Exists, Is.False);
-            
+
             // File on the same level as the directory
             Assert.That(m_RootTestDirectory.GetFile(m_TestFileEditorDirectory).Exists, Is.False);
-            
+
             // File that doesn't exist.
             Assert.That(m_RootTestDirectory.GetFile("Blerg").Exists, Is.False);
         }
@@ -77,19 +77,19 @@ namespace Unity.Entities.Editor.Tests
         public void CanGetFileOutOfADirectoryFromFieldInfo()
         {
             var rootDirectory = m_RootTestDirectory.FullName;
-            
+
             // Testing on self with and without extension on the file
-            Assert.That(m_RootTestDirectory.GetFile(new FileInfo( Path.Combine(rootDirectory, m_TestFileFullName))).Exists, Is.True);
-            Assert.That(m_RootTestDirectory.GetFile(new FileInfo( Path.Combine(rootDirectory, m_TestFileName))).Exists, Is.False);
-            
+            Assert.That(m_RootTestDirectory.GetFile(new FileInfo(Path.Combine(rootDirectory, m_TestFileFullName))).Exists, Is.True);
+            Assert.That(m_RootTestDirectory.GetFile(new FileInfo(Path.Combine(rootDirectory, m_TestFileName))).Exists, Is.False);
+
             // Wrong extensions
-            Assert.That(m_RootTestDirectory.GetFile(new FileInfo( Path.Combine(rootDirectory, m_TestFileName + ".wrongextension"))).Exists, Is.False);
-            
+            Assert.That(m_RootTestDirectory.GetFile(new FileInfo(Path.Combine(rootDirectory, m_TestFileName + ".wrongextension"))).Exists, Is.False);
+
             // File on the same level as the directory
-            Assert.That(m_RootTestDirectory.GetFile(new FileInfo( Path.Combine(rootDirectory, m_TestFileEditorDirectory))).Exists, Is.False);
-            
+            Assert.That(m_RootTestDirectory.GetFile(new FileInfo(Path.Combine(rootDirectory, m_TestFileEditorDirectory))).Exists, Is.False);
+
             // File that doesn't exist.
-            Assert.That(m_RootTestDirectory.GetFile(new FileInfo( Path.Combine(rootDirectory, "Blerg"))).Exists, Is.False);
+            Assert.That(m_RootTestDirectory.GetFile(new FileInfo(Path.Combine(rootDirectory, "Blerg"))).Exists, Is.False);
         }
 
         [Test]
@@ -97,7 +97,7 @@ namespace Unity.Entities.Editor.Tests
         {
             const string key = "MyKey";
             var value = m_RootTestDirectory.FullName;
-            Assert.That(m_RootTestDirectory.ToHyperLink(key), Is.EqualTo($"<a {key}={value.DoubleQuoted()}>{value}</a>"));            
+            Assert.That(m_RootTestDirectory.ToHyperLink(key), Is.EqualTo($"<a {key}={value.DoubleQuoted()}>{value}</a>"));
             Assert.That(m_RootTestDirectory.ToHyperLink(string.Empty), Is.EqualTo($"<a>{value}</a>"));
             Assert.That(m_RootTestDirectory.ToHyperLink(null), Is.EqualTo($"<a>{value}</a>"));
         }

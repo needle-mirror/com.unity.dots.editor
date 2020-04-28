@@ -77,7 +77,7 @@ namespace Unity.Entities.Editor.Tests
         public void Should_Not_Convert_With_ConvertAndInject()
         {
             m_GrandParent.AddComponent<ConvertToEntity>().ConversionMode = ConvertToEntity.Mode.ConvertAndInjectGameObject;
-            
+
             Assert.IsTrue(EntityConversionUtility.IsGameObjectConverted(m_GrandParent));
             Assert.IsFalse(EntityConversionUtility.IsGameObjectConverted(m_Parent));
             Assert.IsFalse(EntityConversionUtility.IsGameObjectConverted(m_Child));
@@ -121,7 +121,7 @@ namespace Unity.Entities.Editor.Tests
             var conversionStatusGrandParent = GameObjectConversionEditorUtility.GetGameObjectConversionResultStatus(m_GrandParent);
             var conversionStatusParent = GameObjectConversionEditorUtility.GetGameObjectConversionResultStatus(m_Parent);
             var conversionStatusChild = GameObjectConversionEditorUtility.GetGameObjectConversionResultStatus(m_Child);
-            
+
             Assert.That(conversionStatusGrandParent, Is.EqualTo(GameObjectConversionResultStatus.ConvertedByConvertToEntity));
             Assert.That(conversionStatusParent, Is.EqualTo(GameObjectConversionResultStatus.ConvertedByAncestor));
             Assert.That(conversionStatusChild, Is.EqualTo(GameObjectConversionResultStatus.ConvertedByAncestor));
@@ -132,10 +132,10 @@ namespace Unity.Entities.Editor.Tests
         {
             var testEntities = new[]
             {
-                (entityGuid: new EntityGuid(1, 0, 4), entity: new Entity { Index = 5, Version = 0 }),
-                (entityGuid: new EntityGuid(2, 0, 0), entity: new Entity { Index = 6, Version = 0 }),
-                (entityGuid: new EntityGuid(1, 0, 0), entity: new Entity { Index = 1, Version = 0 }),
-                (entityGuid: new EntityGuid(1, 0, 2), entity: new Entity { Index = 3, Version = 0 }),
+                (entityGuid : new EntityGuid(1, 0, 4), entity : new Entity { Index = 5, Version = 0 }),
+                (entityGuid : new EntityGuid(2, 0, 0), entity : new Entity { Index = 6, Version = 0 }),
+                (entityGuid : new EntityGuid(1, 0, 0), entity : new Entity { Index = 1, Version = 0 }),
+                (entityGuid : new EntityGuid(1, 0, 2), entity : new Entity { Index = 3, Version = 0 }),
             };
 
             using (var entities = new NativeArray<Entity>(testEntities.Select(x => x.entity).ToArray(), Allocator.TempJob))
@@ -150,7 +150,7 @@ namespace Unity.Entities.Editor.Tests
                     Result = result
                 }.Run();
 
-                Assert.That(result.ToArray(), Is.EquivalentTo(new []
+                Assert.That(result.ToArray(), Is.EquivalentTo(new[]
                 {
                     testEntities[2].entity,
                     testEntities[3].entity,

@@ -52,7 +52,7 @@ namespace Unity.Entities.Editor
                     {
                         var convertToEntityComponent = gameObject.GetComponent<ConvertToEntity>();
 
-                        if (convertToEntityComponent == null) 
+                        if (convertToEntityComponent == null)
                         {
                             gameObjectToAddComponentList.Add(gameObject);
                         }
@@ -88,29 +88,29 @@ namespace Unity.Entities.Editor
                             switch (toggleState)
                             {
                                 case ToggleState.AllOn:
+                                {
+                                    foreach (var component in componentToRemoveFromGOList)
                                     {
-                                        foreach (var component in componentToRemoveFromGOList)
-                                        {
-                                            Undo.DestroyObjectImmediate(component);
-                                        }
+                                        Undo.DestroyObjectImmediate(component);
                                     }
                                     return;
+                                }
                                 case ToggleState.Mixed:
+                                {
+                                    foreach (var gameObject in gameObjectToAddComponentList)
                                     {
-                                        foreach (var gameObject in gameObjectToAddComponentList)
-                                        {
-                                            Undo.AddComponent<ConvertToEntity>(gameObject);
-                                        }
+                                        Undo.AddComponent<ConvertToEntity>(gameObject);
                                     }
                                     return;
+                                }
                                 case ToggleState.AllOff:
+                                {
+                                    foreach (var gameObject in gameObjectToAddComponentList)
                                     {
-                                        foreach (var gameObject in gameObjectToAddComponentList)
-                                        {
-                                            Undo.AddComponent<ConvertToEntity>(gameObject);
-                                        }
+                                        Undo.AddComponent<ConvertToEntity>(gameObject);
                                     }
                                     return;
+                                }
                             }
                         }
                     }
@@ -124,28 +124,28 @@ namespace Unity.Entities.Editor
                         switch (conversionStatus)
                         {
                             case GameObjectConversionResultStatus.ConvertedBySubScene:
-                                {
-                                    EditorGUILayout.ToggleLeft(EditorGUIUtility.TrTempContent(ConvertToEntityHeaderTextStrings.ConvertByScene), true);
-                                }
+                            {
+                                EditorGUILayout.ToggleLeft(EditorGUIUtility.TrTempContent(ConvertToEntityHeaderTextStrings.ConvertByScene), true);
                                 return;
+                            }
 
                             case GameObjectConversionResultStatus.NotConvertedByStopConvertToEntityComponent:
-                                {
-                                    EditorGUILayout.ToggleLeft(EditorGUIUtility.TrTempContent(ConvertToEntityHeaderTextStrings.StopConvertToEntityInHierarchy), false);
-                                }
+                            {
+                                EditorGUILayout.ToggleLeft(EditorGUIUtility.TrTempContent(ConvertToEntityHeaderTextStrings.StopConvertToEntityInHierarchy), false);
                                 return;
+                            }
 
                             case GameObjectConversionResultStatus.NotConvertedByConvertAndInjectMode:
-                                {
-                                    EditorGUILayout.ToggleLeft(EditorGUIUtility.TrTempContent(ConvertToEntityHeaderTextStrings.ConvertAndInjectInParents), false);
-                                }
+                            {
+                                EditorGUILayout.ToggleLeft(EditorGUIUtility.TrTempContent(ConvertToEntityHeaderTextStrings.ConvertAndInjectInParents), false);
                                 return;
+                            }
 
                             case GameObjectConversionResultStatus.ConvertedByAncestor:
-                                {
-                                    EditorGUILayout.ToggleLeft(EditorGUIUtility.TrTempContent(ConvertToEntityHeaderTextStrings.ConvertByAncestor), true);
-                                }
+                            {
+                                EditorGUILayout.ToggleLeft(EditorGUIUtility.TrTempContent(ConvertToEntityHeaderTextStrings.ConvertByAncestor), true);
                                 return;
+                            }
                         }
                     }
                 }

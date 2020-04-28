@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Unity.Editor;
 
 namespace Unity.Entities.Editor
 {
@@ -86,6 +85,26 @@ namespace Unity.Entities.Editor
                 default:
                     throw new ArgumentException("Unrecognized AccessMode");
             }
+        }
+
+        public static bool ContainsThisComponentType(ComponentSystemBase system, string componentTypeName)
+        {
+            if (system == null) return false;
+
+            foreach (var query in system.EntityQueries)
+            {
+                using (var queryTypeList = query.GetQueryTypes().ToPooledList())
+                {
+                    foreach (var queryType in queryTypeList.List)
+                    {
+                        var name = SpecifiedTypeName(queryType.GetManagedType());
+                        if (name.IndexOf(componentTypeName, StringComparison.OrdinalIgnoreCase) >= 0)
+                            return true;
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }

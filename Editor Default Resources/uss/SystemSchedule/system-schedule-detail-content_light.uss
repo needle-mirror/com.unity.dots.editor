@@ -1,12 +1,12 @@
 
 .system-schedule-detail__content-scheduling-toggle Label
 {
-	color: #000000; 
+    color: #000000;
 }
 
-.system-schedule-detail__content-scheduling-toggle 
+.system-schedule-detail__content-scheduling-toggle
 {
-	background-color: #E4E4E4; 
+    background-color: #E4E4E4;
 }
 
 .system-schedule-detail__content-scheduling-toggle:hover Label
@@ -14,7 +14,7 @@
     color: #000000;
 }
 
-.system-schedule-detail__content-scheduling-toggle:hover 
+.system-schedule-detail__content-scheduling-toggle:hover
 {
     background-color: #f4f4f4;
 }
@@ -24,12 +24,12 @@
      color: #ffffff;
 }
 
-.system-schedule-detail__content-scheduling-toggle:checked 
+.system-schedule-detail__content-scheduling-toggle:checked
 {
      background-color: #0094ff;
 }
 
-.system-schedule-detail__content-scheduling-toggle:checked:hover 
+.system-schedule-detail__content-scheduling-toggle:checked:hover
 {
     color: #ffffff;
 }

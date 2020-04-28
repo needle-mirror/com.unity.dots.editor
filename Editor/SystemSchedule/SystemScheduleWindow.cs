@@ -1,22 +1,21 @@
+using System;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEngine.LowLevel;
 
 namespace Unity.Entities.Editor
 {
     class SystemScheduleWindow : DOTSEditorWindow
     {
         static readonly string k_WindowName = L10n.Tr("Systems");
-        const string k_ShowFullPlayerLoopString = "Show Full Player Loop";
-        const string k_ShowInactiveSystemsString = "Show Inactive Systems";
+        static readonly string k_ShowFullPlayerLoopString = L10n.Tr("Show Full Player Loop");
+        static readonly string k_ShowInactiveSystemsString = L10n.Tr("Show Inactive Systems");
+        static readonly Vector2 k_MinWindowSize = new Vector2(600, 300);
 
         static World CurrentWorld { get; set; }
-        static PlayerLoopSystem CurrentLoopSystem { get; set; }
 
         SystemScheduleTreeView m_SystemTreeView;
-        ToolbarSearchField m_SearchField;
         ToolbarMenu m_WorldMenu;
 
         // To get information after domain reload.
@@ -55,38 +54,33 @@ namespace Unity.Entities.Editor
         /// </summary>
         public void OnEnable()
         {
-            titleContent = EditorGUIUtility.TrTextContent(k_WindowName);
-            minSize = new Vector2(600, 300);
+            titleContent = EditorGUIUtility.TrTextContent(k_WindowName, EditorIcons.System);
+            minSize = k_MinWindowSize;
 
             m_State = SessionState<State>.GetOrCreateState(k_StateKey);
 
-            var root = rootVisualElement;
-            Resources.Templates.SystemSchedule.AddStyles(root);
-
-            // Create toolbar for world drop-down, search field.
-            CreateToolBar(root);
-
-            // Create a header for treeview.
-            CreateTreeViewHeader(root);
-
-            // Create tree view for systems.
-            m_SystemTreeView = new SystemScheduleTreeView();
-            m_SystemTreeView.style.flexGrow = 1;
-
-            root.Add(m_SystemTreeView);
-
+            Resources.Templates.SystemSchedule.AddStyles(rootVisualElement);
+            Resources.Templates.DotsEditorCommon.AddStyles(rootVisualElement);
+            
+            CreateToolBar(rootVisualElement);
+            CreateTreeViewHeader(rootVisualElement);
+            CreateTreeView(rootVisualElement);
+           
             if (World.All.Count > 0)
                 BuildAll();
 
             PlayerLoopSystemGraph.OnGraphChanged += BuildAll;
+            SystemDetailsVisualElement.OnAddComponentType += OnAddComponentType;
+            SystemDetailsVisualElement.OnRemoveComponentType += OnRemoveComponentType;
         }
 
         void OnDisable()
         {
             PlayerLoopSystemGraph.OnGraphChanged -= BuildAll;
+            SystemDetailsVisualElement.OnAddComponentType -= OnAddComponentType;
+            SystemDetailsVisualElement.OnRemoveComponentType -= OnRemoveComponentType;
         }
 
-        // Create toolbar, including World drop-down, toggles, search field.
         void CreateToolBar(VisualElement root)
         {
             var toolbar = new Toolbar();
@@ -96,19 +90,19 @@ namespace Unity.Entities.Editor
             m_WorldMenu = CreateWorldSelector();
             toolbar.Add(m_WorldMenu);
 
-            // right side container for styling.
             var rightSideContainer = new VisualElement();
             rightSideContainer.AddToClassList(UssClasses.SystemScheduleWindow.ToolbarRightSideContainer);
-
-            AddSearchField(rightSideContainer, UssClasses.SystemScheduleWindow.SearchField);
             
-            var dropDownSettings = CreateDropDownSettings(UssClasses.Common.SettingsIcon);
+            AddSearchIcon(rightSideContainer, UssClasses.DotsEditorCommon.SearchIcon);
+            AddSearchFieldContainer(root, UssClasses.DotsEditorCommon.SearchFieldContainer);
+            
+            var dropDownSettings = CreateDropDownSettings(UssClasses.DotsEditorCommon.SettingsIcon);
             UpdateDropDownSettings(dropDownSettings);
             rightSideContainer.Add(dropDownSettings);
 
             toolbar.Add(rightSideContainer);
         }
-        
+
         void UpdateDropDownSettings(ToolbarMenu dropdownSettings)
         {
             var menu = dropdownSettings.menu;
@@ -116,7 +110,7 @@ namespace Unity.Entities.Editor
             menu.AppendAction(k_ShowFullPlayerLoopString, a =>
             {
                 m_State.ShowFullPlayerLoop = !m_State.ShowFullPlayerLoop;
-                
+
                 if (World.All.Count > 0)
                     BuildAll();
             }, a => m_State.ShowFullPlayerLoop ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
@@ -157,7 +151,14 @@ namespace Unity.Entities.Editor
             root.Add(systemTreeViewHeader);
         }
 
-        // Build the root node for the tree view.
+        void CreateTreeView(VisualElement root)
+        {
+            m_SystemTreeView = new SystemScheduleTreeView();
+            m_SystemTreeView.style.flexGrow = 1;
+            m_SystemTreeView.SearchFilter = SearchFilter;
+            root.Add(m_SystemTreeView);
+        }
+        
         void BuildAll()
         {
             CurrentWorld = !m_State.ShowFullPlayerLoop ? GetCurrentlySelectedWorld() : null;
@@ -175,10 +176,10 @@ namespace Unity.Entities.Editor
                 {
                     menu.RemoveItemAt(0);
                 }
-                
+
                 m_WorldMenu.text = k_ShowFullPlayerLoopString;
             }
-            
+
             if (GetCurrentlySelectedWorld() == null)
                 return;
 
@@ -206,9 +207,33 @@ namespace Unity.Entities.Editor
             BuildAll();
         }
 
+        void OnAddComponentType(string componentTypeName)
+        {
+            if (!string.IsNullOrEmpty(SearchFilter)
+                && SearchFilter.IndexOf(componentTypeName, StringComparison.OrdinalIgnoreCase) >= 0)
+                return;
+
+            SearchFilter += string.IsNullOrEmpty(SearchFilter)
+                ? componentTypeName + " "
+                : " " + componentTypeName + " ";
+        }
+
+        void OnRemoveComponentType(string componentTypeName)
+        {
+            if (string.IsNullOrEmpty(SearchFilter))
+                return;
+
+            var found = SearchFilter.IndexOf(componentTypeName, StringComparison.OrdinalIgnoreCase);
+            if (found < 0)
+                return;
+
+            SearchFilter = SearchFilter.Remove(found, componentTypeName.Length).Trim();
+        }
+
         protected override void OnFilterChanged(string filter)
         {
-            m_SystemTreeView.SearchFilter = filter;
+            SearchFilter = filter;
+            m_SystemTreeView.SearchFilter = SearchFilter;
             BuildAll();
         }
     }

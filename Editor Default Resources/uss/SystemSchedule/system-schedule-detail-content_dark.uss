@@ -1,32 +1,31 @@
 
-
 .system-schedule-detail__content-scheduling-toggle Label
 {
-	color: #ffffff; 
+    color: #ffffff;
 }
 
-.system-schedule-detail__content-scheduling-toggle 
+.system-schedule-detail__content-scheduling-toggle
 {
-	background-color: #585858; 
+    background-color: #585858;
 }
 
 .system-schedule-detail__content-scheduling-toggle:hover Label
 {
-	color: #ffffff;
+    color: #ffffff;
 }
 
-.system-schedule-detail__content-scheduling-toggle:hover 
+.system-schedule-detail__content-scheduling-toggle:hover
 {
     background-color: #777777;
 }
 
-.system-schedule-detail__content-scheduling-toggle:checked 
+.system-schedule-detail__content-scheduling-toggle:checked
 {
     color: #ffffff;
     background-color: #0094ff;
 }
 
-.system-schedule-detail__content-scheduling-toggle:checked:hover 
+.system-schedule-detail__content-scheduling-toggle:checked:hover
 {
     color: #ffffff;
 }

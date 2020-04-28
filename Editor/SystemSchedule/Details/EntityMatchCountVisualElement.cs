@@ -28,7 +28,7 @@ namespace Unity.Entities.Editor
 
         static void SetText(Label label, string text)
         {
-            if (label.text != text)
+            if (null != label && label.text != text)
             {
                 label.text = text;
             }
@@ -36,7 +36,7 @@ namespace Unity.Entities.Editor
 
         public void Update()
         {
-            if (null == Query)
+            if (null == Query || !Query.IsCreated)
                 return;
 
             SetText(m_EntityMatchLabel, Query.CalculateEntityCount().ToString());

@@ -32,6 +32,7 @@ namespace Unity.Entities.Editor
             Resources.Templates.SystemScheduleItem.Clone(this);
             binding = this;
 
+            AddToClassList(UssClasses.DotsEditorCommon.CommonResources);
             AddToClassList(UssClasses.Resources.SystemSchedule);
 
             m_SystemEnableToggle = this.Q<Toggle>(className: UssClasses.SystemScheduleWindow.Items.Enabled);

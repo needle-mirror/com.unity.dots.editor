@@ -254,12 +254,12 @@ namespace Unity.Entities.Editor
                 if (hasAdditionalEntities)
                 {
                     m_State.ShowAdditionalEntities = EditorGUILayout.Foldout(m_State.ShowAdditionalEntities,
-                                                                             EditorGUIUtility.TrTextContentWithIcon($"{entityName} + {additionalEntitiesCount} {(additionalEntitiesCount > 1 ? "Entities" : "Entity")}", EditorIcons.Entity),
-                                                                             new GUIStyle(EditorStyles.foldout)
-                                                                             {
-                                                                                 fixedWidth = 650.0f,
-                                                                                 fontStyle = FontStyle.Bold
-                                                                             });
+                        EditorGUIUtility.TrTextContentWithIcon($"{entityName} + {additionalEntitiesCount} {(additionalEntitiesCount > 1 ? "Entities" : "Entity")}", EditorIcons.Entity),
+                        new GUIStyle(EditorStyles.foldout)
+                        {
+                            fixedWidth = 650.0f,
+                            fontStyle = FontStyle.Bold
+                        });
 
                     GUILayout.Space(4);
 
@@ -381,7 +381,7 @@ namespace Unity.Entities.Editor
 
         void SelectRange(PooledList<ComponentType> commonComponentTypes, int boundA, int boundB)
         {
-            for (var i = math.min(boundA, boundB); i <=math.max(boundA, boundB); i++)
+            for (var i = math.min(boundA, boundB); i <= math.max(boundA, boundB); i++)
             {
                 m_State.SelectedComponentTypes.Add(commonComponentTypes.List[i].TypeIndex);
             }

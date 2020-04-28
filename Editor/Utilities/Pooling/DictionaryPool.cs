@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Unity.Entities.Editor
@@ -20,7 +20,7 @@ namespace Unity.Entities.Editor
                 s_Pool.Release(toRelease);
             }
         }
-        
+
         public readonly Dictionary<TKey, TValue> Dictionary;
 
         internal static PooledDictionary<TKey, TValue> Make()
@@ -43,6 +43,4 @@ namespace Unity.Entities.Editor
             DictionaryPool.Release(Dictionary);
         }
     }
-    
-    
 }

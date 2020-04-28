@@ -13,6 +13,9 @@ namespace Unity.Entities.Editor
         public World World;
         public bool ShowInactiveSystems;
 
+        const string k_ComponentToken = "c:";
+        const int k_ComponentTokenLength = 2;
+
         public ComponentSystemBase System => (Node as IComponentSystemNode)?.System;
 
         public bool HasChildren => Node.Children.Count > 0;
@@ -103,7 +106,7 @@ namespace Unity.Entities.Editor
             return totalTime.ToString("f2");
         }
 
-        int ITreeViewItem.id => Node.Hash;
+        public int id => Node.Hash;
         public ITreeViewItem parent { get; internal set; }
 
         public IEnumerable<ITreeViewItem> children
@@ -135,7 +138,7 @@ namespace Unity.Entities.Editor
             throw new NotImplementedException();
         }
 
-        void PopulateChildren()
+        public void PopulateChildren(string searchFilter = null)
         {
             m_CachedChildren.Clear();
             foreach (var child in Node.Children)
@@ -146,8 +149,77 @@ namespace Unity.Entities.Editor
                 if (!child.IsRunning && !ShowInactiveSystems)
                     continue;
 
+                // Filter systems by system name or whether contains given components.
+                if (!string.IsNullOrEmpty(searchFilter))
+                {
+                    if (!FilterSystem(child, searchFilter))
+                        continue;
+                }
+
                 var item = SystemSchedulePool.GetSystemTreeViewItem(Graph, child, this, World, ShowInactiveSystems);
                 m_CachedChildren.Add(item);
+            }
+        }
+
+        static bool FilterSystem(IPlayerLoopNode node, string searchFilter)
+        {
+            switch (node)
+            {
+                case ComponentSystemBaseNode baseNode:
+                {
+                    return FilterBaseSystem(baseNode, searchFilter);
+                }
+
+                case ComponentGroupNode groupNode:
+                {
+                    if (groupNode.Children.Any(child => FilterSystem(child, searchFilter)))
+                    {
+                        return true;
+                    }
+
+                    break;
+                }
+            }
+
+            return false;
+        }
+
+        static bool FilterBaseSystem(ComponentSystemBaseNode node, string searchFilter)
+        {
+            if (null == node)
+                return true;
+
+            var systemName = node.Name;
+
+            using (var stringList = SplitSearchString(searchFilter).ToPooledList())
+            {
+                foreach (var singleString in stringList.List)
+                {
+                    if (singleString.StartsWith(k_ComponentToken, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!EntityQueryUtility.ContainsThisComponentType(node.System, singleString.Substring(k_ComponentTokenLength)))
+                            return false;
+                    }
+                    else
+                    {
+                        systemName = systemName.Replace(" ", string.Empty);
+                        if (systemName.IndexOf(singleString, StringComparison.OrdinalIgnoreCase) < 0)
+                            return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public static IEnumerable<string> SplitSearchString(string searchString)
+        {
+            searchString = searchString.Trim();
+
+            var stringArray = searchString.Split(' ');
+            foreach (var singleString in stringArray)
+            {
+                yield return singleString;
             }
         }
 

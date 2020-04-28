@@ -1,7 +1,7 @@
 namespace Unity.Entities.Editor
 {
     /// <summary>
-    /// Attribute to tag a type to be included as a setting for the DOTS Editor project settings. 
+    /// Attribute to tag a type to be included as a setting for the DOTS Editor project settings.
     /// </summary>
     sealed class DOTSEditorProjectSettingsAttribute : SettingsAttribute
     {

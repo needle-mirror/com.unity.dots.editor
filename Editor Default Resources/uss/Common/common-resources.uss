@@ -1,14 +1,3 @@
-.common__resources
-{
-    --settings-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/Settings/Settings.png");
-}
-
-.common__settings-icon 
-{
-	width: 16px;
-	height: 16px;
-	background-image: var(--settings-icon); 
-}
 
 .system-schedule__resources
 {
@@ -24,6 +13,12 @@
     --readwrite-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/Read Write/Read Write.png");
     --writeonly-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/Write Only/Write Only.png");
     --scripts-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/Scripts/Scripts.png");
-    /*--system-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/System/System.png");*/
+    --system-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/System/System.png");
 }
 
+.entity-hierarchy__resources
+{
+    --entity-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/d_Entity.png");
+    --scene-icon--selected: resource('d_SceneAsset Icon');
+    --go-to-systems-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Go To Systems/Go to Systems.png");
+}

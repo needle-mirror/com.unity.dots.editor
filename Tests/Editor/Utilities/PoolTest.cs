@@ -20,16 +20,16 @@ namespace Unity.Entities.Editor.Tests
             var pooled = Pooling.GetList<int>();
             var list = pooled.List;
             Assert.That(list.Count, Is.EqualTo(0));
-            for(var i = 0; i < count; ++i)
+            for (var i = 0; i < count; ++i)
             {
                 list.Add(i);
             }
-            
+
             Assert.That(list.Count, Is.EqualTo(count));
             Assert.That(() => pooled.Dispose(), Throws.Nothing);
             Assert.That(list.Count, Is.EqualTo(0));
         }
-        
+
         [Test]
         public void GetAndReleaseClearList()
         {
@@ -49,10 +49,10 @@ namespace Unity.Entities.Editor.Tests
             {
                 // This relies on the fact that we internally uses a stack, so getting a new one will re-use the last returned one.
                 Assert.That(pooled.List, Is.SameAs(hackerList));
-                Assert.That(hackerList.Count, Is.EqualTo(0));    
+                Assert.That(hackerList.Count, Is.EqualTo(0));
             }
         }
-        
+
         [Test]
         public void ReleasingMultipleTimesThrows()
         {

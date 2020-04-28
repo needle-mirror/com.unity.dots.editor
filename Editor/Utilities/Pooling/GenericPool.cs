@@ -1,4 +1,3 @@
-
 namespace Unity.Entities.Editor
 {
     static class Pool<T> where T : class, IPoolable, new()

@@ -28,14 +28,14 @@ namespace Unity.Entities.Editor
 
             if (!gameObject || gameObject == null || !GameObjectConversionEditorUtility.IsConverted(gameObject))
                 return;
-            
+
             var logs = EntityConversionUtility.GetConvertedComponentsInfo(gameObject, EntityConversionPreview.GetCurrentlySelectedWorld()).LogEvents;
-            
+
             if (null == logs || logs.Count == 0)
                 return;
 
             var errors = logs.Where(IsError).ToList();
-            
+
             var pagination = new PaginationField
             {
                 ItemsPerPage = k_GameObjectHeaderLogEventItemsPerPage,
@@ -45,7 +45,7 @@ namespace Unity.Entities.Editor
 
             var startIndex = pagination.Page * pagination.ItemsPerPage;
             var endIndex = Math.Min(errors.Count, (pagination.Page + 1) * pagination.ItemsPerPage);
-            
+
             for (var i = startIndex; i < endIndex; i++)
             {
                 EditorGUILayout.HelpBox(errors[i].Message, MessageType.Error, true);

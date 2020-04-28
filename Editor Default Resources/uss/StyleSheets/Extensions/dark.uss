@@ -1,7 +1,7 @@
 .EntityConversionComponentTag {
     color: #ffffff;
     background-color: #585858;
-	-unity-enable-hovering: --enable-style-hovering;
+    -unity-enable-hovering: --enable-style-hovering;
 }
 
 .EntityConversionComponentTag:checked {
@@ -32,7 +32,7 @@
 .AdditionalEntityToggle {
     color: #000000;
     background-color: #222222;
-	-unity-enable-hovering: --enable-style-hovering;
+    -unity-enable-hovering: --enable-style-hovering;
 }
 
 .AdditionalEntityToggle:checked {
@@ -47,7 +47,7 @@
 
 /*
 .EntityConversionRuntimeDataArea {
-	color: #000000;
-	background-color: #222222;
+    color: #000000;
+    background-color: #222222;
 }
 */

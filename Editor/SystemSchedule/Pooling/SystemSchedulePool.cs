@@ -29,6 +29,7 @@ namespace Unity.Entities.Editor
             {
                 k_PerTreeViewElements[treeView] = list = new HashSet<SystemInformationVisualElement>();
             }
+
             list.Add(item);
             item.TreeView = treeView;
             return item;

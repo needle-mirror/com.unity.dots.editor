@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using Unity.Entities;
 
 namespace Unity.Entities.Editor
 {
@@ -20,7 +19,7 @@ namespace Unity.Entities.Editor
                     if (defaultProperty != null && defaultProperty.GetMethod != null &&
                         defaultProperty.GetMethod.ReturnType == type)
                     {
-                        DefaultValue = (T) defaultProperty.GetValue(null);
+                        DefaultValue = (T)defaultProperty.GetValue(null);
                     }
                 }
                 catch (Exception ex)
@@ -31,7 +30,7 @@ namespace Unity.Entities.Editor
 
             public static readonly T DefaultValue;
         }
-        
+
         public static class AttributeCache<T>
         {
             private struct Lookup<TAttribute>
@@ -56,7 +55,7 @@ namespace Unity.Entities.Editor
                 return Lookup<TAttribute>.Any;
             }
         }
-        
+
         public static T GetDefaultValueForStruct<T>() where T : struct
         {
             return DefaultValueCache<T>.DefaultValue;
@@ -68,14 +67,14 @@ namespace Unity.Entities.Editor
             {
                 return null;
             }
-            
+
             var generic = typeof(DefaultValueCache<>).MakeGenericType(type);
             RuntimeHelpers.RunClassConstructor(generic.TypeHandle);
             const string defaultPropertyName = "DefaultValue";
-            return generic.GetField(defaultPropertyName, BindingFlags.Public | BindingFlags.Static)?
+            return generic.GetField(defaultPropertyName, BindingFlags.Public | BindingFlags.Static) ?
                 .GetValue(null);
         }
-        
+
         public static bool HasAttribute<TType, TAttribute>()
             where TAttribute : Attribute
         {

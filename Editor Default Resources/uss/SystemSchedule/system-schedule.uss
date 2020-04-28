@@ -1,40 +1,38 @@
 /**********************************************************************************************************************/
 /* Toolbar                                                                                                            */
 /**********************************************************************************************************************/
+
 .system-schedule__toolbar-container {
-	justify-content: space-between;
+    justify-content: space-between;
 }
 
 .system-schedule__toolbar-right-side-container {
-	flex-direction: row;
-	justify-content: flex-end;
-}
-
-.system-schedule__search-field {
-	flex: 1;
-	max-width: 100px;
+    flex-direction: row;
+    justify-content: flex-end;
 }
 
 
 /**********************************************************************************************************************/
 /* TreeView Header                                                                                                    */
 /**********************************************************************************************************************/
+
 .system-schedule__tree-view__header {
-	justify-content: flex-start;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .system-schedule__tree-view__system-label {
-	padding-left: 25px;
-	width: 350px;
-	flex-grow: 1;
+    padding-left: 25px;
+    width: 350px;
+    flex-grow: 1;
 }
 
 .system-schedule__tree-view__matches-label {
-	width: 65px;
+    width: 65px;
 }
 
 .system-schedule__tree-view__time-label {
-	width: 65px;
+    width: 65px;
 }
 
 /**********************************************************************************************************************/
@@ -43,46 +41,43 @@
 
 /*** system details header ***/
 .system-schedule__details-header-left-container {
-	flex-direction: row;
-	justify-content: flex-start;
-	align-items: center;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .system-schedule__details-header-right-container {
-	flex-direction: row;
+    flex-direction: row;
 }
 
 .system-schedule__details-content-container {
-	padding: 4px 4px 4px 4px;
+    padding: 4px 4px 4px 4px;
 }
 
 /*** query header ***/
 .system-schedule__details-query-header-container {
-	flex-direction: row;
-	justify-content: space-between;
+    flex-direction: row;
+    justify-content: space-between;
 }
 
 .system-schedule__details-query-component-type-toggle-container {
-	border-radius: 4px;
-	padding: 2px 4px 2px 4px;
+    border-radius: 4px;
+    padding: 2px 4px 2px 4px;
 }
 
 .system-schedule__details-each-query-results-container {
-	flex-direction: row;
-	padding: 2px 4px 2px 4px;
+    flex-direction: row;
+    padding: 2px 4px 2px 4px;
 }
-
-/*** job ***/
-
 
 /*** schedule filter ***/
 .system-schedule__details-schedule-filter-button-container {
-	flex-direction: row;
+    flex-direction: row;
 }
 
 .system-schedule__details-schedule-filter-button {
-	border-radius: 4px;
-	padding: 2px 4px 2px 4px;
+    border-radius: 4px;
+    padding: 2px 4px 2px 4px;
 }
 
 

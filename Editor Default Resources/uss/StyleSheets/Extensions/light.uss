@@ -1,11 +1,11 @@
 .EntityConversionComponentArea {
-	background-color: #c1c1c1;
+    background-color: #c1c1c1;
 }
 
 .EntityConversionComponentTag {
     color: #000000;
     background-color: #e4e4e4;
-	-unity-enable-hovering: --enable-style-hovering;
+    -unity-enable-hovering: --enable-style-hovering;
 }
 
 .EntityConversionComponentTag:checked {
@@ -22,7 +22,7 @@
     background-color: #f4f4f4;
 }
 
-.AdditionalEntityIconTag {    
+.AdditionalEntityIconTag {
     color: #ffffff;
     background-color: #dfdfdf;
 }
@@ -40,7 +40,7 @@
 .AdditionalEntityToggle {
     color: #000000;
     background-color: #e4e4e4;
-	-unity-enable-hovering: --enable-style-hovering;
+    -unity-enable-hovering: --enable-style-hovering;
 }
 
 .AdditionalEntityToggle:checked {

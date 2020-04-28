@@ -26,13 +26,17 @@ namespace Unity.Entities.Editor
         public static class Templates
         {
             public static readonly UITemplate CommonResources = new UITemplate("Common/common-resources");
+
             public static readonly UITemplate SystemSchedule = new UITemplate("SystemSchedule/system-schedule");
             public static readonly UITemplate SystemScheduleItem = new UITemplate("SystemSchedule/system-schedule-item");
             public static readonly UITemplate SystemScheduleDetailHeader = new UITemplate("SystemSchedule/system-schedule-detail-header");
             public static readonly UITemplate SystemScheduleDetailContent = new UITemplate("SystemSchedule/system-schedule-detail-content");
             public static readonly UITemplate SystemScheduleDetailQuery = new UITemplate("SystemSchedule/system-schedule-detail-query");
-            public static readonly UITemplate CustomToolbarToggle = new UITemplate("Common/custom-toolbar-toggle");
+            public static readonly UITemplate DotsEditorCommon = new UITemplate("Common/dots-editor-common");
             public static readonly UITemplate Settings = new UITemplate("Settings/settings");
+            public static readonly UITemplate CustomQueryResults = new UITemplate("Common/custom-query-results");
+            public static readonly UITemplate EntityHierarchyToolbar = new UITemplate("EntityHierarchy/entity-hierarchy-toolbar");
+            public static readonly UITemplate EntityHierarchyItem = new UITemplate("EntityHierarchy/entity-hierarchy-item");
         }
     }
 }

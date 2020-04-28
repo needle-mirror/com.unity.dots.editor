@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Unity.Entities.Editor
@@ -20,7 +20,7 @@ namespace Unity.Entities.Editor
                 s_Pool.Release(toRelease);
             }
         }
-        
+
         public readonly HashSet<T> Set;
 
         internal static PooledHashSet<T> Make()
