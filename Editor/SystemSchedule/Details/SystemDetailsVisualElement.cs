@@ -180,7 +180,7 @@ namespace Unity.Entities.Editor
 
                 // Entity match label
                 var matchCountContainer = eachRowContainer.Q(className: UssClasses.SystemScheduleWindow.Detail.EntityMatchCountContainer);
-                var matchCountLabel = new EntityMatchCountVisualElement { Query = query };
+                var matchCountLabel = new EntityMatchCountVisualElement { Query = query, CurrentWorld = Target.System.World};
                 matchCountContainer.Add(matchCountLabel);
 
                 // Show more to unfold the results or less to fold.

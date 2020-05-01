@@ -5,7 +5,7 @@ using Unity.PerformanceTesting;
 
 namespace Unity.Entities.Editor.Tests
 {
-    [Ignore("Re-enable these tests when performance package is updated")]
+    [Ignore("Temporarily ignored - will be re-enabled on upcoming version including update to burst 1.3.0-preview.11 and improved EntityDiffer")]
     [TestFixture]
     [Category("Performance")]
     class SharedComponentDataDifferPerformanceTests : DifferTestFixture
@@ -29,13 +29,13 @@ namespace Unity.Entities.Editor.Tests
             })
                 .SetUp(() =>
                 {
-                    World.EntityManager.EntityComponentStore->IncrementGlobalSystemVersion();
+                    World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
                     for (var i = 0; i < changeCount; i++)
                     {
                         World.EntityManager.SetSharedComponentData(entities[i], new EcsTestSharedComp { value = counter++ % 100 });
                     }
                 })
-                .Definition($"{changeCount} changes over {entityCount} entities using {sharedComponentCount} different shared components")
+                .SampleGroup($"{changeCount} changes over {entityCount} entities using {sharedComponentCount} different shared components")
                 .WarmupCount(10)
                 .MeasurementCount(100)
                 .Run();
@@ -67,7 +67,7 @@ namespace Unity.Entities.Editor.Tests
                 {
                     sharedComponentDataDiffer.Dispose();
                 })
-                .Definition($"First check over {entityCount} entities using {sharedComponentCount} different shared components")
+                .SampleGroup($"First check over {entityCount} entities using {sharedComponentCount} different shared components")
                 .WarmupCount(10)
                 .MeasurementCount(100)
                 .Run();
@@ -90,7 +90,7 @@ namespace Unity.Entities.Editor.Tests
                 var result = sharedComponentDataDiffer.GatherComponentChanges(World.EntityManager, query, Allocator.TempJob);
                 result.Dispose();
             })
-                .Definition($"Check over {entityCount} entities using {sharedComponentCount} different shared components")
+                .SampleGroup($"Check over {entityCount} entities using {sharedComponentCount} different shared components")
                 .WarmupCount(10)
                 .MeasurementCount(100)
                 .Run();

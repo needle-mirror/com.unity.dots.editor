@@ -126,7 +126,7 @@ namespace Unity.Entities.Editor
                 sharedComponentDataBuffer.AddNoResize(GCHandle.Alloc(m_ManagedComponentStoreStateCopy[indicesInManagedComponentStore[i]]));
             }
 
-            var count = entityManager.ManagedComponentStore.GetSharedComponentCount();
+            var count = entityManager.GetCheckedEntityDataAccess()->ManagedComponentStore.GetSharedComponentCount();
             m_ManagedComponentStoreStateCopy.Capacity = count;
             m_ManagedComponentStoreStateCopy.Clear();
 
@@ -137,7 +137,7 @@ namespace Unity.Entities.Editor
             m_ManagedComponentStoreStateCopy.Add(m_DefaultComponentDataValue);
             for (var i = 1; i < count; i++)
             {
-                var sharedComponentDataNonDefaultBoxed = entityManager.ManagedComponentStore.GetSharedComponentDataNonDefaultBoxed(i);
+                var sharedComponentDataNonDefaultBoxed = entityManager.GetCheckedEntityDataAccess()->ManagedComponentStore.GetSharedComponentDataNonDefaultBoxed(i);
                 m_ManagedComponentStoreStateCopy.Add(sharedComponentDataNonDefaultBoxed);
             }
 
@@ -146,17 +146,17 @@ namespace Unity.Entities.Editor
                 sharedComponentDataBuffer.AddNoResize(GCHandle.Alloc(m_ManagedComponentStoreStateCopy[indicesInManagedComponentStore[i]]));
             }
 
-            var handles = new NativeArray<JobHandle>(5, Allocator.Temp)
+            for (var i = 0; i < gatheredChanges.Length; i++)
             {
-                [0] = chunks.Dispose(concatResultsJob),
-                [1] = gatheredChanges.Dispose(concatResultsJob),
-                [2] = allocatedShadowChunksForTheFrame.Dispose(concatResultsJob),
-                [3] = removedShadowChunks.Dispose(concatResultsJob),
-                [4] = indicesInManagedComponentStore.Dispose(concatResultsJob)
-            };
-            var jobHandle = JobHandle.CombineDependencies(handles);
-            handles.Dispose();
-            jobHandle.Complete();
+                var c = gatheredChanges[i];
+                c.Dispose();
+            }
+
+            chunks.Dispose();
+            gatheredChanges.Dispose();
+            allocatedShadowChunksForTheFrame.Dispose();
+            removedShadowChunks.Dispose();
+            indicesInManagedComponentStore.Dispose();
 
             return new ComponentChanges(m_TypeIndex, sharedComponentDataBuffer, addedEntities, addedEntitiesMapping, removedEntities, removedEntitiesMapping);
         }
@@ -458,11 +458,20 @@ namespace Unity.Entities.Editor
             }
         }
 
-        unsafe struct ChangesCollector
+        unsafe struct ChangesCollector : IDisposable
         {
             public Chunk* Chunk;
             public UnsafeList AddedEntities;
             public UnsafeList RemovedEntities;
+
+            public void Dispose()
+            {
+                Chunk = null;
+                if (AddedEntities.IsCreated)
+                    AddedEntities.Dispose();
+                if (RemovedEntities.IsCreated)
+                    RemovedEntities.Dispose();
+            }
         }
 
         internal readonly struct ComponentChanges : IDisposable

@@ -3,6 +3,7 @@ using Unity.Collections;
 
 namespace Unity.Entities.Editor.Tests
 {
+    [Ignore("Temporarily ignored - will be re-enabled on upcoming version including update to burst 1.3.0-preview.11 and improved EntityDiffer")]
     class EntityDifferTests
     {
         World m_World;

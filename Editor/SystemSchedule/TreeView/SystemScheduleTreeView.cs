@@ -21,6 +21,7 @@ namespace Unity.Entities.Editor
         public SystemScheduleTreeView()
         {
             SystemTreeView = new TreeView(m_TreeRootItems, 20, MakeItem, BindItem);
+            SystemTreeView.viewDataKey = Constants.State.ViewDataKeyPrefix + nameof(SystemScheduleTreeView);
             SystemTreeView.style.flexGrow = 1;
             Add(SystemTreeView);
 
@@ -70,7 +71,14 @@ namespace Unity.Entities.Editor
 
         public void Refresh(World world, bool showInactiveSystems)
         {
+            if (m_World != world)
+            {
+                if (this.Contains(m_SystemDetailsVisualElement))
+                    this.Remove(m_SystemDetailsVisualElement);
+            }
+
             m_World = world;
+
             foreach (var root in m_TreeRootItems.OfType<SystemTreeViewItem>())
             {
                 root.ReturnToPool();

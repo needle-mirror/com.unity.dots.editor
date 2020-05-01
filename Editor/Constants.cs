@@ -16,6 +16,7 @@ namespace Unity.Entities.Editor
 
         public static class MenuItems
         {
+            public const int WindowPriority = 3006;   
             public const string SystemScheduleWindow = "internal:Window/DOTS/Systems Schedule";
             public const string EntityHierarchyWindow = "internal:Window/DOTS/Entity Hierarchy";
         }
@@ -24,6 +25,11 @@ namespace Unity.Entities.Editor
         {
             public const string InspectorSettings = "Inspector Settings";
             public const string AdvancedSettings = "Advanced Settings";
+        }
+
+        public static class State
+        {
+            public const string ViewDataKeyPrefix = "dots-editor__";
         }
     }
 }

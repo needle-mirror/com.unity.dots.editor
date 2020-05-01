@@ -5,7 +5,7 @@ using Unity.PerformanceTesting;
 
 namespace Unity.Entities.Editor.Tests
 {
-    [Ignore("Re-enable this test when performance package is updated")]
+    [Ignore("Temporarily ignored - will be re-enabled on upcoming version including update to burst 1.3.0-preview.11 and improved EntityDiffer")]
     [TestFixture]
     [Category("Performance")]
     class EntityDifferPerformanceTests : DifferTestFixture
@@ -37,7 +37,7 @@ namespace Unity.Entities.Editor.Tests
 
             Measure.Method(() => { differ.GetEntityQueryMatchDiffAsync(queries[currentQuery % queries.Length], newEntities, missingEntities).Complete(); })
                 .SetUp(() => currentQuery++)
-                .Definition("Batched")
+                .SampleGroup("Batched")
                 .WarmupCount(10)
                 .MeasurementCount(150)
                 .Run();

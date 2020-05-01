@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0] - 2020-05-01
+[Added]
+* Added package `com.unity.test-framework.performance` version `2.0.8-preview` as a dependency
+[Changed]
+* Updated package `com.unity.entities` from `0.9.0-preview.6` to `0.10.1-preview.6`
+* Updated package `com.unity.properties` from `1.1.1-preview` to `1.2.0-preview`
+* Updated package `com.unity.serialization` from `1.1.1-preview` to `1.2.0-preview`
+* Updated package `com.unity.properties.ui` from `1.1.1-preview` to `1.2.0-preview`
+* Updated package `com.unity.jobs` from `0.2.8-preview.3` to `0.2.10-preview.3`
+* Updated package `com.unity.burst` from `1.3.0-preview.7` to `1.3.0-preview.10`
+
 ## [0.5.1] - 2020-04-27
 [Changed]
 * Updated package dependencies

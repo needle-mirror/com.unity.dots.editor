@@ -4,7 +4,7 @@ using Unity.PerformanceTesting;
 
 namespace Unity.Entities.Editor.Tests
 {
-    [Ignore("Re-enable these tests when performance package is updated")]
+    [Ignore("Temporarily ignored - will be re-enabled on upcoming version including update to burst 1.3.0-preview.11 and improved EntityDiffer")]
     [TestFixture]
     [Category("Performance")]
     class ComponentDataDifferPerformanceTests : DifferTestFixture
@@ -30,13 +30,13 @@ namespace Unity.Entities.Editor.Tests
             })
                 .SetUp(() =>
                 {
-                    World.EntityManager.EntityComponentStore->IncrementGlobalSystemVersion();
+                    World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
                     for (var i = 0; i < changeCount; i++)
                     {
                         World.EntityManager.SetComponentData(entities[i], new EcsTestData { value = counter++ });
                     }
                 })
-                .Definition($"{changeCount} changes over {entityCount} entities")
+                .SampleGroup($"{changeCount} changes over {entityCount} entities")
                 .WarmupCount(10)
                 .MeasurementCount(100)
                 .Run();
@@ -69,7 +69,7 @@ namespace Unity.Entities.Editor.Tests
                 {
                     componentDiffer.Dispose();
                 })
-                .Definition($"First check over {entityCount} entities using {sharedComponentCount} different shared components")
+                .SampleGroup($"First check over {entityCount} entities using {sharedComponentCount} different shared components")
                 .WarmupCount(10)
                 .MeasurementCount(100)
                 .Run();

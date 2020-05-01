@@ -12,7 +12,7 @@ namespace Unity.Entities.Editor
         IEntityHierarchyGroupingStrategy m_Strategy;
         EntityHierarchyTreeView m_TreeView;
 
-        [MenuItem(Constants.MenuItems.EntityHierarchyWindow)]
+        [MenuItem(Constants.MenuItems.EntityHierarchyWindow, false, Constants.MenuItems.WindowPriority)]
         static void OpenWindow() => GetWindow<EntityHierarchyWindow>().Show();
 
         void OnEnable()
@@ -53,7 +53,7 @@ namespace Unity.Entities.Editor
             var rightSide = rootVisualElement.Q<VisualElement>(className: UssClasses.EntityHierarchyWindow.Toolbar.RightSide);
 
             leftSide.Add(CreateWorldSelector());
-            
+
             AddSearchIcon(rightSide, UssClasses.DotsEditorCommon.SearchIcon);
             AddSearchFieldContainer(rootVisualElement, UssClasses.DotsEditorCommon.SearchFieldContainer);
         }

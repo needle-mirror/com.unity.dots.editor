@@ -14,10 +14,14 @@ namespace Unity.Entities.Editor
             {
                 if (m_Query == value)
                     return;
+
                 m_Query = value;
+
                 Update();
             }
         }
+
+        public World CurrentWorld { get; set; }
 
         public EntityMatchCountVisualElement()
         {
@@ -36,7 +40,8 @@ namespace Unity.Entities.Editor
 
         public void Update()
         {
-            if (null == Query || !Query.IsCreated)
+            if (Query == default || CurrentWorld == null || !CurrentWorld.IsCreated
+                || !CurrentWorld.EntityManager.IsQueryValid(Query))
                 return;
 
             SetText(m_EntityMatchLabel, Query.CalculateEntityCount().ToString());

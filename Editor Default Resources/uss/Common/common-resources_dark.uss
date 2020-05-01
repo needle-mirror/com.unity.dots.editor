@@ -19,7 +19,18 @@
 
 .entity-hierarchy__resources
 {
-    --entity-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/d_Entity.png");
+    --entity-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Entity/Entity.png");
     --scene-icon: resource('d_SceneAsset Icon');
     --go-to-systems-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Go To Systems/Go to Systems.png");
+}
+
+
+.component__icons
+{
+    --component-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Components/Component.png");
+    --tag-component-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Components/Tag Component.png");
+    --buffer-component-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Components/Buffer Component.png");
+    --shared-component-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Components/Shared Component.png");
+    --chunk-component-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Components/Chunk Component.png");
+    --managed-component-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Components/Managed Component.png");
 }

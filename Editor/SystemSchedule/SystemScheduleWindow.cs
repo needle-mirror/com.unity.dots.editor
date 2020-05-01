@@ -42,7 +42,7 @@ namespace Unity.Entities.Editor
         /// </summary>
         State m_State;
 
-        [MenuItem(Constants.MenuItems.SystemScheduleWindow, false)]
+        [MenuItem(Constants.MenuItems.SystemScheduleWindow, false, Constants.MenuItems.WindowPriority)]
         static void OpenWindow()
         {
             var window = GetWindow<SystemScheduleWindow>();
@@ -61,11 +61,11 @@ namespace Unity.Entities.Editor
 
             Resources.Templates.SystemSchedule.AddStyles(rootVisualElement);
             Resources.Templates.DotsEditorCommon.AddStyles(rootVisualElement);
-            
+
             CreateToolBar(rootVisualElement);
             CreateTreeViewHeader(rootVisualElement);
             CreateTreeView(rootVisualElement);
-           
+
             if (World.All.Count > 0)
                 BuildAll();
 
@@ -92,10 +92,10 @@ namespace Unity.Entities.Editor
 
             var rightSideContainer = new VisualElement();
             rightSideContainer.AddToClassList(UssClasses.SystemScheduleWindow.ToolbarRightSideContainer);
-            
+
             AddSearchIcon(rightSideContainer, UssClasses.DotsEditorCommon.SearchIcon);
             AddSearchFieldContainer(root, UssClasses.DotsEditorCommon.SearchFieldContainer);
-            
+
             var dropDownSettings = CreateDropDownSettings(UssClasses.DotsEditorCommon.SettingsIcon);
             UpdateDropDownSettings(dropDownSettings);
             rightSideContainer.Add(dropDownSettings);
@@ -158,7 +158,7 @@ namespace Unity.Entities.Editor
             m_SystemTreeView.SearchFilter = SearchFilter;
             root.Add(m_SystemTreeView);
         }
-        
+
         void BuildAll()
         {
             CurrentWorld = !m_State.ShowFullPlayerLoop ? GetCurrentlySelectedWorld() : null;

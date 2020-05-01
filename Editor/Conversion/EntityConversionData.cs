@@ -43,7 +43,7 @@ namespace Unity.Entities.Editor
             {
                 var hashCode = PrimaryEntity.GetHashCode();
                 hashCode = (hashCode * 397) ^ (AdditionalEntities != null ? AdditionalEntities.GetHashCode() : 0);
-                hashCode = (hashCode * 397) ^ (EntityManager != null ? EntityManager.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (EntityManager != default ? EntityManager.GetHashCode() : 0);
                 return hashCode;
             }
         }
