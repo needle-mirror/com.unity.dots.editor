@@ -24,7 +24,7 @@ namespace Unity.Entities.Editor
             }
         }
 
-        public override string ToString() => Equals(EntityHierarchyNodeId.Root) ? "Root" : $"{Kind} - {Id.ToString(NumberFormatInfo.InvariantInfo)}";
+        public override string ToString() => Equals(Root) ? "Root" : $"{Kind} - {Id.ToString(NumberFormatInfo.InvariantInfo)}";
     }
 
     enum NodeKind : byte

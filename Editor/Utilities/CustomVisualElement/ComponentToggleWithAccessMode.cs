@@ -13,12 +13,11 @@ namespace Unity.Entities.Editor
         /// and an icon representing its access mode will be created.
         /// <para><see cref="ComponentType"/>></para>>
         /// </summary>
-        public ComponentToggleWithAccessMode(ComponentType componentType)
+        public ComponentToggleWithAccessMode(ComponentType.AccessMode accessMode)
         {
             this.AddToClassList(UssClasses.SystemScheduleWindow.Detail.EachComponentContainer);
 
             // Access mode.
-            var accessMode = componentType.AccessModeType;
             var componentAccessModeIcon = new Image()
             {
                 tooltip = accessMode.ToString()

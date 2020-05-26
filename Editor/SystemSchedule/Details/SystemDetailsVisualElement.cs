@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
@@ -15,21 +16,20 @@ namespace Unity.Entities.Editor
         static readonly string k_ShowDependencies = L10n.Tr("Show Dependencies");
         static readonly string k_ShowLess = L10n.Tr("Show less");
 
-        const string k_ComponentToken = "c:";
-        const string k_ScriptType = " t:Script";
-        const int k_ShowMinimumQueryCount = 2;
-
         EntityQuery[] m_Query;
         string m_SearchFilter;
+        Toolbar m_SystemDetailToolbar;
+        VisualElement m_HeaderRightSide;
         VisualElement m_SystemIcon;
         Label m_SystemNameLabel;
         VisualElement m_ScriptIcon;
         VisualElement m_AllQueryResultContainer;
         bool m_ShowMoreBool = true;
+        VisualElement m_ContentSectionRoot;
 
         public VisualElement Parent { get; set; }
-        public static event Action<string> OnAddComponentType;
-        public static event Action<string> OnRemoveComponentType;
+        public static event Action<string> OnAddFilter;
+        public static event Action<string> OnRemoveFilter;
 
         SystemTreeViewItem m_Target;
         public SystemTreeViewItem Target
@@ -68,6 +68,7 @@ namespace Unity.Entities.Editor
                 m_Query = null;
 
                 UpdateQueryResults();
+                UpdateDependencyToggle();
             }
         }
 
@@ -75,6 +76,9 @@ namespace Unity.Entities.Editor
         {
             Resources.Templates.CommonResources.AddStyles(this);
             Resources.Templates.SystemScheduleDetailContent.Clone(this);
+
+            m_ContentSectionRoot = this.Q(className: UssClasses.SystemScheduleWindow.Detail.Content);
+            m_ContentSectionRoot.style.display = DisplayStyle.Flex;
 
             CreateToolBarForDetailSection();
             CreateQueryResultSection();
@@ -92,7 +96,6 @@ namespace Unity.Entities.Editor
             switch (Target.System)
             {
                 case null:
-                case ComponentSystemGroup _:
                 {
                     if ((null != Parent) && Parent.Contains(this))
                         Parent.Remove(this);
@@ -103,11 +106,20 @@ namespace Unity.Entities.Editor
 
             UpdateSystemIconName();
             UpdateQueryResults();
+            UpdateDependencyToggle();
         }
+
+        string m_LastIconStyle = string.Empty;
 
         void UpdateSystemIconName()
         {
-            m_SystemIcon.AddToClassList(GetDetailSystemClass(Target.System));
+            var currentIconStyle = GetDetailSystemClass(Target.System);
+            if (string.Compare(currentIconStyle, m_LastIconStyle) != 0)
+            {
+                m_SystemIcon.RemoveFromClassList(m_LastIconStyle);
+                m_SystemIcon.AddToClassList(GetDetailSystemClass(Target.System));
+                m_LastIconStyle = currentIconStyle;
+            }
 
             var systemName = Target.System.GetType().Name;
             m_SystemNameLabel.text = systemName;
@@ -115,13 +127,48 @@ namespace Unity.Entities.Editor
             var scriptFound = SearchForScript(systemName);
             if (scriptFound)
             {
-                m_ScriptIcon.visible = true;
-                m_ScriptIcon.RegisterCallback<MouseUpEvent, UnityEngine.Object>((evt, payload) => AssetDatabase.OpenAsset(payload), scriptFound);
+                if (!m_SystemDetailToolbar.Contains(m_HeaderRightSide))
+                    m_SystemDetailToolbar.Add(m_HeaderRightSide);
+
+                m_ScriptIcon.RegisterCallback<MouseUpEvent, UnityEngine.Object>((evt, payload) =>
+                {
+                    AssetDatabase.OpenAsset(payload);
+                    evt.StopPropagation();
+                }, scriptFound);
             }
             else
             {
-                m_ScriptIcon.visible = false;
+                if (m_SystemDetailToolbar.Contains(m_HeaderRightSide))
+                    m_SystemDetailToolbar.Remove(m_HeaderRightSide);
             }
+        }
+
+        void UpdateDependencyToggle()
+        {
+            if (Target?.System == null)
+                return;
+
+            var schedulingToggle = this.Q<ToolbarToggle>(className: UssClasses.SystemScheduleWindow.Detail.SchedulingToggle);
+            schedulingToggle.text = k_ShowDependencies;
+            schedulingToggle.value = SearchUtility.CheckIfStringContainsGivenTokenAndName(m_SearchFilter, Constants.SystemSchedule.k_SystemDependencyToken,  Target.System.GetType().Name);
+
+            schedulingToggle.RegisterValueChangedCallback(evt =>
+            {
+                var systemTypeName = Target.System.GetType().Name;
+                var searchString = Constants.SystemSchedule.k_SystemDependencyToken + systemTypeName;
+
+                if (schedulingToggle.value)
+                {
+                    OnAddFilter?.Invoke(searchString);
+                }
+                else
+                {
+                    if (m_SearchFilter.Contains(Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName))
+                        searchString = Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName;
+
+                    OnRemoveFilter?.Invoke(searchString);
+                }
+            });
         }
 
         void UpdateQueryResults()
@@ -148,9 +195,10 @@ namespace Unity.Entities.Editor
 
                 // Sort the components by their access mode, readonly, readwrite, etc.
                 using (var queryTypePooledList = query.GetQueryTypes().ToPooledList())
+                using (var readWriteQueryTypePooledList = query.GetReadAndWriteTypes().ToPooledList())
                 {
                     var queryTypeList = queryTypePooledList.List;
-
+                    var readWriteTypeList = readWriteQueryTypePooledList.List;
                     queryTypeList.Sort(EntityQueryUtility.CompareTypes);
 
                     // Icon container
@@ -165,11 +213,11 @@ namespace Unity.Entities.Editor
                         var componentTypeName = EntityQueryUtility.SpecifiedTypeName(componentManagedType);
 
                         // Component toggle container.
-                        var componentTypeNameToggleContainer = new ComponentToggleWithAccessMode(queryType);
+                        var componentTypeNameToggleContainer = new ComponentToggleWithAccessMode(GetAccessModeStyle(queryType, readWriteTypeList));
                         var componentTypeNameToggle = componentTypeNameToggleContainer.ComponentTypeNameToggle;
 
                         componentTypeNameToggle.text = componentTypeName;
-                        componentTypeNameToggle.value = SearchFieldContainsComponent(componentTypeName);
+                        componentTypeNameToggle.value = SearchUtility.CheckIfStringContainsGivenTokenAndName(m_SearchFilter, Constants.SystemSchedule.k_ComponentToken, componentTypeName);
                         componentTypeNameToggle.RegisterValueChangedCallback(evt =>
                         {
                             HandleComponentsAddRemoveEvents(evt, componentTypeNameToggle, componentTypeName);
@@ -184,7 +232,7 @@ namespace Unity.Entities.Editor
                 matchCountContainer.Add(matchCountLabel);
 
                 // Show more to unfold the results or less to fold.
-                if (index < k_ShowMinimumQueryCount)
+                if (index < Constants.SystemSchedule.k_ShowMinimumQueryCount)
                 {
                     m_AllQueryResultContainer.Add(eachRowContainer);
                 }
@@ -196,11 +244,30 @@ namespace Unity.Entities.Editor
                 index++;
             }
 
-            var queryHideCount = m_Query.Length - k_ShowMinimumQueryCount;
+            var queryHideCount = m_Query.Length - Constants.SystemSchedule.k_ShowMinimumQueryCount;
             if (toAddList.Any())
-            {
                 FoldPartOfResults(m_AllQueryResultContainer, toAddList, queryHideCount);
+        }
+
+        static ComponentType.AccessMode GetAccessModeStyle(ComponentType queryType, IReadOnlyCollection<ComponentType> readWriteTypeList)
+        {
+            if (null == readWriteTypeList)
+                return queryType.AccessModeType;
+
+            if (queryType.AccessModeType == ComponentType.AccessMode.Exclude)
+            {
+                return ComponentType.AccessMode.Exclude;
             }
+
+            foreach (var readWriteType in readWriteTypeList)
+            {
+                if (readWriteType.TypeIndex == queryType.TypeIndex)
+                {
+                    return readWriteType.AccessModeType;
+                }
+            }
+
+            return ComponentType.AccessMode.ReadWrite;
         }
 
         void FoldPartOfResults(VisualElement allQueryResultContainer, IReadOnlyCollection<VisualElement> toAddList, int queryHideCount)
@@ -233,9 +300,7 @@ namespace Unity.Entities.Editor
                 foreach (var eachRow in toAddList)
                 {
                     if (allQueryResultContainer.Contains(eachRow))
-                    {
                         allQueryResultContainer.Remove(eachRow);
-                    }
                 }
             }
             else
@@ -245,9 +310,7 @@ namespace Unity.Entities.Editor
                 foreach (var eachRow in toAddList)
                 {
                     if (!allQueryResultContainer.Contains(eachRow))
-                    {
                         allQueryResultContainer.Insert(index - 1, eachRow);
-                    }
                 }
             }
         }
@@ -256,35 +319,18 @@ namespace Unity.Entities.Editor
         {
             componentTypeNameToggle.value = evt.newValue;
 
-            var searchString = k_ComponentToken + componentTypeName;
+            var searchString = Constants.SystemSchedule.k_ComponentToken + componentTypeName;
             if (componentTypeNameToggle.value)
             {
-                OnAddComponentType?.Invoke(searchString);
+                OnAddFilter?.Invoke(searchString);
             }
             else
             {
-                OnRemoveComponentType?.Invoke(searchString);
+                if (m_SearchFilter.Contains(Constants.SystemSchedule.k_ComponentToken + " " + componentTypeName))
+                    searchString = Constants.SystemSchedule.k_ComponentToken + " " + componentTypeName;
+
+                OnRemoveFilter?.Invoke(searchString);
             }
-        }
-
-        bool SearchFieldContainsComponent(string componentTypeName)
-        {
-            if (string.IsNullOrEmpty(m_SearchFilter))
-                return false;
-
-            using (var stringList = SystemTreeViewItem.SplitSearchString(m_SearchFilter).ToPooledList())
-            {
-                foreach (var singleString in stringList.List)
-                {
-                    if (singleString.StartsWith(k_ComponentToken, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (singleString.ToLower() == k_ComponentToken + componentTypeName.ToLower())
-                            return true;
-                    }
-                }
-            }
-
-            return false;
         }
 
         static string GetDetailSystemClass(ComponentSystemBase system)
@@ -295,6 +341,8 @@ namespace Unity.Entities.Editor
                     return "";
                 case EntityCommandBufferSystem _:
                     return UssClasses.SystemScheduleWindow.Detail.CommandBufferIcon;
+                case ComponentSystemGroup _:
+                    return UssClasses.SystemScheduleWindow.Detail.GroupIcon;
                 case ComponentSystemBase _:
                     return UssClasses.SystemScheduleWindow.Detail.SystemIcon;
             }
@@ -302,34 +350,45 @@ namespace Unity.Entities.Editor
 
         void CreateToolBarForDetailSection()
         {
-            var systemDetailToolbar = new Toolbar();
+            m_SystemDetailToolbar = new Toolbar();
 
-            Resources.Templates.CommonResources.AddStyles(systemDetailToolbar);
-            Resources.Templates.SystemScheduleDetailHeader.Clone(systemDetailToolbar);
+            Resources.Templates.CommonResources.AddStyles(m_SystemDetailToolbar);
+            Resources.Templates.SystemScheduleDetailHeader.Clone(m_SystemDetailToolbar);
 
-            systemDetailToolbar.style.justifyContent = Justify.SpaceBetween;
-
-            // Left side
-            m_SystemIcon = systemDetailToolbar.Q(className: UssClasses.SystemScheduleWindow.Detail.SystemIconName);
-            m_SystemNameLabel = systemDetailToolbar.Q<Label>(className: UssClasses.SystemScheduleWindow.Detail.SystemNameLabel);
-
-            // Right side
-            m_ScriptIcon = systemDetailToolbar.Q(className: UssClasses.SystemScheduleWindow.Detail.ScriptsIconName);
-            m_ScriptIcon.AddToClassList(UssClasses.SystemScheduleWindow.Detail.ScriptsIcon);
-
-            var closeIcon = systemDetailToolbar.Q(className: UssClasses.SystemScheduleWindow.Detail.CloseIconName);
-            closeIcon.AddToClassList(UssClasses.SystemScheduleWindow.Detail.CloseIcon);
-            closeIcon.RegisterCallback<MouseUpEvent>(evt =>
+            m_SystemDetailToolbar.style.justifyContent = Justify.SpaceBetween;
+            m_SystemDetailToolbar.RegisterCallback<MouseUpEvent>(evt =>
             {
-                Parent.Remove(this);
+                if (UIElementHelper.IsVisible(m_ContentSectionRoot))
+                {
+                    UIElementHelper.Hide(m_ContentSectionRoot);
+                }
+                else
+                {
+                    UIElementHelper.Show(m_ContentSectionRoot);
+                }
             });
 
-            this.Insert(0, systemDetailToolbar);
+            // Left side
+            m_SystemIcon = m_SystemDetailToolbar.Q(className: UssClasses.SystemScheduleWindow.Detail.SystemIconName);
+            m_SystemNameLabel = m_SystemDetailToolbar.Q<Label>(className: UssClasses.SystemScheduleWindow.Detail.SystemNameLabel);
+
+            // Middle section
+            var middleSection = m_SystemDetailToolbar.Q(className: UssClasses.SystemScheduleWindow.Detail.MiddleSection);
+            var resizeBar = new Label();
+            resizeBar.AddToClassList(UssClasses.SystemScheduleWindow.Detail.ResizeBar);
+            middleSection.Add(resizeBar);
+
+            // Right side
+            m_HeaderRightSide = m_SystemDetailToolbar.Q(className: "system-schedule-detail__header-right");
+            m_ScriptIcon = m_SystemDetailToolbar.Q(className: UssClasses.SystemScheduleWindow.Detail.ScriptsIconName);
+            m_ScriptIcon.AddToClassList(UssClasses.SystemScheduleWindow.Detail.ScriptsIcon);
+
+            this.Insert(0, m_SystemDetailToolbar);
         }
 
-        UnityEngine.Object SearchForScript(string systemName)
+        static UnityEngine.Object SearchForScript(string systemName)
         {
-            var assets = AssetDatabase.FindAssets(systemName + k_ScriptType);
+            var assets = AssetDatabase.FindAssets(systemName + Constants.SystemSchedule.k_ScriptType);
             return assets.Select(asset => AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(asset))).FirstOrDefault(a => a.name == systemName);
         }
 
@@ -348,9 +407,6 @@ namespace Unity.Entities.Editor
         {
             var schedulingTitle = this.Q<Label>(className: UssClasses.SystemScheduleWindow.Detail.SchedulingTitle);
             schedulingTitle.text = k_SchedulingTitle;
-
-            var schedulingToggle = this.Q<ToolbarToggle>(className: UssClasses.SystemScheduleWindow.Detail.SchedulingToggle);
-            schedulingToggle.text = k_ShowDependencies;
         }
     }
 }

@@ -1,23 +1,24 @@
 using System;
+using UnityEditor;
 using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
 {
-    class EntityHierarchyVisualElement : BindableElement, IBinding, IPoolable
+    class EntityHierarchyVisualElement : VisualElement, IPoolable
     {
         public EntityHierarchyTreeView Owner { get; set; }
 
         readonly VisualElement m_Icon;
         readonly Label m_NameLabel;
         readonly VisualElement m_SystemButton;
+        readonly VisualElement m_PingGameObject;
 
-        EntityHierarchyTreeViewItem m_Source;
-        uint m_NodeVersion;
+        IEntityHierarchy m_Hierarchy;
+        EntityHierarchyNodeId m_NodeId;
+        int? m_OriginatingId;
 
         public EntityHierarchyVisualElement()
         {
-            binding = this;
-
             Resources.Templates.EntityHierarchyItem.Clone(this);
             AddToClassList(UssClasses.DotsEditorCommon.CommonResources);
             AddToClassList(UssClasses.Resources.EntityHierarchy);
@@ -25,36 +26,23 @@ namespace Unity.Entities.Editor
             m_Icon = this.Q<VisualElement>(className: UssClasses.EntityHierarchyWindow.Item.Icon);
             m_NameLabel = this.Q<Label>(className: UssClasses.EntityHierarchyWindow.Item.NameLabel);
             m_SystemButton = this.Q<VisualElement>(className: UssClasses.EntityHierarchyWindow.Item.SystemButton);
+            m_PingGameObject = this.Q<VisualElement>(className: UssClasses.EntityHierarchyWindow.Item.PingGameObjectButton);
         }
 
-        public void SetSource(EntityHierarchyTreeViewItem source)
+        public void SetSource(IEntityHierarchy entityHierarchy, in EntityHierarchyNodeId nodeId)
         {
-            m_Source = source;
-            Update();
-        }
-
-        void IBinding.PreUpdate() {}
-
-        public void Update()
-        {
-            var nodeVersion = m_Source.Strategy.GetNodeVersion(m_Source.NodeId);
-            if (m_NodeVersion == nodeVersion)
-                return;
-
-            m_NodeVersion = nodeVersion;
-            ClearDynamicClasses();
-
-            var nodeId = m_Source.NodeId;
+            m_Hierarchy = entityHierarchy;
+            m_NodeId = nodeId;
             switch (nodeId.Kind)
             {
                 case NodeKind.Entity:
                 {
-                    RenderEntityNode(m_Source.Strategy.GetNodeName(nodeId));
+                    RenderEntityNode();
                     break;
                 }
                 case NodeKind.Scene:
                 {
-                    RenderSceneNode(nodeId);
+                    RenderSceneNode();
                     break;
                 }
                 case NodeKind.Root:
@@ -64,38 +52,49 @@ namespace Unity.Entities.Editor
                     break;
                 }
                 default:
-                {
                     throw new ArgumentOutOfRangeException();
-                }
             }
         }
-
-        void IBinding.Release() {}
 
         void IPoolable.Reset()
         {
             Owner = null;
-            m_Source = null;
+            m_Hierarchy = null;
+            m_NodeId = default;
+            m_OriginatingId = null;
+            ClearDynamicClasses();
         }
 
         void IPoolable.ReturnToPool() => EntityHierarchyPool.ReturnVisualElement(this);
 
-        void RenderEntityNode(string label)
+        void RenderEntityNode()
         {
-            m_NameLabel.text = label;
+            m_NameLabel.text = m_Hierarchy.Strategy.GetNodeName(m_NodeId);
 
             m_Icon.AddToClassList(UssClasses.EntityHierarchyWindow.Item.IconEntity);
-            m_SystemButton.AddToClassList(UssClasses.EntityHierarchyWindow.Item.SystemButtonEntity);
+            m_SystemButton.AddToClassList(UssClasses.EntityHierarchyWindow.Item.VisibleOnHover);
+
+            if (TryGetSourceGameObjectId(m_Hierarchy.Strategy.GetUnderlyingEntity(m_NodeId), m_Hierarchy.World, out var originatingId))
+            {
+                m_OriginatingId = originatingId;
+                m_PingGameObject.AddToClassList(UssClasses.EntityHierarchyWindow.Item.VisibleOnHover);
+                m_PingGameObject.RegisterCallback<MouseUpEvent>(OnPingGameObjectRequested);
+            }
         }
 
-        void RenderSceneNode(EntityHierarchyNodeId nodeId)
+        void OnPingGameObjectRequested(MouseUpEvent _)
         {
-            m_NameLabel.AddToClassList(UssClasses.EntityHierarchyWindow.Item.NameScene);
+            if (!m_OriginatingId.HasValue)
+                return;
 
-            // TODO: Update once we have an official way to get scene names.
-            m_NameLabel.text = $"Scene ({nodeId.ToString()})";
+            EditorGUIUtility.PingObject(m_OriginatingId.Value);
+        }
 
+        void RenderSceneNode()
+        {
             m_Icon.AddToClassList(UssClasses.EntityHierarchyWindow.Item.IconScene);
+            m_NameLabel.AddToClassList(UssClasses.EntityHierarchyWindow.Item.NameScene);
+            m_NameLabel.text = m_Hierarchy.Strategy.GetNodeName(m_NodeId);
         }
 
         void RenderInvalidNode(EntityHierarchyNodeId nodeId)
@@ -110,7 +109,22 @@ namespace Unity.Entities.Editor
             m_Icon.RemoveFromClassList(UssClasses.EntityHierarchyWindow.Item.IconScene);
             m_Icon.RemoveFromClassList(UssClasses.EntityHierarchyWindow.Item.IconEntity);
 
-            m_SystemButton.RemoveFromClassList(UssClasses.EntityHierarchyWindow.Item.SystemButtonEntity);
+            m_SystemButton.RemoveFromClassList(UssClasses.EntityHierarchyWindow.Item.VisibleOnHover);
+            m_PingGameObject.RemoveFromClassList(UssClasses.EntityHierarchyWindow.Item.VisibleOnHover);
+
+            m_PingGameObject.UnregisterCallback<MouseUpEvent>(OnPingGameObjectRequested);
+        }
+
+        static bool TryGetSourceGameObjectId(Entity entity, World world, out int? originatingId)
+        {
+            if (!world.EntityManager.Exists(entity) || !world.EntityManager.HasComponent<EntityGuid>(entity))
+            {
+                originatingId = null;
+                return false;
+            }
+
+            originatingId = world.EntityManager.GetComponentData<EntityGuid>(entity).OriginatingId;
+            return true;
         }
     }
 }

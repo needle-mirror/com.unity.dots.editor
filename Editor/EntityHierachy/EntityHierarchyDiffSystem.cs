@@ -1,220 +1,239 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using JetBrains.Annotations;
-using Unity.Assertions;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Scenes;
 using UnityEngine;
 
 namespace Unity.Entities.Editor
 {
-    [UsedImplicitly, DisableAutoCreation, ExecuteAlways] // ReSharper disable once RequiredBaseTypesIsNotInherited
+    [UsedImplicitly, DisableAutoCreation, UpdateAfter(typeof(SceneSystemGroup)), ExecuteAlways] // ReSharper disable once RequiredBaseTypesIsNotInherited
     class EntityHierarchyDiffSystem : SystemBase
     {
-        readonly HashSet<IEntityHierarchyGroupingStrategy> m_Strategies = new HashSet<IEntityHierarchyGroupingStrategy>();
-        readonly Dictionary<ComponentType, DifferMapping> m_DifferMappingByComponentType = new Dictionary<ComponentType, DifferMapping>();
-        readonly List<ComponentDataDiffer.ComponentChanges> m_ComponentDataDifferResults = new List<ComponentDataDiffer.ComponentChanges>();
-        readonly List<ComponentDataDifferMapping> m_ComponentDataDiffers = new List<ComponentDataDifferMapping>();
-        readonly List<SharedComponentDataDifferMapping> m_SharedComponentDataDiffers = new List<SharedComponentDataDifferMapping>();
-        EntityDiffer m_EntityDiffer;
+        readonly Dictionary<IEntityHierarchy, Differs> m_DiffersPerContainer = new Dictionary<IEntityHierarchy, Differs>();
 
-        public static void RegisterStrategy(IEntityHierarchyGroupingStrategy strategy)
+        SceneMappingSystem m_SceneMappingSystem;
+
+        public static void Register(IEntityHierarchy hierarchy)
         {
-            var system = strategy.World.GetOrCreateSystem<EntityHierarchyDiffSystem>();
-            system.Register(strategy);
+            var system = hierarchy.World.GetOrCreateSystem<EntityHierarchyDiffSystem>();
+            system.DoRegister(hierarchy);
+            system.Update();
 
-            if (system.m_Strategies.Count == 1)
+            if (system.m_DiffersPerContainer.Count == 1)
+            {
                 World.DefaultGameObjectInjectionWorld.GetExistingSystem<InitializationSystemGroup>().AddSystemToUpdateList(system);
+                EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
+            }
         }
 
-        public static void UnregisterStrategy(IEntityHierarchyGroupingStrategy strategy)
+        public static void Unregister(IEntityHierarchy hierarchy)
         {
-            var system = strategy.World.GetExistingSystem<EntityHierarchyDiffSystem>();
+            if (!hierarchy.World.IsCreated)
+                return; // World was already disposed.
+
+            var system = hierarchy.World.GetExistingSystem<EntityHierarchyDiffSystem>();
             if (system == null)
+            {
+                Debug.LogWarning("No system found for this strategy for world: " + hierarchy.World.Name);
                 return;
+            }
 
-            system.Unregister(strategy);
-            if (system.m_Strategies.Count == 0)
+            system.DoUnregister(hierarchy);
+
+            if (system.m_DiffersPerContainer.Count == 0)
+            {
                 World.DefaultGameObjectInjectionWorld.GetExistingSystem<InitializationSystemGroup>().RemoveSystemFromUpdateList(system);
-        }
-
-        void Register(IEntityHierarchyGroupingStrategy strategy)
-        {
-            if (!m_Strategies.Add(strategy))
-                return;
-
-            // Create the entity differ and enable the system when the first strategy is registered
-            if (m_Strategies.Count == 1)
-            {
-                m_EntityDiffer = new EntityDiffer(World);
-                Enabled = true;
-            }
-
-            // Go over requested differs and instantiate the one we're missing
-            // And keep track of which strategy needs which differ
-            foreach (var componentType in strategy.ComponentsToWatch)
-            {
-                if (!m_DifferMappingByComponentType.TryGetValue(componentType, out var differ))
-                {
-                    differ = DifferMapping.FromComponentType(componentType);
-                    m_DifferMappingByComponentType.Add(componentType, differ);
-
-                    switch (differ)
-                    {
-                        case ComponentDataDifferMapping componentDataDifferMapping:
-                            m_ComponentDataDiffers.Add(componentDataDifferMapping);
-                            break;
-                        case SharedComponentDataDifferMapping sharedComponentDataDifferMapping:
-                            m_SharedComponentDataDiffers.Add(sharedComponentDataDifferMapping);
-                            break;
-                    }
-                }
-
-                differ.Strategies.Add(strategy);
+                EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
             }
         }
 
-        void Unregister(IEntityHierarchyGroupingStrategy strategy)
+        void DoRegister(IEntityHierarchy hierarchy)
         {
-            if (!m_Strategies.Remove(strategy))
+            if (m_DiffersPerContainer.ContainsKey(hierarchy))
                 return;
 
-            // Dispose entity differ and disable system when the last system is unregistered
-            if (m_Strategies.Count == 0)
-            {
-                m_EntityDiffer.Dispose();
-                Assert.IsTrue(Enabled);
-                Enabled = false;
-            }
+            m_DiffersPerContainer.Add(hierarchy, new Differs(hierarchy));
+        }
 
-            // Dispose differs we don't need anymore
-            foreach (var componentType in strategy.ComponentsToWatch)
-            {
-                var differ = m_DifferMappingByComponentType[componentType];
-                differ.Strategies.Remove(strategy);
-                if (differ.Strategies.Count == 0)
-                {
-                    m_DifferMappingByComponentType.Remove(componentType);
-                    switch (differ)
-                    {
-                        case ComponentDataDifferMapping componentDataDifferMapping:
-                            m_ComponentDataDiffers.Remove(componentDataDifferMapping);
-                            break;
-                        case SharedComponentDataDifferMapping sharedComponentDataDifferMapping:
-                            m_SharedComponentDataDiffers.Remove(sharedComponentDataDifferMapping);
-                            break;
-                    }
+        void DoUnregister(IEntityHierarchy hierarchy)
+        {
+            if (!m_DiffersPerContainer.ContainsKey(hierarchy))
+                return;
 
-                    differ.Dispose();
-                }
-            }
+            var differs = m_DiffersPerContainer[hierarchy];
+            differs.Dispose();
+            m_DiffersPerContainer.Remove(hierarchy);
+        }
+
+        protected override void OnCreate()
+        {
+            m_SceneMappingSystem = World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<SceneMappingSystem>();
+        }
+
+        protected override void OnDestroy()
+        {
+            while (m_DiffersPerContainer.Count > 0)
+                DoUnregister(m_DiffersPerContainer.Keys.First());
         }
 
         protected override void OnUpdate()
         {
-            var query = World.EntityManager.UniversalQuery;
+            var version = World.EntityManager.GlobalSystemVersion;
 
-            var newEntities = new NativeList<Entity>(Allocator.TempJob);
-            var removedEntities = new NativeList<Entity>(Allocator.TempJob);
-            var componentDifferResultIndices = new NativeHashMap<ComponentType, int>(m_ComponentDataDiffers.Count, Allocator.Temp);
-            var handles = new NativeArray<JobHandle>(m_ComponentDataDiffers.Count + 1, Allocator.Temp);
-
-            for (var i = 0; i < m_ComponentDataDiffers.Count; i++)
+            var handles = new NativeArray<JobHandle>(m_DiffersPerContainer.Count, Allocator.Temp);
+            var handleIdx = 0;
+            foreach (var differ in m_DiffersPerContainer.Values)
             {
-                var componentDataDiffer = m_ComponentDataDiffers[i];
-                componentDifferResultIndices[componentDataDiffer.ComponentType] = i;
-                m_ComponentDataDifferResults.Add(componentDataDiffer.Differ.GatherComponentChangesAsync(query, Allocator.TempJob, out var componentDataDifferHandle));
-                handles[i] = componentDataDifferHandle;
+                handles[handleIdx++] = differ.GetDiffSinceLastFrameAsync();
             }
-            handles[handles.Length - 1] = m_EntityDiffer.GetEntityQueryMatchDiffAsync(query, newEntities, removedEntities);
+
             JobHandle.CompleteAll(handles);
             handles.Dispose();
 
-            foreach (var strategy in m_Strategies)
-            {
-                strategy.ApplyEntityChanges(newEntities, removedEntities);
-            }
+            var sceneManagerDirty = m_SceneMappingSystem.SceneManagerDirty;
+            m_SceneMappingSystem.Update();
 
-            foreach (var componentDataDiffer in m_ComponentDataDiffers)
+            foreach (var kvp in m_DiffersPerContainer)
             {
-                var resultIdx = componentDifferResultIndices[componentDataDiffer.ComponentType];
-                var result = m_ComponentDataDifferResults[resultIdx];
-                componentDataDiffer.Apply(result);
-                result.Dispose();
+                kvp.Value.ApplyDiffResultsToStrategy(version, out var strategyStateChanged);
+                if (sceneManagerDirty || strategyStateChanged)
+                    kvp.Key.OnStructuralChangeDetected();
             }
-
-            foreach (var sharedComponentDataDiffer in m_SharedComponentDataDiffers)
-            {
-                var result = sharedComponentDataDiffer.Differ.GatherComponentChanges(World.EntityManager, query, Allocator.TempJob);
-                sharedComponentDataDiffer.Apply(result);
-                result.Dispose();
-            }
-
-            newEntities.Dispose();
-            removedEntities.Dispose();
-            componentDifferResultIndices.Dispose();
-            m_ComponentDataDifferResults.Clear();
         }
 
-        abstract class DifferMapping : IDisposable
+        class Differs : IDisposable
         {
-            public readonly List<IEntityHierarchyGroupingStrategy> Strategies = new List<IEntityHierarchyGroupingStrategy>();
+            readonly IEntityHierarchy m_Hierarchy;
+            readonly EntityDiffer m_EntityDiffer;
 
-            public static DifferMapping FromComponentType(ComponentType componentType)
+            readonly List<ComponentDataDiffer> m_ComponentDataDiffers = new List<ComponentDataDiffer>();
+            readonly List<SharedComponentDataDiffer> m_SharedComponentDataDiffers = new List<SharedComponentDataDiffer>();
+
+            EntityQueryDesc m_CachedQueryDescription;
+            EntityQuery m_MainQuery;
+
+            // Storage for temp differ results
+            NativeList<Entity> m_NewEntities;
+            NativeList<Entity> m_RemovedEntities;
+            readonly ComponentDataDiffer.ComponentChanges[] m_ComponentDataDifferResults;
+            readonly SharedComponentDataDiffer.ComponentChanges[] m_SharedComponentDataDifferResults;
+
+            public Differs(IEntityHierarchy hierarchy)
             {
-                var typeInfo = TypeManager.GetTypeInfo(componentType.TypeIndex);
-
-                if (typeInfo.Category == TypeManager.TypeCategory.ComponentData || UnsafeUtility.IsUnmanaged(componentType.GetManagedType()))
-                    return new ComponentDataDifferMapping(componentType, new ComponentDataDiffer(componentType));
-
-                if (typeInfo.Category == TypeManager.TypeCategory.ISharedComponentData)
-                    return new SharedComponentDataDifferMapping(new SharedComponentDataDiffer(componentType));
-
-                throw new ArgumentException($"There is no suitable differ available for this category of component {typeInfo.Category} " +
-                    $"(is unmanaged: {UnsafeUtility.IsUnmanaged(componentType.GetManagedType())})", nameof(componentType));
-            }
-
-            public abstract void Dispose();
-        }
-
-        class ComponentDataDifferMapping : DifferMapping
-        {
-            public readonly ComponentType ComponentType;
-            public readonly ComponentDataDiffer Differ;
-
-            public ComponentDataDifferMapping(ComponentType componentType, ComponentDataDiffer differ)
-                => (ComponentType, Differ) = (componentType, differ);
-
-            public void Apply(ComponentDataDiffer.ComponentChanges changes)
-            {
-                foreach (var strategy in Strategies)
+                foreach (var componentType in hierarchy.Strategy.ComponentsToWatch)
                 {
-                    strategy.ApplyComponentDataChanges(changes);
+                    if (!ComponentDataDiffer.CanWatch(componentType) && !SharedComponentDataDiffer.CanWatch(componentType))
+                        throw new NotSupportedException($" The component {componentType} requested by strategy of type {hierarchy.Strategy.GetType()} cannot be watched. No suitable differ available.");
                 }
-            }
 
-            public override void Dispose()
-                => Differ.Dispose();
-        }
-
-        class SharedComponentDataDifferMapping : DifferMapping
-        {
-            public readonly SharedComponentDataDiffer Differ;
-
-            public SharedComponentDataDifferMapping(SharedComponentDataDiffer differ)
-                => Differ = differ;
-
-            public void Apply(SharedComponentDataDiffer.ComponentChanges changes)
-            {
-                foreach (var strategy in Strategies)
+                m_Hierarchy = hierarchy;
+                m_EntityDiffer = new EntityDiffer(hierarchy.World);
+                foreach (var componentToWatch in hierarchy.Strategy.ComponentsToWatch)
                 {
-                    strategy.ApplySharedComponentDataChanges(changes);
+                    var typeInfo = TypeManager.GetTypeInfo(componentToWatch.TypeIndex);
+
+                    switch (typeInfo.Category)
+                    {
+                        case TypeManager.TypeCategory.ComponentData when UnsafeUtility.IsUnmanaged(componentToWatch.GetManagedType()):
+                            m_ComponentDataDiffers.Add((new ComponentDataDiffer(componentToWatch)));
+                            break;
+                        case TypeManager.TypeCategory.ISharedComponentData:
+                            m_SharedComponentDataDiffers.Add((new SharedComponentDataDiffer(componentToWatch)));
+                            break;
+                    }
                 }
+
+                m_ComponentDataDifferResults = new ComponentDataDiffer.ComponentChanges[m_ComponentDataDiffers.Count];
+                m_SharedComponentDataDifferResults = new SharedComponentDataDiffer.ComponentChanges[m_SharedComponentDataDiffers.Count];
             }
 
-            public override void Dispose()
-                => Differ.Dispose();
+            public void Dispose()
+            {
+                m_EntityDiffer.Dispose();
+                if (m_MainQuery != default && m_MainQuery != m_Hierarchy.World.EntityManager.UniversalQuery && m_Hierarchy.World.EntityManager.IsQueryValid(m_MainQuery))
+                    m_MainQuery.Dispose();
+
+                foreach (var componentDataDiffer in m_ComponentDataDiffers)
+                    componentDataDiffer.Dispose();
+
+                foreach (var sharedComponentDataDiffer in m_SharedComponentDataDiffers)
+                    sharedComponentDataDiffer.Dispose();
+            }
+
+            public JobHandle GetDiffSinceLastFrameAsync()
+            {
+                UpdateCachedQueries();
+
+                var handles = new NativeArray<JobHandle>(m_ComponentDataDiffers.Count + 1, Allocator.Temp);
+                var handleIdx = 0;
+
+                m_NewEntities = new NativeList<Entity>(Allocator.TempJob);
+                m_RemovedEntities = new NativeList<Entity>(Allocator.TempJob);
+                handles[handleIdx++] = m_EntityDiffer.GetEntityQueryMatchDiffAsync(m_MainQuery, m_NewEntities, m_RemovedEntities);
+
+                for (var i = 0; i < m_ComponentDataDiffers.Count; i++)
+                {
+                    m_ComponentDataDifferResults[i] = m_ComponentDataDiffers[i].GatherComponentChangesAsync(m_MainQuery, Allocator.TempJob, out var componentDataDifferHandle);
+                    handles[handleIdx++] = componentDataDifferHandle;
+                }
+
+                for (var i = 0; i < m_SharedComponentDataDiffers.Count; i++)
+                {
+                    m_SharedComponentDataDifferResults[i] = m_SharedComponentDataDiffers[i].GatherComponentChanges(m_Hierarchy.World.EntityManager, m_MainQuery, Allocator.TempJob);
+                }
+
+                var handle = JobHandle.CombineDependencies(handles);
+                handles.Dispose();
+
+                return handle;
+            }
+
+            void UpdateCachedQueries()
+            {
+                var entityManager = m_Hierarchy.World.EntityManager;
+
+                if (m_Hierarchy.QueryDesc != null && m_Hierarchy.QueryDesc == m_CachedQueryDescription
+                    || m_Hierarchy.QueryDesc == null && m_MainQuery == entityManager.UniversalQuery)
+                    return;
+
+                m_CachedQueryDescription = m_Hierarchy.QueryDesc;
+                if (m_MainQuery != entityManager.UniversalQuery && entityManager.IsQueryValid(m_MainQuery))
+                    m_MainQuery.Dispose();
+
+                m_MainQuery = m_Hierarchy.QueryDesc != null ? entityManager.CreateEntityQuery(m_Hierarchy.QueryDesc) : entityManager.UniversalQuery;
+            }
+
+            public void ApplyDiffResultsToStrategy(uint version, out bool strategyStateChanged)
+            {
+                var strategy = m_Hierarchy.Strategy;
+                strategy.BeginApply(version);
+                strategy.ApplyEntityChanges(m_NewEntities, m_RemovedEntities, version);
+
+                for (var i = 0; i < m_ComponentDataDifferResults.Length; i++)
+                {
+                    var componentType = m_ComponentDataDiffers[i].WatchedComponentType;
+                    strategy.ApplyComponentDataChanges(componentType, m_ComponentDataDifferResults[i], version);
+                    m_ComponentDataDifferResults[i].Dispose();
+                }
+
+                for (var i = 0; i < m_SharedComponentDataDifferResults.Length; i++)
+                {
+                    var componentType = m_SharedComponentDataDiffers[i].WatchedComponentType;
+                    strategy.ApplySharedComponentDataChanges(componentType, m_SharedComponentDataDifferResults[i], version);
+                    m_SharedComponentDataDifferResults[i].Dispose();
+                }
+
+                strategyStateChanged = strategy.EndApply(version);
+
+                m_NewEntities.Dispose();
+                m_RemovedEntities.Dispose();
+            }
         }
     }
+
+
 }

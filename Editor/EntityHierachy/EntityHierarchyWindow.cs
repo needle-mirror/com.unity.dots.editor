@@ -4,16 +4,34 @@ using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
 {
-    class EntityHierarchyWindow : DOTSEditorWindow
+    interface IEntityHierarchy
+    {
+        IEntityHierarchyGroupingStrategy Strategy { get; }
+
+        EntityQueryDesc QueryDesc { get; }
+
+        World World { get; }
+
+        void OnStructuralChangeDetected();
+    }
+
+    class EntityHierarchyWindow : DOTSEditorWindow, IEntityHierarchy
     {
         static readonly string k_WindowName = L10n.Tr("Entities");
-        static readonly Vector2 k_MinWindowSize = new Vector2(600, 300);
 
-        IEntityHierarchyGroupingStrategy m_Strategy;
+        // Matches SceneHierarchy's min size
+        static readonly Vector2 k_MinWindowSize = new Vector2(200, 200);
+
         EntityHierarchyTreeView m_TreeView;
 
         [MenuItem(Constants.MenuItems.EntityHierarchyWindow, false, Constants.MenuItems.WindowPriority)]
         static void OpenWindow() => GetWindow<EntityHierarchyWindow>().Show();
+
+        public IEntityHierarchyGroupingStrategy Strategy { get; private set; }
+
+        public EntityQueryDesc QueryDesc { get; private set; }
+
+        public World World { get; private set; }
 
         void OnEnable()
         {
@@ -24,13 +42,6 @@ namespace Unity.Entities.Editor
             Resources.Templates.DotsEditorCommon.AddStyles(rootVisualElement);
             rootVisualElement.AddToClassList(UssClasses.Resources.EntityHierarchy);
 
-            var world = GetCurrentlySelectedWorld();
-            if (world != null)
-            {
-                m_Strategy = new EntityHierarchyDefaultGroupingStrategy(world);
-                EntityHierarchyDiffSystem.RegisterStrategy(m_Strategy);
-            }
-
             CreateToolbar();
             CreateTreeView();
             RefreshTreeView();
@@ -39,10 +50,10 @@ namespace Unity.Entities.Editor
         void OnDisable()
         {
             m_TreeView.Dispose();
-            if (m_Strategy != null)
+            if (Strategy != null)
             {
-                EntityHierarchyDiffSystem.UnregisterStrategy(m_Strategy);
-                m_Strategy.Dispose();
+                EntityHierarchyDiffSystem.Unregister(this);
+                Strategy.Dispose();
             }
         }
 
@@ -64,29 +75,32 @@ namespace Unity.Entities.Editor
             rootVisualElement.Add(m_TreeView);
         }
 
-        void RefreshTreeView() => m_TreeView?.Refresh(m_Strategy);
+        void RefreshTreeView() => m_TreeView?.Refresh(this);
+
+        void IEntityHierarchy.OnStructuralChangeDetected() => m_TreeView?.UpdateStructure();
 
         protected override void OnWorldSelected(World world)
         {
-            if (world == m_Strategy?.World)
+            if (world == World)
                 return;
 
             // Maybe keep the previous strategy to keep its state
             // and reuse it when switching back to it.
-            if (m_Strategy != null)
+            if (Strategy != null)
             {
-                EntityHierarchyDiffSystem.UnregisterStrategy(m_Strategy);
-                m_Strategy.Dispose();
+                EntityHierarchyDiffSystem.Unregister(this);
+                Strategy.Dispose();
             }
 
-            m_Strategy = new EntityHierarchyDefaultGroupingStrategy(world);
-            EntityHierarchyDiffSystem.RegisterStrategy(m_Strategy);
+            World = world;
+            Strategy = new EntityHierarchyDefaultGroupingStrategy(world);
+            EntityHierarchyDiffSystem.Register(this);
 
             RefreshTreeView();
         }
 
         protected override void OnFilterChanged(string filter) {}
 
-        protected override void OnUpdate() {}
+        protected override void OnUpdate() => m_TreeView.OnUpdate();
     }
 }

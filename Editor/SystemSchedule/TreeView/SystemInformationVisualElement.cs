@@ -49,9 +49,7 @@ namespace Unity.Entities.Editor
         static void SetText(Label label, string text)
         {
             if (label.text != text)
-            {
                 label.text = text;
-            }
         }
 
         public void Update()
@@ -86,10 +84,9 @@ namespace Unity.Entities.Editor
                 this.SetEnabled(true);
                 m_SystemEnableToggle.style.display = DisplayStyle.Flex;
                 var systemState = Target.System?.Enabled ?? true;
+
                 if (m_SystemEnableToggle.value != systemState)
-                {
                     m_SystemEnableToggle.SetValueWithoutNotify(systemState);
-                }
 
                 var groupState = systemState && Target.GetParentState();
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0] - 2020-05-25
+[Changed]
+* Updated System windows to be public
+* Updated minimum Unity version to 2019.3.12f1
+* Updated package `com.unity.entities` to `0.11.0-preview.7`
+* Updated package `com.unity.jobs` to `0.2.10-preview.11`
+* Updated package `com.unity.burst` to `1.3.0-preview.12`
+
 ## [0.6.0] - 2020-05-01
 [Added]
 * Added package `com.unity.test-framework.performance` version `2.0.8-preview` as a dependency

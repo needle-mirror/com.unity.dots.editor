@@ -22,6 +22,7 @@
     --entity-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Entity/Entity.png");
     --scene-icon: resource('SceneAsset Icon');
     --go-to-systems-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Go To Systems/Go to Systems.png");
+    --gameobject: resource("GameObject Icon");
 }
 
 

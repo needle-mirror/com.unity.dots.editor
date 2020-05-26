@@ -40,13 +40,11 @@ namespace Unity.Entities.Editor
             var name = type.Name;
 
             if (type.IsGenericParameter)
-            {
                 return name;
-            }
+
             if (type.IsNested)
-            {
                 name = $"{GetResolvedTypeName(type.DeclaringType, args)}.{name}";
-            }
+
             if (type.IsGenericType)
             {
                 var tickIndex = name.IndexOf('`');
@@ -63,15 +61,13 @@ namespace Unity.Entities.Editor
                 }
 
                 if (genericTypeNames.Length > 0)
-                {
                     name = $"{name}<{genericTypeNames}>";
-                }
             }
 
             return name;
         }
 
-        public static string StyleForAccessMode(ComponentType.AccessMode mode)
+        public static string StyleForAccessMode(ComponentType.AccessMode? mode)
         {
             switch (mode)
             {

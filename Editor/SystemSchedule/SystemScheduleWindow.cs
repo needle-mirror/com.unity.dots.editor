@@ -70,15 +70,15 @@ namespace Unity.Entities.Editor
                 BuildAll();
 
             PlayerLoopSystemGraph.OnGraphChanged += BuildAll;
-            SystemDetailsVisualElement.OnAddComponentType += OnAddComponentType;
-            SystemDetailsVisualElement.OnRemoveComponentType += OnRemoveComponentType;
+            SystemDetailsVisualElement.OnAddFilter += OnAddFilter;
+            SystemDetailsVisualElement.OnRemoveFilter += OnRemoveFilter;
         }
 
         void OnDisable()
         {
             PlayerLoopSystemGraph.OnGraphChanged -= BuildAll;
-            SystemDetailsVisualElement.OnAddComponentType -= OnAddComponentType;
-            SystemDetailsVisualElement.OnRemoveComponentType -= OnRemoveComponentType;
+            SystemDetailsVisualElement.OnAddFilter -= OnAddFilter;
+            SystemDetailsVisualElement.OnRemoveFilter -= OnRemoveFilter;
         }
 
         void CreateToolBar(VisualElement root)
@@ -110,6 +110,8 @@ namespace Unity.Entities.Editor
             menu.AppendAction(k_ShowFullPlayerLoopString, a =>
             {
                 m_State.ShowFullPlayerLoop = !m_State.ShowFullPlayerLoop;
+                if (!m_State.ShowFullPlayerLoop)
+                    UpdateWorldDropDownMenu();
 
                 if (World.All.Count > 0)
                     BuildAll();
@@ -167,7 +169,7 @@ namespace Unity.Entities.Editor
 
         protected override void OnUpdate()
         {
-            if (m_State.ShowFullPlayerLoop)
+            if (null != m_State && m_State.ShowFullPlayerLoop)
             {
                 var menu = m_WorldMenu.menu;
                 var menuItemsCount = menu.MenuItems().Count;
@@ -179,9 +181,6 @@ namespace Unity.Entities.Editor
 
                 m_WorldMenu.text = k_ShowFullPlayerLoopString;
             }
-
-            if (GetCurrentlySelectedWorld() == null)
-                return;
 
             UpdateTimings();
         }
@@ -204,30 +203,20 @@ namespace Unity.Entities.Editor
 
         protected override void OnWorldSelected(World world)
         {
+            if (m_State.ShowFullPlayerLoop)
+                return;
+
             BuildAll();
         }
 
-        void OnAddComponentType(string componentTypeName)
+        void OnAddFilter(string toAdd)
         {
-            if (!string.IsNullOrEmpty(SearchFilter)
-                && SearchFilter.IndexOf(componentTypeName, StringComparison.OrdinalIgnoreCase) >= 0)
-                return;
-
-            SearchFilter += string.IsNullOrEmpty(SearchFilter)
-                ? componentTypeName + " "
-                : " " + componentTypeName + " ";
+            AddStringToSearchField(toAdd);
         }
 
-        void OnRemoveComponentType(string componentTypeName)
+        void OnRemoveFilter(string toRemove)
         {
-            if (string.IsNullOrEmpty(SearchFilter))
-                return;
-
-            var found = SearchFilter.IndexOf(componentTypeName, StringComparison.OrdinalIgnoreCase);
-            if (found < 0)
-                return;
-
-            SearchFilter = SearchFilter.Remove(found, componentTypeName.Length).Trim();
+            RemoveStringFromSearchField(toRemove);
         }
 
         protected override void OnFilterChanged(string filter)

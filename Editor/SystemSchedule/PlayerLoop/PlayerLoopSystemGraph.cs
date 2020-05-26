@@ -28,9 +28,8 @@ namespace Unity.Entities.Editor
         {
             var now = DateTime.Now;
             if (now - s_LastValidate < s_OneSecond)
-            {
                 return;
-            }
+
             s_LastValidate = now;
 
             var graph = new PlayerLoopSystemGraph();

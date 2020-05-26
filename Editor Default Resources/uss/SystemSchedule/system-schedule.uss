@@ -9,6 +9,7 @@
 .system-schedule__toolbar-right-side-container {
     flex-direction: row;
     justify-content: flex-end;
+	align-items: center;
 }
 
 

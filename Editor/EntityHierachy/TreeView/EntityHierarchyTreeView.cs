@@ -18,7 +18,9 @@ namespace Unity.Entities.Editor
 
         TreeView m_TreeView;
         EntitySelectionProxy m_SelectionProxy;
-        IEntityHierarchyGroupingStrategy m_Strategy;
+        IEntityHierarchy m_Hierarchy;
+        uint m_RootVersion;
+        bool m_StructureChanged;
 
         public EntityHierarchyTreeView()
         {
@@ -34,17 +36,38 @@ namespace Unity.Entities.Editor
                 UnityObject.DestroyImmediate(m_SelectionProxy);
         }
 
-        public void Refresh(IEntityHierarchyGroupingStrategy strategy)
+        public void Refresh(IEntityHierarchy hierarchy)
         {
-            if (m_Strategy == strategy)
+            if (m_Hierarchy == hierarchy)
                 return;
 
-            m_Strategy = strategy;
+            m_Hierarchy = hierarchy;
+            m_StructureChanged = true;
+            m_RootVersion = 0;
+            OnUpdate();
+        }
+
+        public void OnUpdate()
+        {
+            if (m_Hierarchy?.Strategy == null)
+                return;
+
+            var rootVersion = m_Hierarchy.Strategy.GetNodeVersion(EntityHierarchyNodeId.Root);
+            if (!m_StructureChanged && rootVersion == m_RootVersion)
+                return;
+
+            m_StructureChanged = false;
+            m_RootVersion = rootVersion;
 
             RecreateRootItems();
-
             EntityHierarchyPool.ReturnAllVisualElements(this);
             m_TreeView.Refresh();
+        }
+
+        public void UpdateStructure()
+        {
+            // Topology changes will be applied during update
+            m_StructureChanged = true;
         }
 
         void RecreateRootItems()
@@ -54,13 +77,13 @@ namespace Unity.Entities.Editor
 
             m_RootItems.Clear();
 
-            if (m_Strategy == null)
+            if (m_Hierarchy?.Strategy == null)
                 return;
 
-            using (var rootNodes = m_Strategy.GetChildren(EntityHierarchyNodeId.Root, Allocator.TempJob))
+            using (var rootNodes = m_Hierarchy.Strategy.GetChildren(EntityHierarchyNodeId.Root, Allocator.TempJob))
             {
                 foreach (var node in rootNodes)
-                    m_RootItems.Add(EntityHierarchyPool.GetTreeViewItem(null, node, m_Strategy));
+                    m_RootItems.Add(EntityHierarchyPool.GetTreeViewItem(null, node, m_Hierarchy.Strategy));
             }
         }
 
@@ -93,15 +116,10 @@ namespace Unity.Entities.Editor
 
             if (selectedItem.NodeId.Kind == NodeKind.Entity)
             {
-                EntityTreeNode entityNode;
-                unsafe
+                var entity = selectedItem.Strategy.GetUnderlyingEntity(selectedItem.NodeId);
+                if (selectedItem.Strategy.GetUnderlyingEntity(selectedItem.NodeId) != Entity.Null)
                 {
-                    selectedItem.Strategy.GetNode(selectedItem.NodeId, &entityNode);
-                }
-
-                if (entityNode.Entity != Entity.Null)
-                {
-                    m_SelectionProxy.SetEntity(m_Strategy.World, entityNode.Entity);
+                    m_SelectionProxy.SetEntity(m_Hierarchy.World, entity);
                     Selection.activeObject = m_SelectionProxy;
                 }
             }
@@ -114,7 +132,7 @@ namespace Unity.Entities.Editor
 
         void OnSelectionChangedByInspector(World world, Entity entity)
         {
-            if (world != m_Strategy.World)
+            if (world != m_Hierarchy.World)
                 return;
 
             m_TreeView.Select(new EntityHierarchyNodeId(NodeKind.Entity, entity.Index).GetHashCode());
@@ -122,7 +140,7 @@ namespace Unity.Entities.Editor
 
         VisualElement OnMakeItem() => EntityHierarchyPool.GetVisualElement(this);
 
-        void OnBindItem(VisualElement element, ITreeViewItem item) => ((EntityHierarchyVisualElement)element).SetSource((EntityHierarchyTreeViewItem)item);
+        void OnBindItem(VisualElement element, ITreeViewItem item) => ((EntityHierarchyVisualElement)element).SetSource(m_Hierarchy, ((EntityHierarchyTreeViewItem)item).NodeId);
 
         bool OnFilter(ITreeViewItem item) => true;
     }

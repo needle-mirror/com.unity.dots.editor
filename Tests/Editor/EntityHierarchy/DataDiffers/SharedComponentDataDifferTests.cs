@@ -5,7 +5,6 @@ using Unity.Collections;
 
 namespace Unity.Entities.Editor.Tests
 {
-    [Ignore("Temporarily ignored - will be re-enabled on upcoming version including update to burst 1.3.0-preview.11 and improved EntityDiffer")]
     [TestFixture]
     class SharedComponentDataDifferTests
     {
@@ -33,6 +32,25 @@ namespace Unity.Entities.Editor.Tests
             {
                 Assert.That(result.AddedEntitiesCount, Is.EqualTo(0));
                 Assert.That(result.RemovedEntitiesCount, Is.EqualTo(0));
+            }
+        }
+
+        [Test]
+        public unsafe void SharedComponentDataDiffer_DetectMissingEntityWhenDestroyed()
+        {
+            var entityA = m_World.EntityManager.CreateEntity();
+            var entityB = m_World.EntityManager.CreateEntity();
+            m_World.EntityManager.AddSharedComponentData(entityA, new EcsTestSharedComp { value = 1 });
+            m_World.EntityManager.AddSharedComponentData(entityB, new EcsTestSharedComp { value = 1 });
+            m_Differ.GatherComponentChanges(m_World.EntityManager, m_World.EntityManager.UniversalQuery, Allocator.TempJob).Dispose();
+
+            m_World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
+            m_World.EntityManager.DestroyEntity(entityB);
+            using (var result = m_Differ.GatherComponentChanges(m_World.EntityManager, m_World.EntityManager.UniversalQuery, Allocator.TempJob))
+            {
+                Assert.That(result.AddedEntitiesCount, Is.EqualTo(0));
+                Assert.That(result.RemovedEntitiesCount, Is.EqualTo(1));
+                Assert.That(result.GetRemovedEntities<EcsTestSharedComp>(0), Is.EqualTo((entityB, new EcsTestSharedComp { value = 1 })));
             }
         }
 
@@ -193,7 +211,7 @@ namespace Unity.Entities.Editor.Tests
         {
             var result = new SharedComponentDataDiffer.ComponentChanges(TypeManager.GetTypeIndex(typeof(EcsTestSharedComp)), default, default, default, default, default);
 
-            var ex = Assert.Throws<InvalidOperationException>(() => result.GetAddedEntities<OtherSharedComponent>(0));
+            var ex = Assert.Throws<InvalidOperationException>(() => result.GetAddedComponent<OtherSharedComponent>(0));
             Assert.That(ex.Message, Is.EqualTo($"Unable to retrieve data for component type {typeof(OtherSharedComponent)} (type index {TypeManager.GetTypeIndex<OtherSharedComponent>()}), this container only holds data for the type with type index {TypeManager.GetTypeIndex(typeof(EcsTestSharedComp))}."));
         }
 
@@ -217,6 +235,14 @@ namespace Unity.Entities.Editor.Tests
                 Assert.Throws<IndexOutOfRangeException>(() => result.GetRemovedEntities<EcsTestSharedComp>(1));
                 Assert.Throws<IndexOutOfRangeException>(() => result.GetAddedEntities<EcsTestSharedComp>(1));
             }
+        }
+
+        [Test]
+        public void SharedComponentDataDiffer_CheckIfDifferCanWatchType()
+        {
+            Assert.That(SharedComponentDataDiffer.CanWatch(typeof(EcsTestData)), Is.False);
+            Assert.That(SharedComponentDataDiffer.CanWatch(typeof(EcsTestSharedComp)), Is.True);
+            Assert.That(SharedComponentDataDiffer.CanWatch(typeof(Entity)), Is.False);
         }
 
         struct OtherSharedComponent : ISharedComponentData

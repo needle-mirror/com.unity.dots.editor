@@ -26,15 +26,20 @@ namespace Unity.Entities.Editor
 
         public SharedComponentDataDiffer(ComponentType componentType)
         {
-            var typeInfo = TypeManager.GetTypeInfo(componentType.TypeIndex);
-            if (typeInfo.Category != TypeManager.TypeCategory.ISharedComponentData)
+            if (!CanWatch(componentType))
                 throw new ArgumentException($"{nameof(SharedComponentDataDiffer)} only supports {nameof(ISharedComponentData)} components.", nameof(componentType));
 
-            m_TypeIndex = typeInfo.TypeIndex;
+            WatchedComponentType = componentType;
+            m_TypeIndex = componentType.TypeIndex;
             m_ManagedComponentIndexInCopyByChunk = new NativeHashMap<ulong, int>(100, Allocator.Persistent);
             m_ShadowChunks = new NativeHashMap<ulong, ShadowChunk>(100, Allocator.Persistent);
             m_DefaultComponentDataValue = Activator.CreateInstance(componentType.GetManagedType());
         }
+
+        public ComponentType WatchedComponentType { get; }
+
+        public static bool CanWatch(ComponentType componentType)
+            => TypeManager.GetTypeInfo(componentType.TypeIndex).Category == TypeManager.TypeCategory.ISharedComponentData;
 
         public unsafe void Dispose()
         {
@@ -501,22 +506,19 @@ namespace Unity.Entities.Editor
             public int AddedEntitiesCount => m_AddedEntities.Length;
             public int RemovedEntitiesCount => m_RemovedEntities.Length;
 
-            public (Entity entity, T componentData) GetAddedEntities<T>(int index) where T : struct, ISharedComponentData
+            public Entity GetAddedEntity(int index) => m_AddedEntities[index];
+            public Entity GetRemovedEntity(int index) => m_RemovedEntities[index];
+
+            public T GetAddedComponent<T>(int index) where T : struct, ISharedComponentData
             {
                 EnsureIsExpectedComponent<T>();
-                if ((uint)index >= m_AddedEntities.Length)
-                    throw new IndexOutOfRangeException();
-
-                return (m_AddedEntities[index], (T)m_Buffer[m_AddedEntitiesMapping[index]].Target);
+                return (T)m_Buffer[m_AddedEntitiesMapping[index]].Target;
             }
 
-            public (Entity entity, T componentData) GetRemovedEntities<T>(int index) where T : struct, ISharedComponentData
+            public T GetRemovedComponent<T>(int index) where T : struct, ISharedComponentData
             {
                 EnsureIsExpectedComponent<T>();
-                if ((uint)index >= m_RemovedEntities.Length)
-                    throw new IndexOutOfRangeException();
-
-                return (m_RemovedEntities[index], (T)m_Buffer[m_RemovedEntitiesMapping[index]].Target);
+                return (T)m_Buffer[m_RemovedEntitiesMapping[index]].Target;
             }
 
             void EnsureIsExpectedComponent<T>() where T : struct

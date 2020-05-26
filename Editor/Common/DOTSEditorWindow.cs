@@ -1,3 +1,6 @@
+using System;
+using System.Text.RegularExpressions;
+using Unity.Assertions;
 using Unity.Serialization.Editor;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -9,10 +12,13 @@ namespace Unity.Entities.Editor
     {
         static readonly string k_NoWorldString = L10n.Tr("No World");
 
+        readonly WorldsChangeDetector m_WorldsChangeDetector = new WorldsChangeDetector();
+
         ToolbarMenu m_WorldSelector;
         VisualElement m_SearchFieldContainer;
         ToolbarSearchField m_SearchField;
         Image m_SearchIcon;
+        bool m_PreviousShowAdvancedWorldsValue;
 
         BaseStateContainer m_BaseState;
         string BaseStateKey => $"{GetType().Name}.{nameof(BaseStateContainer)}";
@@ -66,15 +72,15 @@ namespace Unity.Entities.Editor
 
         protected ToolbarMenu CreateWorldSelector()
         {
-            var currentWorld = GetCurrentlySelectedWorld();
             m_WorldSelector = new ToolbarMenu
             {
                 name = "worldMenu",
-                variant = ToolbarMenu.Variant.Popup,
-                text = currentWorld == null ? k_NoWorldString : currentWorld.Name
+                variant = ToolbarMenu.Variant.Popup
             };
 
             UpdateWorldDropDownMenu();
+
+            m_PreviousShowAdvancedWorldsValue = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds;
 
             return m_WorldSelector;
         }
@@ -104,6 +110,9 @@ namespace Unity.Entities.Editor
 
         protected void AddSearchIcon(VisualElement parent, string ussClass)
         {
+            var searchIconContainer = new VisualElement();
+            searchIconContainer.AddToClassList(UssClasses.DotsEditorCommon.SearchIconContainer);
+
             m_SearchIcon = new Image();
             Resources.Templates.DotsEditorCommon.AddStyles(m_SearchIcon);
             m_SearchIcon.AddToClassList(UssClasses.DotsEditorCommon.CommonResources);
@@ -122,7 +131,8 @@ namespace Unity.Entities.Editor
                 }
             });
 
-            parent.Add(m_SearchIcon);
+            searchIconContainer.Add(m_SearchIcon);
+            parent.Add(searchIconContainer);
         }
 
         protected ToolbarMenu CreateDropDownSettings(string ussClass)
@@ -145,21 +155,36 @@ namespace Unity.Entities.Editor
 
         public void Update()
         {
-            // Worlds could have been added or removed without this window knowing
-            if (m_WorldSelector != null)
+            if (NeedToChangeWorldDropDownMenu())
             {
                 UpdateWorldDropDownMenu();
-                var currentWorld = GetCurrentlySelectedWorld();
-                m_WorldSelector.text = currentWorld == null ? k_NoWorldString : currentWorld.Name;
+                OnWorldSelected(GetCurrentlySelectedWorld());
             }
 
             OnUpdate();
         }
 
-        void UpdateWorldDropDownMenu()
+        bool NeedToChangeWorldDropDownMenu()
         {
-            if (m_WorldSelector == null)
-                return;
+            if (null == m_WorldSelector)
+                return false;
+
+            if (m_WorldsChangeDetector.WorldsChanged())
+                return true;
+
+            var showAdvancedWorlds = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds;
+            if (m_PreviousShowAdvancedWorldsValue != showAdvancedWorlds)
+            {
+                m_PreviousShowAdvancedWorldsValue = showAdvancedWorlds;
+                return true;
+            }
+
+            return false;
+        }
+
+        protected void UpdateWorldDropDownMenu()
+        {
+            Assert.IsNotNull(m_WorldSelector);
 
             var menu = m_WorldSelector.menu;
             var menuItemsCount = menu.MenuItems().Count;
@@ -179,6 +204,9 @@ namespace Unity.Entities.Editor
             {
                 menu.AppendAction(k_NoWorldString, OnWorldSelected, DropdownMenuAction.AlwaysEnabled);
             }
+
+            var currentWorld = GetCurrentlySelectedWorld();
+            m_WorldSelector.text = currentWorld == null ? k_NoWorldString : currentWorld.Name;
         }
 
         void AppendWorldMenu(DropdownMenu menu, bool showAdvancedWorlds)
@@ -226,6 +254,25 @@ namespace Unity.Entities.Editor
             }
 
             OnWorldSelected(world);
+        }
+
+        protected void AddStringToSearchField(string toAdd)
+        {
+            if (!string.IsNullOrEmpty(SearchFilter)
+                && SearchFilter.IndexOf(toAdd, StringComparison.OrdinalIgnoreCase) >= 0)
+                return;
+
+            SearchFilter += string.IsNullOrEmpty(SearchFilter)
+                ? toAdd + " "
+                : " " + toAdd + " ";
+        }
+
+        protected void RemoveStringFromSearchField(string toRemove)
+        {
+            if (string.IsNullOrEmpty(SearchFilter))
+                return;
+
+            SearchFilter = Regex.Replace(SearchFilter, toRemove, string.Empty, RegexOptions.IgnoreCase).Trim();
         }
 
         void OnFilterChanged(ChangeEvent<string> evt)

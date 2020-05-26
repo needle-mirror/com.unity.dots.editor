@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace Unity.Entities.Editor.Tests
 {
-    public class WorldCategoryHelperTests
+    class WorldCategoryHelperTests
     {
         WorldScope m_WorldScope;
 

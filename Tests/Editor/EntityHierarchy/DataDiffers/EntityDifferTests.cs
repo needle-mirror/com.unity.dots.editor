@@ -3,7 +3,6 @@ using Unity.Collections;
 
 namespace Unity.Entities.Editor.Tests
 {
-    [Ignore("Temporarily ignored - will be re-enabled on upcoming version including update to burst 1.3.0-preview.11 and improved EntityDiffer")]
     class EntityDifferTests
     {
         World m_World;
@@ -39,6 +38,25 @@ namespace Unity.Entities.Editor.Tests
         }
 
         [Test]
+        public unsafe void EntityDiffer_DetectMissingComponentWhenEntityDestroyed()
+        {
+            var entityA = m_World.EntityManager.CreateEntity(typeof(EcsTestData));
+            var entityB = m_World.EntityManager.CreateEntity(typeof(EcsTestData));
+
+            using (var query = m_World.EntityManager.CreateEntityQuery(typeof(EcsTestData)))
+            {
+                GetEntityQueryMatchDiff(query);
+
+                m_World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
+                m_World.EntityManager.DestroyEntity(entityB);
+
+                var (created, destroyed) = GetEntityQueryMatchDiff(query);
+                Assert.That(created, Is.Empty);
+                Assert.That(destroyed, Is.EquivalentTo(new[] { entityB }));
+            }
+        }
+
+        [Test]
         public void EntityDiffer_HandleGrowEntityManagerCapacity()
         {
             var initialCapacity = m_World.EntityManager.EntityCapacity;
@@ -56,7 +74,7 @@ namespace Unity.Entities.Editor.Tests
         }
 
         [Test]
-        public void EntityDiffer_DetectEntityChangesReusingSameQuery()
+        public unsafe void EntityDiffer_DetectEntityChangesReusingSameQuery()
         {
             var entityA = m_World.EntityManager.CreateEntity(typeof(EcsTestData));
 
@@ -66,6 +84,8 @@ namespace Unity.Entities.Editor.Tests
 
                 Assert.That(created, Is.EquivalentTo(new[] { entityA }));
                 Assert.That(destroyed, Is.Empty);
+
+                m_World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
 
                 var entityB = m_World.EntityManager.CreateEntity(typeof(EcsTestData));
                 m_World.EntityManager.DestroyEntity(entityA);

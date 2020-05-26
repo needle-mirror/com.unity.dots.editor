@@ -44,5 +44,19 @@ namespace Unity.Entities.Editor.Tests
 
             return entities;
         }
+
+        protected void CreateEntitiesWithMockSharedComponentData(NativeArray<Entity> entities, Func<int, int> sharedComponentValueProvider, params ComponentType[] components)
+        {
+            var archetype = m_World.EntityManager.CreateArchetype(components);
+            m_World.EntityManager.CreateEntity(archetype, entities);
+
+            if (components.Any(t => t == typeof(EcsTestSharedComp)))
+            {
+                for (var i = 0; i < entities.Length; i++)
+                {
+                    World.EntityManager.SetSharedComponentData(entities[i], new EcsTestSharedComp { value = sharedComponentValueProvider?.Invoke(i) ?? i / 31 });
+                }
+            }
+        }
     }
 }

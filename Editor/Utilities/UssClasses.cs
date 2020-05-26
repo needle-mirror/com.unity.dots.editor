@@ -12,6 +12,7 @@ namespace Unity.Entities.Editor
         {
             public const string CommonResources = "common-resources";
             public const string SettingsIcon = "settings-icon";
+            public const string SearchIconContainer = "search-icon-container";
             public const string SearchIcon = "search-icon";
 
             public const string SearchFieldContainer = "search-field-container";
@@ -32,7 +33,6 @@ namespace Unity.Entities.Editor
             public const string SystemSchedule = "system-schedule";
             public const string ToolbarContainer = SystemSchedule + "__toolbar-container";
             public const string ToolbarRightSideContainer = SystemSchedule + "__toolbar-right-side-container";
-            public const string SearchField = SystemSchedule + "__search-field";
 
             public static class TreeView
             {
@@ -54,20 +54,19 @@ namespace Unity.Entities.Editor
                 public const string SystemIcon = Icon + "--system";
                 public const string SystemGroupIcon = Icon + "--system-group";
                 public const string CommandBufferIcon = Icon + "--command-buffer";
-                public const string PlayerLoopIcon = Icon + "--player-loop";
             }
 
             public static class Detail
             {
                 const string Base = SystemSchedule + "-detail";
                 const string Header = Base + "__header";
-                const string Content = Base + "__content";
                 const string Icon = Base + "__icon";
 
+                public const string Content = Base + "__content";
                 public const string SystemIcon = Icon + "--system";
+                public const string GroupIcon = Icon + "--group";
                 public const string CommandBufferIcon = Icon + "--command-buffer";
                 public const string ScriptsIcon = Icon + "--scripts";
-                public const string CloseIcon = Icon + "--close";
                 public const string QueryIcon = Icon + "--query";
                 public const string ReadOnlyIcon = Icon + "--read-only";
                 public const string ReadWriteIcon = Icon + "--read-write";
@@ -76,15 +75,14 @@ namespace Unity.Entities.Editor
 
                 public const string SystemIconName = Header + "-system-icon";
                 public const string ScriptsIconName = Header + "-scripts-icon";
-                public const string CloseIconName = Header + "-close-icon";
-
                 public const string SystemNameLabel = Header + "-system-name-label";
+                public const string MiddleSection = Header + "-middle-section";
+                public const string ResizeBar = Header + "-resize-bar";
 
                 public const string QueryTitleLabel = Content + "-query-title-label";
                 public const string MatchTitleLabel = Content + "-match-title-label";
                 public const string QueryRow2 = Content + "-query-row-2";
                 public const string QueryIconName = Content + "-query-icon";
-                public const string QueryIconAndResultContainer = Content + "-query-container";
                 public const string AllComponentContainer = Content + "-all-component-container";
                 public const string EachComponentContainer = Content + "-each-component-container";
                 public const string ComponentAccessModeIcon = Content + "-component-access-icon";
@@ -93,8 +91,6 @@ namespace Unity.Entities.Editor
 
                 public const string SchedulingTitle = Content + "-scheduling-title";
                 public const string SchedulingToggle = Content + "-scheduling-toggle";
-                public const string SchedulingFilterSystemIcon = "system-schedule-scheduling__close-icon";
-                public const string SchedulingFilterCloseIcon = "system-schedule-scheduling--close-icon";
             }
         }
 
@@ -123,7 +119,9 @@ namespace Unity.Entities.Editor
                 public const string NameScene = NameLabel + "--scene";
 
                 public const string SystemButton = k_Base + "__system-button";
-                public const string SystemButtonEntity = SystemButton + "--entity";
+                public const string PingGameObjectButton = k_Base + "__ping-gameobject-button";
+
+                public const string VisibleOnHover = k_Base + "__visible-on-hover";
             }
         }
     }

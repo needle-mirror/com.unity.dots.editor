@@ -16,8 +16,8 @@ namespace Unity.Entities.Editor
 
         public static class MenuItems
         {
-            public const int WindowPriority = 3006;   
-            public const string SystemScheduleWindow = "internal:Window/DOTS/Systems Schedule";
+            public const int WindowPriority = 3006;
+            public const string SystemScheduleWindow = "Window/DOTS/Systems Schedule";
             public const string EntityHierarchyWindow = "internal:Window/DOTS/Entity Hierarchy";
         }
 
@@ -25,6 +25,15 @@ namespace Unity.Entities.Editor
         {
             public const string InspectorSettings = "Inspector Settings";
             public const string AdvancedSettings = "Advanced Settings";
+        }
+
+        public static class SystemSchedule
+        {
+            public const string k_ComponentToken = "c:";
+            public const int k_ComponentTokenLength = 2;
+            public const string k_SystemDependencyToken = "sd:";
+            public const string k_ScriptType = " t:Script";
+            public const int k_ShowMinimumQueryCount = 2;
         }
 
         public static class State

@@ -14,14 +14,23 @@ namespace Unity.Entities.Editor
 
         public ComponentDataDiffer(ComponentType componentType)
         {
-            var typeInfo = TypeManager.GetTypeInfo(componentType.TypeIndex);
-
-            if (typeInfo.Category != TypeManager.TypeCategory.ComponentData || !UnsafeUtility.IsUnmanaged(componentType.GetManagedType()))
+            if (!CanWatch(componentType))
                 throw new ArgumentException($"{nameof(ComponentDataDiffer)} only supports unmanaged {nameof(IComponentData)} components.", nameof(componentType));
 
+            var typeInfo = TypeManager.GetTypeInfo(componentType.TypeIndex);
+
+            WatchedComponentType = componentType;
             m_TypeIndex = typeInfo.TypeIndex;
             m_ComponentSize = typeInfo.SizeInChunk;
             m_PreviousChunksBySequenceNumber = new NativeHashMap<ulong, ShadowChunk>(16, Allocator.Persistent);
+        }
+
+        public ComponentType WatchedComponentType { get; }
+
+        public static bool CanWatch(ComponentType componentType)
+        {
+            var typeInfo = TypeManager.GetTypeInfo(componentType.TypeIndex);
+            return typeInfo.Category == TypeManager.TypeCategory.ComponentData && UnsafeUtility.IsUnmanaged(componentType.GetManagedType());
         }
 
         public void Dispose()
@@ -130,7 +139,8 @@ namespace Unity.Entities.Editor
 
                 if (ShadowChunksBySequenceNumber.TryGetValue(chunk->SequenceNumber, out var shadow))
                 {
-                    if (!ChangeVersionUtility.DidChange(chunk->GetChangeVersion(indexInTypeArray), shadow.Version))
+                    if (!ChangeVersionUtility.DidChange(chunk->GetChangeVersion(indexInTypeArray), shadow.ComponentVersion)
+                        && !ChangeVersionUtility.DidChange(chunk->GetChangeVersion(0), shadow.EntityVersion))
                         return;
 
                     if (!changesForChunk->AddedComponentEntities.IsCreated)
@@ -154,11 +164,13 @@ namespace Unity.Entities.Editor
                         var currentComponentData = componentDataPtr + ComponentSize * i;
                         var previousComponentData = shadow.ComponentDataBuffer + ComponentSize * i;
 
-                        if (UnsafeUtility.MemCmp(currentComponentData, previousComponentData, ComponentSize) != 0)
+                        var entity = *(Entity*)(entityDataPtr + sizeof(Entity) * i);
+                        var previousEntity = *(Entity*)(shadow.EntityDataBuffer + sizeof(Entity) * i);
+
+                        if (entity != previousEntity
+                            || UnsafeUtility.MemCmp(currentComponentData, previousComponentData, ComponentSize) != 0)
                         {
                             // CHANGED COMPONENT DATA!
-                            var entity = *(Entity*)(entityDataPtr + sizeof(Entity) * i);
-                            var previousEntity = *(Entity*)(shadow.EntityDataBuffer + sizeof(Entity) * i);
                             OnRemovedComponent(changesForChunk, previousEntity, previousComponentData, ComponentSize);
                             OnNewComponent(changesForChunk, entity, currentComponentData, ComponentSize);
                         }
@@ -237,7 +249,8 @@ namespace Unity.Entities.Editor
                 shadow = new ShadowChunk
                 {
                     Count = chunk->Count,
-                    Version = chunk->GetChangeVersion(indexInTypeArray),
+                    ComponentVersion = chunk->GetChangeVersion(indexInTypeArray),
+                    EntityVersion = chunk->GetChangeVersion(0),
                     EntityDataBuffer = (byte*)UnsafeUtility.Malloc(sizeof(Entity) * chunk->Capacity, 4, Allocator.Persistent),
                     ComponentDataBuffer = (byte*)UnsafeUtility.Malloc(ComponentSize * chunk->Capacity, 4, Allocator.Persistent)
                 };
@@ -273,7 +286,8 @@ namespace Unity.Entities.Editor
                     if (indexInTypeArray == -1) // Archetype doesn't match required component
                         continue;
 
-                    var version = chunk->GetChangeVersion(indexInTypeArray);
+                    var componentVersion = chunk->GetChangeVersion(indexInTypeArray);
+                    var entityVersion = chunk->GetChangeVersion(0);
                     var sequenceNumber = chunk->SequenceNumber;
                     processedChunks.Add(sequenceNumber, 0);
                     var entityDataPtr = chunk->Buffer + archetype->Offsets[0];
@@ -281,14 +295,16 @@ namespace Unity.Entities.Editor
 
                     if (ShadowChunksBySequenceNumber.TryGetValue(sequenceNumber, out var shadow))
                     {
-                        if (!ChangeVersionUtility.DidChange(version, shadow.Version))
+                        if (!ChangeVersionUtility.DidChange(componentVersion, shadow.ComponentVersion)
+                            && !ChangeVersionUtility.DidChange(entityVersion, shadow.EntityVersion))
                             continue;
 
                         UnsafeUtility.MemCpy(shadow.EntityDataBuffer, entityDataPtr, chunk->Count * sizeof(Entity));
                         UnsafeUtility.MemCpy(shadow.ComponentDataBuffer, componentDataPtr, chunk->Count * ComponentSize);
 
                         shadow.Count = chunk->Count;
-                        shadow.Version = version;
+                        shadow.ComponentVersion = componentVersion;
+                        shadow.EntityVersion = entityVersion;
 
                         ShadowChunksBySequenceNumber[sequenceNumber] = shadow;
                     }
@@ -388,7 +404,8 @@ namespace Unity.Entities.Editor
 
         unsafe struct ShadowChunk
         {
-            public uint Version;
+            public uint ComponentVersion;
+            public uint EntityVersion;
             public int Count;
             public byte* EntityDataBuffer;
             public byte* ComponentDataBuffer;
@@ -423,24 +440,26 @@ namespace Unity.Entities.Editor
             public int AddedComponentsCount => m_AddedComponents.Length;
             public int RemovedComponentsCount => m_RemovedComponents.Length;
 
-            public unsafe (Entity entity, T componentData) GetAddedComponent<T>(int index) where T : struct
+            public unsafe (NativeArray<Entity> entities, NativeArray<T> componentData) GetAddedComponents<T>(Allocator allocator) where T : struct
             {
                 EnsureIsExpectedComponent<T>();
-                if ((uint)index >= m_AddedComponents.Length)
-                    throw new IndexOutOfRangeException();
 
-                UnsafeUtility.CopyPtrToStructure((byte*)m_Buffer.GetUnsafeReadOnlyPtr() + index * UnsafeUtility.SizeOf<T>(), out T component);
-                return (m_AddedComponents[index], component);
+                var entities = new NativeArray<Entity>(m_AddedComponents, allocator);
+                var components = new NativeArray<T>(m_AddedComponents.Length, allocator);
+                UnsafeUtility.MemCpy(components.GetUnsafePtr(), (byte*)m_Buffer.GetUnsafeReadOnlyPtr(), m_AddedComponents.Length * UnsafeUtility.SizeOf<T>());
+
+                return (entities, components);
             }
 
-            public unsafe (Entity entity, T componentData) GetRemovedComponent<T>(int index) where T : struct
+            public unsafe (NativeArray<Entity> entities, NativeArray<T> componentData) GetRemovedComponents<T>(Allocator allocator) where T : struct
             {
                 EnsureIsExpectedComponent<T>();
-                if ((uint)index >= m_RemovedComponents.Length)
-                    throw new IndexOutOfRangeException();
 
-                UnsafeUtility.CopyPtrToStructure((byte*)m_Buffer.GetUnsafeReadOnlyPtr() + (m_AddedComponents.Length + index) * UnsafeUtility.SizeOf<T>(), out T component);
-                return (m_RemovedComponents[index], component);
+                var entities = new NativeArray<Entity>(m_RemovedComponents, allocator);
+                var components = new NativeArray<T>(m_RemovedComponents.Length, allocator);
+                UnsafeUtility.MemCpy(components.GetUnsafePtr(), (byte*)m_Buffer.GetUnsafeReadOnlyPtr() + m_AddedComponents.Length * UnsafeUtility.SizeOf<T>(), m_RemovedComponents.Length * UnsafeUtility.SizeOf<T>());
+
+                return (entities, components);
             }
 
             void EnsureIsExpectedComponent<T>() where T : struct

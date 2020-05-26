@@ -6,13 +6,13 @@ namespace Unity.Entities.Editor
 {
     interface IEntityHierarchyGroupingStrategy : IDisposable
     {
-        World World { get; }
-
         ComponentType[] ComponentsToWatch { get; }
 
-        void ApplyEntityChanges(NativeArray<Entity> newEntities, NativeArray<Entity> removedEntities);
-        void ApplyComponentDataChanges(in ComponentDataDiffer.ComponentChanges componentChanges);
-        void ApplySharedComponentDataChanges(in SharedComponentDataDiffer.ComponentChanges componentChanges);
+        void BeginApply(uint version);
+        void ApplyEntityChanges(NativeArray<Entity> newEntities, NativeArray<Entity> removedEntities, uint version);
+        void ApplyComponentDataChanges(ComponentType componentType, in ComponentDataDiffer.ComponentChanges componentChanges, uint version);
+        void ApplySharedComponentDataChanges(ComponentType componentType, in SharedComponentDataDiffer.ComponentChanges componentChanges, uint version);
+        bool EndApply(uint version);
 
         bool HasChildren(in EntityHierarchyNodeId nodeId);
 
@@ -20,17 +20,11 @@ namespace Unity.Entities.Editor
 
         bool Exists(in EntityHierarchyNodeId nodeId);
 
-        unsafe void GetNode<T>(in EntityHierarchyNodeId nodeId, T* node) where T : unmanaged;
+        Entity GetUnderlyingEntity(in EntityHierarchyNodeId nodeId);
 
         uint GetNodeVersion(in EntityHierarchyNodeId nodeId);
 
         string GetNodeName(in EntityHierarchyNodeId nodeId);
-    }
-
-    struct EntityTreeNode
-    {
-        [UsedImplicitly]
-        public Entity Entity;
     }
 
     struct VirtualTreeNode
@@ -38,7 +32,4 @@ namespace Unity.Entities.Editor
         [UsedImplicitly]
         public Hash128 SceneId;
     }
-
-    // Stub
-    struct EntityHierarchyDifferResult {}
 }

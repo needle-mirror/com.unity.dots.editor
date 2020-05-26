@@ -9,7 +9,8 @@
 
 .entity-hierarchy-item__column-1
 {
-    flex: 1 1;
+    flex-shrink: 0;
+    flex-grow: 1;
     flex-direction: row;
     align-items: center;
 
@@ -19,9 +20,9 @@
 
 .entity-hierarchy-item__column-2
 {
-    flex: 0 0 16px;
-    align-items: center;
-    margin-right: 4px;
+    flex-direction: row;
+    padding-right: 4px;
+    padding-top: 3px;
 }
 
 .entity-hierarchy-item__icon
@@ -59,19 +60,34 @@
 {
     width: 16px;
     height: 16px;
+    margin-left: 2px;
+    background-image: var(--go-to-systems-icon);
+
     display: none;
 }
 
-.entity-hierarchy-item__system-button--entity
+.entity-hierarchy-item__ping-gameobject-button
 {
-    margin-top: 3px;
-    background-image: var(--system-icon);
+    width: 16px;
+    height: 16px;
+    background-image: var(--gameobject);
+
+    display: none;
 }
 
-.entity-hierarchy-item__container:hover .entity-hierarchy-item__system-button--entity
+.unity-tree-view__item .entity-hierarchy-item__visible-on-hover
 {
-    display: initial;
-    background-image: var(--go-to-systems-icon);
+    display: none;
+}
+
+.unity-tree-view__item:hover .entity-hierarchy-item__visible-on-hover
+{
+    display: flex;
+}
+
+.unity-tree-view__item:checked .entity-hierarchy-item__visible-on-hover
+{
+    display: flex;
 }
 
 /* Selected state */
@@ -91,8 +107,12 @@
     background-image: var(--entity-icon--selected);
 }
 
-.unity-tree-view__item:checked .entity-hierarchy-item__container:hover .entity-hierarchy-item__system-button--entity
+.unity-tree-view__item:checked .entity-hierarchy-item__system-button
 {
-    display: initial;
     background-image: var(--go-to-systems-icon--selected);
+}
+
+.unity-tree-view__item:checked .entity-hierarchy-item__ping-gameobject-button
+{
+    background-image: var(--gameobject--selected);
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Editor.Bridge;
@@ -13,6 +14,8 @@ namespace Unity.Entities.Editor
         SystemTreeViewItem m_LastSelectedItem;
         int m_LastSelectedItemId;
         World m_World;
+        List<Type> m_SystemDependencyList = new List<Type>();
+
         public string SearchFilter { get; set; }
 
         /// <summary>
@@ -24,20 +27,21 @@ namespace Unity.Entities.Editor
             SystemTreeView.viewDataKey = Constants.State.ViewDataKeyPrefix + nameof(SystemScheduleTreeView);
             SystemTreeView.style.flexGrow = 1;
             Add(SystemTreeView);
+            CreateSystemDetailsSection();
+        }
 
-            // System details.
+        void CreateSystemDetailsSection()
+        {
             m_SystemDetailsVisualElement = new SystemDetailsVisualElement();
             SystemTreeView.onSelectionChange += (selectedItems) =>
             {
                 var item = selectedItems.OfType<SystemTreeViewItem>().FirstOrDefault();
-
                 if (null == item)
                     return;
 
                 switch (item.System)
                 {
                     case null:
-                    case ComponentSystemGroup _:
                     {
                         if (this.Contains(m_SystemDetailsVisualElement))
                             Remove(m_SystemDetailsVisualElement);
@@ -71,11 +75,8 @@ namespace Unity.Entities.Editor
 
         public void Refresh(World world, bool showInactiveSystems)
         {
-            if (m_World != world)
-            {
-                if (this.Contains(m_SystemDetailsVisualElement))
-                    this.Remove(m_SystemDetailsVisualElement);
-            }
+            if ((m_World != world) && (this.Contains(m_SystemDetailsVisualElement)))
+                this.Remove(m_SystemDetailsVisualElement);
 
             m_World = world;
 
@@ -87,6 +88,16 @@ namespace Unity.Entities.Editor
 
             var graph = PlayerLoopSystemGraph.Current;
 
+            if (!string.IsNullOrEmpty(SearchFilter) && SearchFilter.Contains(Constants.SystemSchedule.k_SystemDependencyToken))
+            {
+                SystemScheduleUtilities.GetSystemDepListFromSystemTypes(GetSystemTypesFromNamesInSearchFilter(graph), m_SystemDependencyList);
+                if (null == m_SystemDependencyList || !m_SystemDependencyList.Any())
+                {
+                    if (this.Contains(m_SystemDetailsVisualElement))
+                        Remove(m_SystemDetailsVisualElement);
+                }
+            }
+
             foreach (var node in graph.Roots)
             {
                 if (!node.ShowForWorld(m_World))
@@ -95,31 +106,57 @@ namespace Unity.Entities.Editor
                 if (!node.IsRunning && !showInactiveSystems)
                     continue;
 
-                var i = SystemSchedulePool.GetSystemTreeViewItem(graph, node, null, m_World, showInactiveSystems);
-                PopulateAllChildren(i, SearchFilter);
-                m_TreeRootItems.Add(i);
+                var item = SystemSchedulePool.GetSystemTreeViewItem(graph, node, null, m_World, showInactiveSystems);
+
+                PopulateAllChildren(item);
+                m_TreeRootItems.Add(item);
             }
 
             Refresh();
         }
 
-        void PopulateAllChildren(SystemTreeViewItem item, string searchFilter)
+        IEnumerable<Type> GetSystemTypesFromNamesInSearchFilter(PlayerLoopSystemGraph graph)
         {
-            if (!item.HasChildren)
-            {
-                if (item.id != m_LastSelectedItemId) return;
+            if (string.IsNullOrEmpty(SearchFilter))
+                yield break;
 
+            var systemNameList = SearchUtility.GetStringFollowedByGivenToken(SearchFilter, Constants.SystemSchedule.k_SystemDependencyToken).ToList();
+            if (!systemNameList.Any())
+                yield break;
+
+            using (var pooled = PooledHashSet<Type>.Make())
+            {
+                foreach (var system in graph.AllSystems)
+                {
+                    foreach (var singleSystemName in systemNameList)
+                    {
+                        if (string.Compare(system.GetType().Name, singleSystemName, StringComparison.OrdinalIgnoreCase) == 0)
+                        {
+                            var type = system.GetType();
+                            if (pooled.Set.Add(type))
+                                yield return type;
+                        }
+                    }
+                }
+            }
+        }
+
+        void PopulateAllChildren(SystemTreeViewItem item)
+        {
+            if (item.id == m_LastSelectedItemId)
+            {
                 m_LastSelectedItem = item;
                 m_SystemDetailsVisualElement.LastSelectedItem = m_LastSelectedItem;
-
-                return;
             }
 
-            item.PopulateChildren(searchFilter);
+            if (!item.HasChildren)
+                return;
+
+            item.PopulateChildren(SearchFilter, m_SystemDependencyList);
 
             foreach (var child in item.children)
             {
-                PopulateAllChildren(child as SystemTreeViewItem, searchFilter);
+                PopulateAllChildren(child as SystemTreeViewItem);
             }
         }
 

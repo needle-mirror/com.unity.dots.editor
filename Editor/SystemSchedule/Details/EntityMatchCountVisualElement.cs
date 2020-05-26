@@ -33,9 +33,7 @@ namespace Unity.Entities.Editor
         static void SetText(Label label, string text)
         {
             if (null != label && label.text != text)
-            {
                 label.text = text;
-            }
         }
 
         public void Update()

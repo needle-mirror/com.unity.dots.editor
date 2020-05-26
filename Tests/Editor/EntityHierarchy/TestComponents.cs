@@ -3,6 +3,11 @@ namespace Unity.Entities.Editor.Tests
     struct EcsTestData : IComponentData
     {
         public int value;
+
+        public override string ToString()
+        {
+            return $"{nameof(value)}: {value}";
+        }
     }
 
     struct EcsTestData2 : IComponentData
