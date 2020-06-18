@@ -24,16 +24,20 @@
 
 .system-schedule__tree-view__system-label {
     padding-left: 25px;
-    width: 350px;
+    width: 180px;
     flex-grow: 1;
 }
 
 .system-schedule__tree-view__matches-label {
     width: 65px;
+    border-left-width: 1px;
+    -unity-text-align: middle-center;
 }
 
 .system-schedule__tree-view__time-label {
     width: 65px;
+    border-left-width: 1px;
+    -unity-text-align: middle-center;
 }
 
 /**********************************************************************************************************************/

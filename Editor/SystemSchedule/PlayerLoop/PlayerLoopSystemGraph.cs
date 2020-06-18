@@ -79,9 +79,16 @@ namespace Unity.Entities.Editor
             return false;
         }
 
+        public struct RecorderKey
+        {
+            public World World;
+            public ComponentSystemGroup Group;
+            public ComponentSystemBase System;
+        }
+
         public readonly List<IPlayerLoopNode> Roots = new List<IPlayerLoopNode>();
 
-        public readonly Dictionary<ComponentSystemBase, AverageRecorder> RecordersBySystem = new Dictionary<ComponentSystemBase, AverageRecorder>();
+        public readonly Dictionary<RecorderKey, AverageRecorder> RecordersBySystem = new Dictionary<RecorderKey, AverageRecorder>();
 
         public readonly List<ComponentSystemBase> AllSystems = new List<ComponentSystemBase>();
 
@@ -157,9 +164,16 @@ namespace Unity.Entities.Editor
                     node = systemNode;
 
                     var recorder = Recorder.Get($"{system.World?.Name ?? "none"} {system.GetType().FullName}");
-                    if (!graph.RecordersBySystem.ContainsKey(system))
+                    var recorderKey = new RecorderKey
                     {
-                        graph.RecordersBySystem.Add(system, new AverageRecorder(recorder));
+                        World = system.World,
+                        Group = (ComponentSystemGroup)((ComponentGroupNode)parent).System,
+                        System = system
+                    };
+
+                    if (!graph.RecordersBySystem.ContainsKey(recorderKey))
+                    {
+                        graph.RecordersBySystem.Add(recorderKey, new AverageRecorder(recorder));
                     }
                     else
                     {

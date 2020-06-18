@@ -6,14 +6,13 @@ namespace Unity.Entities.Editor
     {
         static readonly Dictionary<SystemScheduleTreeView, HashSet<SystemInformationVisualElement>> k_PerTreeViewElements = new Dictionary<SystemScheduleTreeView, HashSet<SystemInformationVisualElement>>();
 
-        public static SystemTreeViewItem GetSystemTreeViewItem(PlayerLoopSystemGraph graph, IPlayerLoopNode node, SystemTreeViewItem parent, World world, bool showInactiveSystems)
+        public static SystemTreeViewItem GetSystemTreeViewItem(PlayerLoopSystemGraph graph, IPlayerLoopNode node, SystemTreeViewItem parent, World world)
         {
             var item = Pool<SystemTreeViewItem>.GetPooled(LifetimePolicy.Permanent);
             item.World = world;
             item.Graph = graph;
             item.Node = node;
             item.parent = parent;
-            item.ShowInactiveSystems = showInactiveSystems;
             return item;
         }
 

@@ -63,7 +63,7 @@ namespace Unity.Editor.Bridge
         public event Action<IEnumerable<ITreeViewItem>> onSelectionChange;
 
         List<ITreeViewItem> m_SelectedItems;
-        public ITreeViewItem selectedItem => m_SelectedItems.Count == 0 ? null : m_SelectedItems.First();
+        public ITreeViewItem selectedItem => m_SelectedItems == null || m_SelectedItems.Count == 0 ? null : m_SelectedItems.First();
 
         public IEnumerable<ITreeViewItem> selectedItems
         {
@@ -434,6 +434,25 @@ namespace Unity.Editor.Bridge
             Refresh();
         }
 
+        internal void PrepareItemsToExpand(List<int> ids)
+        {
+            if (ids == null || ids.Count == 0)
+                return;
+
+            var hashSet = new HashSet<int>(m_ExpandedItemIds);
+            var addedAnything = false;
+            foreach (var id in ids)
+            {
+                if (hashSet.Add(id))
+                    addedAnything = true;
+            }
+
+            if (!addedAnything)
+                return;
+
+            m_ExpandedItemIds = hashSet.ToList();
+        }
+
         public ITreeViewItem FindItem(int id)
         {
             foreach (var item in items)
@@ -503,6 +522,7 @@ namespace Unity.Editor.Bridge
                 hashSet.Remove(item.id);
             else
                 hashSet.Add(item.id);
+            ItemExpandedStateChanging(item, !wasExpanded);
 
             foreach (var child in GetAllItems(item.children))
             {
@@ -512,6 +532,7 @@ namespace Unity.Editor.Bridge
                         hashSet.Remove(child.id);
                     else
                         hashSet.Add(child.id);
+                    ItemExpandedStateChanging(child, !wasExpanded);
                 }
             }
 
@@ -624,6 +645,7 @@ namespace Unity.Editor.Bridge
             if (!m_ItemWrappers[index].item.hasChildren)
                 return;
 
+            ItemExpandedStateChanging(m_ItemWrappers[index].item, false);
             m_ExpandedItemIds.Remove(m_ItemWrappers[index].item.id);
 
             int recursiveChildCount = 0;
@@ -647,6 +669,7 @@ namespace Unity.Editor.Bridge
             if (!m_ItemWrappers[index].item.hasChildren)
                 return;
 
+            ItemExpandedStateChanging(m_ItemWrappers[index].item, true);
             var childWrappers = new List<TreeViewItemWrapper>();
             CreateWrappers(m_ItemWrappers[index].item.children, m_ItemWrappers[index].depth + 1, childWrappers);
 
@@ -677,6 +700,8 @@ namespace Unity.Editor.Bridge
             m_ScrollView.contentContainer.Focus();
 #endif
         }
+
+        public Action<ITreeViewItem, bool> ItemExpandedStateChanging = delegate { };
 
         public delegate bool OnFilter(ITreeViewItem item);
 

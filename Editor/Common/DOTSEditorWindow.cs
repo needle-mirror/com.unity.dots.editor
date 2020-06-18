@@ -28,21 +28,23 @@ namespace Unity.Entities.Editor
         {
             public string SelectedWorldName;
             public string SearchFilter;
+            public bool IsSearchFieldVisible = true; // Visible by default
         }
 
         protected string SearchFilter
         {
-            get => BaseState.SearchFilter;
-            set
+            get
+            {
+                return IsSearchFieldVisible ? BaseState.SearchFilter : null;
+            }
+            private set
             {
                 BaseState.SearchFilter = value;
-
-                UIElementHelper.Show(m_SearchField);
-                m_SearchField.Q("unity-text-input").Focus();
-
                 m_SearchField.value = value;
             }
         }
+
+        protected bool IsSearchFieldVisible => m_SearchField != null && UIElementHelper.IsVisible(m_SearchField);
 
         protected World GetCurrentlySelectedWorld()
         {
@@ -105,7 +107,27 @@ namespace Unity.Entities.Editor
             m_SearchField.AddToClassList(ussClass);
             m_SearchField.Q("unity-cancel").AddToClassList(UssClasses.DotsEditorCommon.SearchFieldCancelButton);
             m_SearchField.RegisterValueChangedCallback(OnFilterChanged);
-            UIElementHelper.Hide(m_SearchField);
+
+            UIElementHelper.ToggleVisibility(m_SearchField, BaseState.IsSearchFieldVisible);
+        }
+
+        protected void SetSearchFieldVisibility(bool visible)
+        {
+            BaseState.IsSearchFieldVisible = visible;
+            if (m_SearchField == null)
+                return;
+
+            if (visible)
+            {
+                UIElementHelper.Show(m_SearchField);
+                m_SearchField.Q("unity-text-input").Focus();
+            }
+            else
+            {
+                UIElementHelper.Hide(m_SearchField);
+            }
+
+            OnFilterChanged(SearchFilter);
         }
 
         protected void AddSearchIcon(VisualElement parent, string ussClass)
@@ -118,18 +140,7 @@ namespace Unity.Entities.Editor
             m_SearchIcon.AddToClassList(UssClasses.DotsEditorCommon.CommonResources);
             m_SearchIcon.AddToClassList(ussClass);
 
-            m_SearchIcon.RegisterCallback<MouseUpEvent>(evt =>
-            {
-                if (UIElementHelper.IsVisible(m_SearchField))
-                {
-                    UIElementHelper.Hide(m_SearchField);
-                }
-                else
-                {
-                    UIElementHelper.Show(m_SearchField);
-                    m_SearchField.Q("unity-text-input").Focus();
-                }
-            });
+            m_SearchIcon.RegisterCallback<MouseUpEvent>(evt => SetSearchFieldVisibility(!IsSearchFieldVisible));
 
             searchIconContainer.Add(m_SearchIcon);
             parent.Add(searchIconContainer);
@@ -265,6 +276,8 @@ namespace Unity.Entities.Editor
             SearchFilter += string.IsNullOrEmpty(SearchFilter)
                 ? toAdd + " "
                 : " " + toAdd + " ";
+
+            SetSearchFieldVisibility(true);
         }
 
         protected void RemoveStringFromSearchField(string toRemove)
@@ -273,6 +286,7 @@ namespace Unity.Entities.Editor
                 return;
 
             SearchFilter = Regex.Replace(SearchFilter, toRemove, string.Empty, RegexOptions.IgnoreCase).Trim();
+            SetSearchFieldVisibility(true);
         }
 
         void OnFilterChanged(ChangeEvent<string> evt)

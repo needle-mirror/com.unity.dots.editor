@@ -5,7 +5,8 @@
 .common-resources
 {
     --settings-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Settings/Settings.png");
-	--search-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Search/Search.png");
+    --search-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Search/Search.png");
+    --list-heading-color: #E0E0E0;
 }
 
 /*** Custom Toolbar Toggle ***/

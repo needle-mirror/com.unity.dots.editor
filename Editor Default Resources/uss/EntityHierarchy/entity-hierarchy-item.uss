@@ -1,6 +1,7 @@
 .entity-hierarchy-item__container
 {
     flex-direction: row;
+    background-color: initial;
 
     /* Fixup for hover detection */
     height: 20px;
@@ -75,44 +76,57 @@
     display: none;
 }
 
-.unity-tree-view__item .entity-hierarchy-item__visible-on-hover
+.unity-tree-view__item,.unity-list-view__item .entity-hierarchy-item__visible-on-hover
 {
     display: none;
 }
 
-.unity-tree-view__item:hover .entity-hierarchy-item__visible-on-hover
+.unity-tree-view__item:hover,.unity-list-view__item:hover .entity-hierarchy-item__visible-on-hover
 {
     display: flex;
 }
 
-.unity-tree-view__item:checked .entity-hierarchy-item__visible-on-hover
+.unity-tree-view__item:checked,.unity-list-view__item:checked .entity-hierarchy-item__visible-on-hover
 {
     display: flex;
 }
 
 /* Selected state */
-.unity-tree-view__item:checked .entity-hierarchy-item__name-label
+.unity-tree-view__item:checked,.unity-list-view__item:checked .entity-hierarchy-item__name-label
 {
     /* This should probably come with the TreeView theme by default, but in the mean time, here it is. */
     color: var(--theme-line-selection-text-color);
 }
 
-.unity-tree-view__item:checked .entity-hierarchy-item__icon--scene
+.unity-tree-view__item:checked,.unity-list-view__item:checked .entity-hierarchy-item__icon--scene
 {
     background-image: var(--scene-icon--selected);
 }
 
-.unity-tree-view__item:checked .entity-hierarchy-item__icon--entity
+.unity-tree-view__item:checked,.unity-list-view__item:checked .entity-hierarchy-item__icon--entity
 {
     background-image: var(--entity-icon--selected);
 }
 
-.unity-tree-view__item:checked .entity-hierarchy-item__system-button
+.unity-tree-view__item:checked,.unity-list-view__item:checked .entity-hierarchy-item__system-button
 {
     background-image: var(--go-to-systems-icon--selected);
 }
 
-.unity-tree-view__item:checked .entity-hierarchy-item__ping-gameobject-button
+.unity-tree-view__item:checked,.unity-list-view__item:checked .entity-hierarchy-item__ping-gameobject-button
 {
     background-image: var(--gameobject--selected);
+}
+
+/* SearchView-specific styles */
+
+#SearchView .entity-hierarchy-item__container
+{
+    /* Scientifically calculated using Photoshop™ */
+    margin-left: 23px;
+}
+
+#SearchView .entity-hierarchy-item__scene-node
+{
+    background-color: var(--list-heading-color);
 }

@@ -39,7 +39,7 @@ namespace Unity.Entities.Editor.Tests
             }
 
             public TestNode AddChild(Entity entity)
-                => AddChild(new EntityHierarchyNodeId(NodeKind.Entity, entity.Index));
+                => AddChild(EntityHierarchyNodeId.FromEntity(entity));
 
             public TestNode AddChildren(params EntityHierarchyNodeId[] childrenNodeIds)
             {
@@ -53,7 +53,7 @@ namespace Unity.Entities.Editor.Tests
             }
 
             public TestNode AddChildren(params Entity[] entities)
-                => AddChildren(entities.Select(e => new EntityHierarchyNodeId(NodeKind.Entity, e.Index)).ToArray());
+                => AddChildren(entities.Select(EntityHierarchyNodeId.FromEntity).ToArray());
 
             public bool Equals(EntityHierarchyNodeId other) => other.Equals(NodeId);
 
@@ -64,7 +64,7 @@ namespace Unity.Entities.Editor.Tests
                 errorMessage.AppendLine(NodeId.ToString());
 
                 indent++;
-                foreach (var child in Children.OrderBy(x => x.NodeId.Id))
+                foreach (var child in Children.OrderBy(x => x.NodeId))
                 {
                     child.WriteTree(errorMessage, indent);
                 }

@@ -1,23 +1,28 @@
 using System;
+using Unity.Scenes;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
 {
-    class EntityHierarchyVisualElement : VisualElement, IPoolable
+    class EntityHierarchyItemView : VisualElement, IPoolable
     {
-        public EntityHierarchyTreeView Owner { get; set; }
+        static readonly string k_PingSubSceneInHierarchy = L10n.Tr("Ping sub scene in hierarchy");
+        static readonly string k_PingSubSceneInProjectWindow = L10n.Tr("Ping sub scene in project window");
+
+        public VisualElement Owner { get; set; }
 
         readonly VisualElement m_Icon;
         readonly Label m_NameLabel;
         readonly VisualElement m_SystemButton;
         readonly VisualElement m_PingGameObject;
 
-        IEntityHierarchy m_Hierarchy;
-        EntityHierarchyNodeId m_NodeId;
+        EntityHierarchyItem m_Item;
         int? m_OriginatingId;
+        IManipulator m_ContextMenuManipulator;
 
-        public EntityHierarchyVisualElement()
+        public EntityHierarchyItemView()
         {
             Resources.Templates.EntityHierarchyItem.Clone(this);
             AddToClassList(UssClasses.DotsEditorCommon.CommonResources);
@@ -29,11 +34,13 @@ namespace Unity.Entities.Editor
             m_PingGameObject = this.Q<VisualElement>(className: UssClasses.EntityHierarchyWindow.Item.PingGameObjectButton);
         }
 
-        public void SetSource(IEntityHierarchy entityHierarchy, in EntityHierarchyNodeId nodeId)
+        public void SetSource(EntityHierarchyItem item)
         {
-            m_Hierarchy = entityHierarchy;
-            m_NodeId = nodeId;
-            switch (nodeId.Kind)
+            // Needs to be cleared here because list virtualization doesn't use IPoolable.Reset()
+            ClearDynamicStyles();
+
+            m_Item = item;
+            switch (m_Item.NodeId.Kind)
             {
                 case NodeKind.Entity:
                 {
@@ -41,14 +48,15 @@ namespace Unity.Entities.Editor
                     break;
                 }
                 case NodeKind.Scene:
+                case NodeKind.SubScene:
                 {
-                    RenderSceneNode();
+                    RenderSceneNode(m_Item.NodeId.Kind == NodeKind.SubScene);
                     break;
                 }
                 case NodeKind.Root:
                 case NodeKind.None:
                 {
-                    RenderInvalidNode(nodeId);
+                    RenderInvalidNode(m_Item.NodeId);
                     break;
                 }
                 default:
@@ -59,22 +67,35 @@ namespace Unity.Entities.Editor
         void IPoolable.Reset()
         {
             Owner = null;
-            m_Hierarchy = null;
-            m_NodeId = default;
+            if (m_ContextMenuManipulator != null)
+            {
+                this.RemoveManipulator(m_ContextMenuManipulator);
+                UnregisterCallback<ContextualMenuPopulateEvent>(OnSceneContextMenu);
+                m_ContextMenuManipulator = null;
+            }
+
+            m_Item = null;
             m_OriginatingId = null;
-            ClearDynamicClasses();
+
+            // These are overwritten by ListView in a way that conflicts with the TreeView representation
+            // NOTE: Adding those to "ClearDynamicStyles()" messes-up the rendering of the ListView
+            style.top = 0.0f;
+            style.bottom = Constants.EntityHierarchy.ItemHeight;
+            style.position = Position.Relative;
         }
 
         void IPoolable.ReturnToPool() => EntityHierarchyPool.ReturnVisualElement(this);
 
         void RenderEntityNode()
         {
-            m_NameLabel.text = m_Hierarchy.Strategy.GetNodeName(m_NodeId);
+            m_NameLabel.text = m_Item.CachedName;
 
             m_Icon.AddToClassList(UssClasses.EntityHierarchyWindow.Item.IconEntity);
-            m_SystemButton.AddToClassList(UssClasses.EntityHierarchyWindow.Item.VisibleOnHover);
 
-            if (TryGetSourceGameObjectId(m_Hierarchy.Strategy.GetUnderlyingEntity(m_NodeId), m_Hierarchy.World, out var originatingId))
+            // TODO: Re-enable once we have connectivity between DOTS Editor Tools
+            // m_SystemButton.AddToClassList(UssClasses.EntityHierarchyWindow.Item.VisibleOnHover);
+
+            if (TryGetSourceGameObjectId(m_Item.Strategy.GetUnderlyingEntity(m_Item.NodeId), m_Item.World, out var originatingId))
             {
                 m_OriginatingId = originatingId;
                 m_PingGameObject.AddToClassList(UssClasses.EntityHierarchyWindow.Item.VisibleOnHover);
@@ -90,11 +111,19 @@ namespace Unity.Entities.Editor
             EditorGUIUtility.PingObject(m_OriginatingId.Value);
         }
 
-        void RenderSceneNode()
+        void RenderSceneNode(bool isSubScene)
         {
+            AddToClassList(UssClasses.EntityHierarchyWindow.Item.SceneNode);
             m_Icon.AddToClassList(UssClasses.EntityHierarchyWindow.Item.IconScene);
             m_NameLabel.AddToClassList(UssClasses.EntityHierarchyWindow.Item.NameScene);
-            m_NameLabel.text = m_Hierarchy.Strategy.GetNodeName(m_NodeId);
+            m_NameLabel.text = m_Item.CachedName;
+
+            if (isSubScene)
+            {
+                m_ContextMenuManipulator = new ContextualMenuManipulator(null);
+                this.AddManipulator(m_ContextMenuManipulator);
+                RegisterCallback<ContextualMenuPopulateEvent>(OnSceneContextMenu);
+            }
         }
 
         void RenderInvalidNode(EntityHierarchyNodeId nodeId)
@@ -102,8 +131,10 @@ namespace Unity.Entities.Editor
             m_NameLabel.text = $"<UNKNOWN> ({nodeId.ToString()})";
         }
 
-        void ClearDynamicClasses()
+        void ClearDynamicStyles()
         {
+            RemoveFromClassList(UssClasses.EntityHierarchyWindow.Item.SceneNode);
+
             m_NameLabel.RemoveFromClassList(UssClasses.EntityHierarchyWindow.Item.NameScene);
 
             m_Icon.RemoveFromClassList(UssClasses.EntityHierarchyWindow.Item.IconScene);
@@ -125,6 +156,28 @@ namespace Unity.Entities.Editor
 
             originatingId = world.EntityManager.GetComponentData<EntityGuid>(entity).OriginatingId;
             return true;
+        }
+
+        void OnSceneContextMenu(ContextualMenuPopulateEvent evt)
+        {
+            evt.menu.AppendAction(k_PingSubSceneInHierarchy, OnPingSubSceneInHierarchy);
+            evt.menu.AppendAction(k_PingSubSceneInProjectWindow, OnPingSubSceneAsset);
+        }
+
+        void OnPingSubSceneInHierarchy(DropdownMenuAction obj)
+            => EditorGUIUtility.PingObject(m_Item.NodeId.Id);
+
+        void OnPingSubSceneAsset(DropdownMenuAction obj)
+        {
+            var subSceneObject = EditorUtility.InstanceIDToObject(m_Item.NodeId.Id);
+            if (subSceneObject == null || !subSceneObject || !(subSceneObject is GameObject subSceneGameObject))
+                return;
+
+            var subScene = subSceneGameObject.GetComponent<SubScene>();
+            if (subScene == null || !subScene || subScene.SceneAsset == null || !subScene.SceneAsset)
+                return;
+
+            EditorGUIUtility.PingObject(subScene.SceneAsset);
         }
     }
 }

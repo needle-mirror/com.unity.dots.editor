@@ -83,6 +83,9 @@ namespace Unity.Entities.Editor
             CreateToolBarForDetailSection();
             CreateQueryResultSection();
             CreateScheduleFilterSection();
+
+            var schedulingToggle = this.Q<ToolbarToggle>(className: UssClasses.SystemScheduleWindow.Detail.SchedulingToggle);
+            schedulingToggle.RegisterValueChangedCallback(OnSchedulingToggleStateChanged);
         }
 
         void UpdateContent()
@@ -150,25 +153,25 @@ namespace Unity.Entities.Editor
 
             var schedulingToggle = this.Q<ToolbarToggle>(className: UssClasses.SystemScheduleWindow.Detail.SchedulingToggle);
             schedulingToggle.text = k_ShowDependencies;
-            schedulingToggle.value = SearchUtility.CheckIfStringContainsGivenTokenAndName(m_SearchFilter, Constants.SystemSchedule.k_SystemDependencyToken,  Target.System.GetType().Name);
+            schedulingToggle.value = SearchUtility.CheckIfStringContainsGivenTokenAndName(m_SearchFilter, Constants.SystemSchedule.k_SystemDependencyToken, Target.System.GetType().Name);
+        }
 
-            schedulingToggle.RegisterValueChangedCallback(evt =>
+        void OnSchedulingToggleStateChanged(ChangeEvent<bool> evt)
+        {
+            var systemTypeName = Target.System.GetType().Name;
+            var searchString = Constants.SystemSchedule.k_SystemDependencyToken + systemTypeName;
+
+            if (evt.newValue)
             {
-                var systemTypeName = Target.System.GetType().Name;
-                var searchString = Constants.SystemSchedule.k_SystemDependencyToken + systemTypeName;
+                OnAddFilter?.Invoke(searchString);
+            }
+            else
+            {
+                if (m_SearchFilter.Contains(Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName))
+                    searchString = Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName;
 
-                if (schedulingToggle.value)
-                {
-                    OnAddFilter?.Invoke(searchString);
-                }
-                else
-                {
-                    if (m_SearchFilter.Contains(Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName))
-                        searchString = Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName;
-
-                    OnRemoveFilter?.Invoke(searchString);
-                }
-            });
+                OnRemoveFilter?.Invoke(searchString);
+            }
         }
 
         void UpdateQueryResults()
@@ -213,7 +216,7 @@ namespace Unity.Entities.Editor
                         var componentTypeName = EntityQueryUtility.SpecifiedTypeName(componentManagedType);
 
                         // Component toggle container.
-                        var componentTypeNameToggleContainer = new ComponentToggleWithAccessMode(GetAccessModeStyle(queryType, readWriteTypeList));
+                        var componentTypeNameToggleContainer = new ComponentToggleWithAccessMode(GetAccessMode(queryType, readWriteTypeList));
                         var componentTypeNameToggle = componentTypeNameToggleContainer.ComponentTypeNameToggle;
 
                         componentTypeNameToggle.text = componentTypeName;
@@ -249,7 +252,7 @@ namespace Unity.Entities.Editor
                 FoldPartOfResults(m_AllQueryResultContainer, toAddList, queryHideCount);
         }
 
-        static ComponentType.AccessMode GetAccessModeStyle(ComponentType queryType, IReadOnlyCollection<ComponentType> readWriteTypeList)
+        static ComponentType.AccessMode GetAccessMode(ComponentType queryType, IReadOnlyCollection<ComponentType> readWriteTypeList)
         {
             if (null == readWriteTypeList)
                 return queryType.AccessModeType;

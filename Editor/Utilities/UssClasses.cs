@@ -111,6 +111,8 @@ namespace Unity.Entities.Editor
             {
                 const string k_Base = k_EntityHierarchyBase + "-item";
 
+                public const string SceneNode = k_Base + "__scene-node";
+
                 public const string Icon = k_Base + "__icon";
                 public const string IconScene = Icon + "--scene";
                 public const string IconEntity = Icon + "--entity";

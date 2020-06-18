@@ -10,7 +10,9 @@ using UnityEngine;
 
 namespace Unity.Entities.Editor
 {
-    [UsedImplicitly, DisableAutoCreation, UpdateAfter(typeof(SceneSystemGroup)), ExecuteAlways] // ReSharper disable once RequiredBaseTypesIsNotInherited
+    [ExecuteAlways, AlwaysUpdateSystem]
+    [UpdateInGroup(typeof(InitializationSystemGroup)), UpdateAfter(typeof(SceneSystemGroup))]
+    [UsedImplicitly]
     class EntityHierarchyDiffSystem : SystemBase
     {
         readonly Dictionary<IEntityHierarchy, Differs> m_DiffersPerContainer = new Dictionary<IEntityHierarchy, Differs>();
@@ -19,15 +21,10 @@ namespace Unity.Entities.Editor
 
         public static void Register(IEntityHierarchy hierarchy)
         {
-            var system = hierarchy.World.GetOrCreateSystem<EntityHierarchyDiffSystem>();
+            var system = World.DefaultGameObjectInjectionWorld.GetExistingSystem<EntityHierarchyDiffSystem>();
             system.DoRegister(hierarchy);
-            system.Update();
 
-            if (system.m_DiffersPerContainer.Count == 1)
-            {
-                World.DefaultGameObjectInjectionWorld.GetExistingSystem<InitializationSystemGroup>().AddSystemToUpdateList(system);
-                EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
-            }
+            EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
         }
 
         public static void Unregister(IEntityHierarchy hierarchy)
@@ -35,20 +32,10 @@ namespace Unity.Entities.Editor
             if (!hierarchy.World.IsCreated)
                 return; // World was already disposed.
 
-            var system = hierarchy.World.GetExistingSystem<EntityHierarchyDiffSystem>();
-            if (system == null)
-            {
-                Debug.LogWarning("No system found for this strategy for world: " + hierarchy.World.Name);
-                return;
-            }
-
+            var system = World.DefaultGameObjectInjectionWorld.GetExistingSystem<EntityHierarchyDiffSystem>();
             system.DoUnregister(hierarchy);
 
-            if (system.m_DiffersPerContainer.Count == 0)
-            {
-                World.DefaultGameObjectInjectionWorld.GetExistingSystem<InitializationSystemGroup>().RemoveSystemFromUpdateList(system);
-                EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
-            }
+            EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
         }
 
         void DoRegister(IEntityHierarchy hierarchy)
@@ -82,6 +69,9 @@ namespace Unity.Entities.Editor
 
         protected override void OnUpdate()
         {
+            if (m_DiffersPerContainer.Count == 0)
+                return;
+
             var version = World.EntityManager.GlobalSystemVersion;
 
             var handles = new NativeArray<JobHandle>(m_DiffersPerContainer.Count, Allocator.Temp);

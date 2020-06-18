@@ -40,8 +40,8 @@ namespace Unity.Entities.Editor.Tests
                 if (children.Length != expectedNode.Children.Count)
                     return false;
 
-                var orderedStrategyChildren = children.ToArray().OrderBy(x => x.Id).ToArray();
-                var orderedExpectedChildren = expectedNode.Children.OrderBy(x => x.NodeId.Id).ToArray();
+                var orderedStrategyChildren = children.ToArray().OrderBy(x => x).ToArray();
+                var orderedExpectedChildren = expectedNode.Children.OrderBy(x => x.NodeId).ToArray();
 
                 for (var i = 0; i < orderedStrategyChildren.Length; i++)
                 {
@@ -128,7 +128,7 @@ namespace Unity.Entities.Editor.Tests
             indent++;
 
             var children = m_Strategy.GetChildren(nodeId, Allocator.Temp);
-            foreach (var child in children.OrderBy(x => x.Id))
+            foreach (var child in children.OrderBy(x => x))
             {
                 WriteActualStrategyTree(errorMessage, child, indent);
             }

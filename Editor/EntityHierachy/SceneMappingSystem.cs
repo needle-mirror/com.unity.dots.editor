@@ -10,25 +10,17 @@ using UnityEngine.SceneManagement;
 
 namespace Unity.Entities.Editor
 {
-    [DisableAutoCreation][UsedImplicitly]
+    [DisableAutoCreation, AlwaysUpdateSystem, UsedImplicitly]
     class SceneMappingSystem : SystemBase
     {
         readonly Dictionary<Hash128, Hash128> m_SubsceneOwnershipMap = new Dictionary<Hash128, Hash128>(8);
+        readonly Dictionary<Hash128, int> m_SceneAndSubSceneHashToGameObjectInstanceId = new Dictionary<Hash128, int>(8);
         NativeHashMap<Entity, Entity> m_SceneSectionToSubsceneMap;
 
         Hash128 m_ScenesCountFingerprint;
         public bool SceneManagerDirty { get; private set; }
 
         public Hash128 GetParentSceneHash(Hash128 subsceneGUID) => m_SubsceneOwnershipMap.TryGetValue(subsceneGUID, out var result) ? result : default;
-
-        public void GetAllKnownScenes(HashSet<Hash128> result)
-        {
-            foreach (var kvp in m_SubsceneOwnershipMap)
-            {
-                result.Add(kvp.Key);
-                result.Add(kvp.Value);
-            }
-        }
 
         public Hash128 GetSubsceneHash(Entity entity)
         {
@@ -71,9 +63,9 @@ namespace Unity.Entities.Editor
         {
             m_ScenesCountFingerprint = default;
             SceneManagerDirty = true; // Ensures cache rebuild on first tick
+            LiveLinkConfigHelper.LiveLinkEnabledChanged += SetSceneManagerDirty;
             SceneManager.sceneLoaded += SetSceneManagerDirty;
             SceneManager.sceneUnloaded += SetSceneManagerDirty;
-
             EditorSceneManager.sceneOpened += SetSceneManagerDirty;
             EditorSceneManager.sceneClosed += SetSceneManagerDirty;
             EditorSceneManager.newSceneCreated += SetSceneManagerDirty;
@@ -81,9 +73,9 @@ namespace Unity.Entities.Editor
 
         protected override void OnDestroy()
         {
+            LiveLinkConfigHelper.LiveLinkEnabledChanged -= SetSceneManagerDirty;
             SceneManager.sceneLoaded -= SetSceneManagerDirty;
             SceneManager.sceneUnloaded -= SetSceneManagerDirty;
-
             EditorSceneManager.sceneOpened -= SetSceneManagerDirty;
             EditorSceneManager.sceneClosed -= SetSceneManagerDirty;
             EditorSceneManager.newSceneCreated -= SetSceneManagerDirty;
@@ -96,6 +88,7 @@ namespace Unity.Entities.Editor
         void SetSceneManagerDirty(Scene scene, LoadSceneMode _) => SceneManagerDirty = true;
         void SetSceneManagerDirty(Scene scene, OpenSceneMode _) => SceneManagerDirty = true;
         void SetSceneManagerDirty(Scene scene, NewSceneSetup _, NewSceneMode __) => SceneManagerDirty = true;
+        void SetSceneManagerDirty() => SceneManagerDirty = true;
 
         protected override void OnUpdate()
         {
@@ -117,6 +110,9 @@ namespace Unity.Entities.Editor
             }
         }
 
+        public bool TryGetSceneOrSubSceneInstanceId(Hash128 sceneHash, out int instanceId)
+            => m_SceneAndSubSceneHashToGameObjectInstanceId.TryGetValue(sceneHash, out instanceId);
+
         void RebuildSubsceneMaps()
         {
             RebuildSubsceneOwnershipMap();
@@ -125,28 +121,51 @@ namespace Unity.Entities.Editor
 
         void RebuildSubsceneOwnershipMap()
         {
-            m_SubsceneOwnershipMap.Clear();
-            for (int i = 0; i < SceneManager.sceneCount; ++i)
+            using (var sceneToHandleMap = PooledDictionary<Hash128, int>.Make())
+            using (var subSceneToInstanceIdMap = PooledDictionary<Hash128, int>.Make())
             {
-                var scene = SceneManager.GetSceneAt(i);
-                if (!scene.isLoaded)
-                    continue;
-
-                using (var rootGameObjects = PooledList<GameObject>.Make())
+                m_SubsceneOwnershipMap.Clear();
+                m_SceneAndSubSceneHashToGameObjectInstanceId.Clear();
+                for (var i = 0; i < SceneManager.sceneCount; ++i)
                 {
-                    scene.GetRootGameObjects(rootGameObjects);
-                    foreach (var go in rootGameObjects.List)
+                    var scene = SceneManager.GetSceneAt(i);
+                    if (!scene.isLoaded)
+                        continue;
+
+                    var sceneHash = new Hash128(AssetDatabase.AssetPathToGUID(scene.path));
+
+                    // scene.GetHashCode returns m_Handle which can be considered a scene instance id.
+                    sceneToHandleMap.Dictionary.Add(sceneHash, scene.GetHashCode());
+
+                    using (var rootGameObjects = PooledList<GameObject>.Make())
                     {
-                        foreach (var subSceneComponent in go.GetComponentsInChildren<SubScene>())
+                        scene.GetRootGameObjects(rootGameObjects);
+                        foreach (var go in rootGameObjects.List)
                         {
-                            if (subSceneComponent.SceneAsset != null)
+                            foreach (var subSceneComponent in go.GetComponentsInChildren<SubScene>())
                             {
-                                // There could be more than one scene referencing the same subscene, but it is not legal and already throws. Just ignore it here.
-                                if (!m_SubsceneOwnershipMap.ContainsKey(subSceneComponent.SceneGUID))
-                                    m_SubsceneOwnershipMap.Add(subSceneComponent.SceneGUID, new Hash128(AssetDatabase.AssetPathToGUID(scene.path)));
+                                if (subSceneComponent.SceneAsset != null)
+                                {
+                                    // There could be more than one scene referencing the same subscene, but it is not legal and already throws. Just ignore it here.
+                                    if (!m_SubsceneOwnershipMap.ContainsKey(subSceneComponent.SceneGUID))
+                                        m_SubsceneOwnershipMap.Add(subSceneComponent.SceneGUID, sceneHash);
+
+                                    subSceneToInstanceIdMap.Dictionary.Add(subSceneComponent.SceneGUID, go.GetInstanceID());
+                                }
                             }
                         }
                     }
+                }
+
+                foreach (var kvp in subSceneToInstanceIdMap.Dictionary)
+                {
+                    m_SceneAndSubSceneHashToGameObjectInstanceId[kvp.Key] = kvp.Value;
+                }
+
+                foreach (var kvp in sceneToHandleMap.Dictionary)
+                {
+                    if (!m_SceneAndSubSceneHashToGameObjectInstanceId.ContainsKey(kvp.Key))
+                        m_SceneAndSubSceneHashToGameObjectInstanceId[kvp.Key] = kvp.Value;
                 }
             }
         }

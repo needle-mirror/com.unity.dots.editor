@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Unity.Entities.Editor
 {
@@ -22,8 +21,6 @@ namespace Unity.Entities.Editor
             }
 
             searchString = searchString.Replace(": ", ":");
-
-            //var stringArray = searchString.Split(' ');
 
             foreach (var singleString in searchString.Split(' '))
             {

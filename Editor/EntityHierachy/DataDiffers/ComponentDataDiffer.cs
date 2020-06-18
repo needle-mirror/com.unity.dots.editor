@@ -289,7 +289,7 @@ namespace Unity.Entities.Editor
                     var componentVersion = chunk->GetChangeVersion(indexInTypeArray);
                     var entityVersion = chunk->GetChangeVersion(0);
                     var sequenceNumber = chunk->SequenceNumber;
-                    processedChunks.Add(sequenceNumber, 0);
+                    processedChunks[sequenceNumber] = 0;
                     var entityDataPtr = chunk->Buffer + archetype->Offsets[0];
                     var componentDataPtr = chunk->Buffer + archetype->Offsets[indexInTypeArray];
 

@@ -6,6 +6,7 @@
 {
     --settings-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Settings/Settings.png");
     --search-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Search/Search.png");
+    --list-heading-color: #4f4f4f;
 }
 
 /*** Custom Toolbar Toggle ***/

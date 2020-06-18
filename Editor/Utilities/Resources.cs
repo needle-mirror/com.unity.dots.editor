@@ -36,6 +36,7 @@ namespace Unity.Entities.Editor
             public static readonly UITemplate Settings = new UITemplate("Settings/settings");
             public static readonly UITemplate CustomQueryResults = new UITemplate("Common/custom-query-results");
             public static readonly UITemplate EntityHierarchyToolbar = new UITemplate("EntityHierarchy/entity-hierarchy-toolbar");
+            public static readonly UITemplate EntityHierarchyEnableLiveLinkMessage = new UITemplate("EntityHierarchy/entity-hierarchy-enable-live-link-message");
             public static readonly UITemplate EntityHierarchyItem = new UITemplate("EntityHierarchy/entity-hierarchy-item");
         }
     }

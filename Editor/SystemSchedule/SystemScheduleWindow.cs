@@ -10,8 +10,7 @@ namespace Unity.Entities.Editor
     {
         static readonly string k_WindowName = L10n.Tr("Systems");
         static readonly string k_ShowFullPlayerLoopString = L10n.Tr("Show Full Player Loop");
-        static readonly string k_ShowInactiveSystemsString = L10n.Tr("Show Inactive Systems");
-        static readonly Vector2 k_MinWindowSize = new Vector2(600, 300);
+        static readonly Vector2 k_MinWindowSize = new Vector2(200, 200);
 
         static World CurrentWorld { get; set; }
 
@@ -30,11 +29,6 @@ namespace Unity.Entities.Editor
             /// This field controls the showing of full player loop state.
             /// </summary>
             public bool ShowFullPlayerLoop;
-
-            /// <summary>
-            /// This field controls the showing of inactive system state.
-            /// </summary>
-            public bool ShowInactiveSystems;
         }
 
         /// <summary>
@@ -116,13 +110,6 @@ namespace Unity.Entities.Editor
                 if (World.All.Count > 0)
                     BuildAll();
             }, a => m_State.ShowFullPlayerLoop ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
-
-            menu.AppendAction(k_ShowInactiveSystemsString, a =>
-            {
-                m_State.ShowInactiveSystems = !m_State.ShowInactiveSystems;
-                if (World.All.Count > 0)
-                    BuildAll();
-            }, a => m_State.ShowInactiveSystems ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
         }
 
         // Manually create header for the tree view.
@@ -164,7 +151,7 @@ namespace Unity.Entities.Editor
         void BuildAll()
         {
             CurrentWorld = !m_State.ShowFullPlayerLoop ? GetCurrentlySelectedWorld() : null;
-            m_SystemTreeView.Refresh(CurrentWorld, m_State.ShowInactiveSystems);
+            m_SystemTreeView.Refresh(CurrentWorld);
         }
 
         protected override void OnUpdate()
@@ -221,8 +208,7 @@ namespace Unity.Entities.Editor
 
         protected override void OnFilterChanged(string filter)
         {
-            SearchFilter = filter;
-            m_SystemTreeView.SearchFilter = SearchFilter;
+            m_SystemTreeView.SearchFilter = filter;
             BuildAll();
         }
     }

@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine.UIElements;
 using Unity.Editor.Bridge;
 
@@ -120,6 +121,28 @@ namespace Unity.Entities.Editor.Tests
                 i++;
             }
             Assert.AreEqual(m_FinalId, i);
+        }
+
+        [Test]
+        public void TriggerExpandedStateChangingEvent()
+        {
+            var events = new List<(ITreeViewItem item, bool isExpanded)>();
+            m_TreeView.ItemExpandedStateChanging += (item, isExpanded) => events.Add((item, isExpanded));
+
+            var itemToExpand = m_RawItemList[0];
+            m_TreeView.ExpandItem(itemToExpand.id);
+            Assert.That(events, Is.EquivalentTo(new[] { (itemToExpand, true) }));
+            events.Clear();
+
+            m_TreeView.ExpandItem(itemToExpand.id);
+            Assert.That(events, Is.Empty);
+
+            m_TreeView.CollapseItem(itemToExpand.id);
+            Assert.That(events, Is.EquivalentTo(new[] { (itemToExpand, false) }));
+            events.Clear();
+
+            m_TreeView.CollapseItem(itemToExpand.id);
+            Assert.That(events, Is.Empty);
         }
 
 #if UNITY_2020_1_OR_NEWER

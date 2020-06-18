@@ -26,11 +26,11 @@ namespace Unity.Entities.Editor.Tests
             Assert.DoesNotThrow(() => m_Helper.AssertHierarchy(TestHierarchy.CreateRoot().Build()));
 
             m_Strategy.SetHierarchy(TestHierarchy.CreateRoot()
-                                        .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1))
+                                        .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0))
                                         .Build());
             Assert.Throws<AssertionException>(() => m_Helper.AssertHierarchy(TestHierarchy
                                                                                  .CreateRoot()
-                                                                                 .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2))
+                                                                                 .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2, 0))
                                                                                  .Build()));
         }
 
@@ -38,12 +38,12 @@ namespace Unity.Entities.Editor.Tests
         public void TestHierarchy_AssertShouldNotFailOnChildrenOrdering()
         {
             var actualHierarchy = TestHierarchy.CreateRoot();
-            actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1));
-            actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2));
+            actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0));
+            actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2, 0));
 
             var expectedHierarchy = TestHierarchy.CreateRoot();
-            expectedHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2));
-            expectedHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1));
+            expectedHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2, 0));
+            expectedHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0));
 
 
             Assert.That(expectedHierarchy.Children, Is.EquivalentTo(actualHierarchy.Children));
@@ -60,23 +60,23 @@ namespace Unity.Entities.Editor.Tests
             Assert.DoesNotThrow(() => m_Helper.AssertHierarchyByKind(TestHierarchy.CreateRoot().Build()));
 
             m_Strategy.SetHierarchy(TestHierarchy.CreateRoot()
-                                                 .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1))
+                                                 .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0))
                                                  .Build());
 
             // Different ids should not throw if kinds are the same
             Assert.DoesNotThrow(() => m_Helper.AssertHierarchyByKind(TestHierarchy
                                                                     .CreateRoot()
-                                                                    .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2))
+                                                                    .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2, 0))
                                                                     .Build()));
 
             m_Strategy.SetHierarchy(TestHierarchy.CreateRoot()
-                                                 .AddChild(new EntityHierarchyNodeId(NodeKind.Scene, 1))
+                                                 .AddChild(new EntityHierarchyNodeId(NodeKind.SubScene, 1, 0))
                                                  .Build());
 
             // Different kinds should throw even if ids are the same
             Assert.Throws<AssertionException>(() => m_Helper.AssertHierarchyByKind(TestHierarchy
                                                                                   .CreateRoot()
-                                                                                  .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1))
+                                                                                  .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0))
                                                                                   .Build()));
         }
 
@@ -89,65 +89,65 @@ namespace Unity.Entities.Editor.Tests
             var hierarchyA1 = TestHierarchy.CreateRoot();
             {
                 hierarchyA1.AddChildren(
-                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++),
-                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++),
-                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0),
+                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0),
+                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
                 hierarchyA1.AddChild(
-                                new EntityHierarchyNodeId(NodeKind.Scene, sceneId++))
+                                new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0))
                                .AddChild(
-                                    new EntityHierarchyNodeId(NodeKind.Scene, sceneId++))
+                                    new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0))
                                    .AddChildren(
-                                        new EntityHierarchyNodeId(NodeKind.Entity, entityId++),
-                                        new EntityHierarchyNodeId(NodeKind.Scene, sceneId++));
+                                        new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0),
+                                        new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0));
                 hierarchyA1.AddChild(
-                                new EntityHierarchyNodeId(NodeKind.Scene, sceneId++))
+                                new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0))
                                .AddChildren(
-                                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++),
-                                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0),
+                                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
             }
 
             // Matches A1, but with different ids and in a different order
             var hierarchyA2 = TestHierarchy.CreateRoot();
             {
                 hierarchyA2.AddChild(
-                                new EntityHierarchyNodeId(NodeKind.Scene, sceneId++))
+                                new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0))
                                .AddChild(
-                                    new EntityHierarchyNodeId(NodeKind.Scene, sceneId++))
+                                    new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0))
                                    .AddChildren(
-                                        new EntityHierarchyNodeId(NodeKind.Scene, sceneId++),
-                                        new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                                        new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0),
+                                        new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
                 hierarchyA2.AddChildren(
-                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++),
-                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0),
+                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
                 hierarchyA2.AddChild(
-                                new EntityHierarchyNodeId(NodeKind.Scene, sceneId++))
+                                new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0))
                                .AddChildren(
-                                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++),
-                                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0),
+                                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
                 hierarchyA2.AddChild(
-                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
             }
 
             // Does not match A1 or A2
             var hierarchyB = TestHierarchy.CreateRoot();
             {
                 hierarchyB.AddChild(
-                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
                 hierarchyB.AddChild(
-                               new EntityHierarchyNodeId(NodeKind.Scene, sceneId++))
+                               new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0))
                               .AddChild(
-                                   new EntityHierarchyNodeId(NodeKind.Entity, entityId++))
+                                   new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0))
                                   .AddChildren(
-                                       new EntityHierarchyNodeId(NodeKind.Scene, sceneId++),
-                                       new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                                       new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0),
+                                       new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
                 hierarchyB.AddChildren(
-                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++),
-                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0),
+                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
                 hierarchyB.AddChild(
-                               new EntityHierarchyNodeId(NodeKind.Scene, sceneId++))
+                               new EntityHierarchyNodeId(NodeKind.SubScene, sceneId++, 0))
                               .AddChildren(
-                                   new EntityHierarchyNodeId(NodeKind.Entity, entityId++),
-                                   new EntityHierarchyNodeId(NodeKind.Entity, entityId++));
+                                   new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0),
+                                   new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
             }
 
             m_Strategy.SetHierarchy(hierarchyA1.Build());
@@ -159,13 +159,13 @@ namespace Unity.Entities.Editor.Tests
         public void TestHierarchy_ErrorMessageShouldPrintOrderedChildren()
         {
             var actualHierarchy = TestHierarchy.CreateRoot();
-            actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1));
-            actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2));
+            actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0));
+            actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2, 0));
             m_Strategy.SetHierarchy(actualHierarchy.Build());
 
             var testHierarchy = TestHierarchy.CreateRoot();
-            testHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2));
-            testHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1));
+            testHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2, 0));
+            testHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0));
 
             var builder = new StringBuilder();
 

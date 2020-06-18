@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Editor.Bridge;
+using Unity.Scenes;
 using UnityEngine;
 
 namespace Unity.Entities.Editor
@@ -12,7 +13,6 @@ namespace Unity.Entities.Editor
         public IPlayerLoopNode Node;
         public PlayerLoopSystemGraph Graph;
         public World World;
-        public bool ShowInactiveSystems;
 
         public ComponentSystemBase System => (Node as IComponentSystemNode)?.System;
 
@@ -20,7 +20,13 @@ namespace Unity.Entities.Editor
 
         public string GetSystemName(World world = null)
         {
-            return null == world ? Node.WorldName : Node.Name;
+            if (world == null ||
+                (Node is IComponentSystemNode componentSystemNode && componentSystemNode.System.World.Name != world.Name))
+            {
+                return Node.WorldName;
+            }
+
+            return Node.Name;
         }
 
         public bool GetParentState()
@@ -35,7 +41,11 @@ namespace Unity.Entities.Editor
 
         public void SetSystemState(bool state)
         {
+            if (Node.Enabled == state)
+                return;
+
             Node.Enabled = state;
+            EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
         }
 
         public string GetEntityMatches()
@@ -46,26 +56,35 @@ namespace Unity.Entities.Editor
             if (null == System?.EntityQueries)
                 return string.Empty;
 
-            var matchedEntityCount = System.EntityQueries.Sum(query => query.CalculateEntityCount());
+            var matchedEntityCount = (!Node.Enabled || !NodeParentsAllEnabled(Node))
+                ? Constants.SystemSchedule.k_Dash
+                : System.EntityQueries.Sum(query => query.CalculateEntityCount()).ToString();
 
-            return matchedEntityCount.ToString();
+            return matchedEntityCount;
         }
 
-        float GetAverageRunningTime(ComponentSystemBase system)
+        float GetAverageRunningTime(ComponentSystemBase system, ComponentSystemBase parentSystem)
         {
             switch (system)
             {
                 case ComponentSystemGroup systemGroup:
                 {
                     if (systemGroup.Systems != null)
-                        return systemGroup.Systems.Sum(GetAverageRunningTime);
+                    {
+                        return systemGroup.Systems.Sum(child => GetAverageRunningTime(child, systemGroup));
+                    }
                 }
                 break;
                 case ComponentSystemBase systemBase:
                 {
-                    return Graph.RecordersBySystem.ContainsKey(systemBase)
-                        ? Graph.RecordersBySystem[systemBase].ReadMilliseconds()
-                        : 0.0f;
+                    var recorderKey = new PlayerLoopSystemGraph.RecorderKey
+                    {
+                        World = systemBase.World,
+                        Group = parentSystem as ComponentSystemGroup,
+                        System = systemBase
+                    };
+
+                    return Graph.RecordersBySystem.TryGetValue(recorderKey, out var recorder) ? recorder.ReadMilliseconds() : 0.0f;
                 }
             }
 
@@ -74,32 +93,33 @@ namespace Unity.Entities.Editor
 
         public string GetRunningTime()
         {
-            var totalTime = 0.0f;
+            var totalTime = string.Empty;
 
             if (Node is IPlayerLoopSystemData)
                 return string.Empty;
 
-            if (children.Count() != 0)
+            if (children.Any())
             {
                 totalTime = !Node.Enabled || !NodeParentsAllEnabled(Node)
-                    ? 0.0f
-                    : Node.Children.OfType<IComponentSystemNode>().Sum(child => GetAverageRunningTime(child.System));
+                    ? Constants.SystemSchedule.k_Dash
+                    : Node.Children.OfType<IComponentSystemNode>().Sum(child => GetAverageRunningTime(child.System, System)).ToString("f2");
             }
             else
             {
-                if (Node.IsRunning && Node is IComponentSystemNode data)
+                if (Node.IsRunning && Node is IComponentSystemNode data && Node.Parent is ComponentGroupNode componentGroupNode)
                 {
+                    var parentSystem = componentGroupNode.System;
                     totalTime = !Node.Enabled || !NodeParentsAllEnabled(Node)
-                        ? 0.0f
-                        : GetAverageRunningTime(data.System);
+                        ? Constants.SystemSchedule.k_Dash
+                        : GetAverageRunningTime(data.System, parentSystem).ToString("f2");
                 }
                 else
                 {
-                    return "-";
+                    return Constants.SystemSchedule.k_Dash;
                 }
             }
 
-            return totalTime.ToString("f2");
+            return totalTime;
         }
 
         bool NodeParentsAllEnabled(IPlayerLoopNode node)
@@ -144,14 +164,11 @@ namespace Unity.Entities.Editor
                 if (!child.ShowForWorld(World))
                     continue;
 
-                if (!child.IsRunning && !ShowInactiveSystems)
-                    continue;
-
                 // Filter systems by system name, component types, system dependencies.
                 if (!string.IsNullOrEmpty(searchFilter) && !FilterSystem(child, searchFilter, systemDependencyList))
                     continue;
 
-                var item = SystemSchedulePool.GetSystemTreeViewItem(Graph, child, this, World, ShowInactiveSystems);
+                var item = SystemSchedulePool.GetSystemTreeViewItem(Graph, child, this, World);
                 m_CachedChildren.Add(item);
             }
         }
@@ -217,7 +234,6 @@ namespace Unity.Entities.Editor
             Graph = null;
             Node = null;
             parent = null;
-            ShowInactiveSystems = false;
             m_CachedChildren.Clear();
         }
 

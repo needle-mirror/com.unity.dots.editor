@@ -7,6 +7,7 @@ namespace Unity.Entities.Editor
         public World World;
         SystemTreeViewItem m_Target;
         public SystemScheduleTreeView TreeView { get; set; }
+        const float k_SystemNameLabelWidth = 100f;
 
         public SystemTreeViewItem Target
         {
@@ -70,6 +71,7 @@ namespace Unity.Entities.Editor
             }
 
             SetText(m_SystemNameLabel, Target.GetSystemName(World));
+            SetSystemNameLabelWidth(m_SystemNameLabel, k_SystemNameLabelWidth);
             SetText(m_EntityMatchLabel, Target.GetEntityMatches());
             SetText(m_RunningTimeLabel, Target.GetRunningTime());
             SetSystemClass(m_Icon, m_Target?.System);
@@ -94,6 +96,14 @@ namespace Unity.Entities.Editor
                 m_EntityMatchLabel.SetEnabled(groupState);
                 m_RunningTimeLabel.SetEnabled(groupState);
             }
+        }
+
+        void SetSystemNameLabelWidth(VisualElement label, float fixedWidth)
+        {
+            var treeViewItemVisualElement = this.parent.parent;
+            var itemIndentsContainerName = treeViewItemVisualElement.Q("unity-tree-view__item-indents");
+            var indentWidth = itemIndentsContainerName.localBound.size.x;
+            label.style.width = fixedWidth - indentWidth;
         }
 
         static void SetSystemClass(VisualElement element, ComponentSystemBase system)

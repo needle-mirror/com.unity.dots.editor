@@ -73,7 +73,7 @@ namespace Unity.Entities.Editor
             return systemItem;
         }
 
-        public void Refresh(World world, bool showInactiveSystems)
+        public void Refresh(World world)
         {
             if ((m_World != world) && (this.Contains(m_SystemDetailsVisualElement)))
                 this.Remove(m_SystemDetailsVisualElement);
@@ -86,30 +86,30 @@ namespace Unity.Entities.Editor
             }
             m_TreeRootItems.Clear();
 
-            var graph = PlayerLoopSystemGraph.Current;
-
-            if (!string.IsNullOrEmpty(SearchFilter) && SearchFilter.Contains(Constants.SystemSchedule.k_SystemDependencyToken))
+            if (World.All.Count > 0)
             {
-                SystemScheduleUtilities.GetSystemDepListFromSystemTypes(GetSystemTypesFromNamesInSearchFilter(graph), m_SystemDependencyList);
-                if (null == m_SystemDependencyList || !m_SystemDependencyList.Any())
+                var graph = PlayerLoopSystemGraph.Current;
+
+                if (!string.IsNullOrEmpty(SearchFilter) && SearchFilter.Contains(Constants.SystemSchedule.k_SystemDependencyToken))
                 {
-                    if (this.Contains(m_SystemDetailsVisualElement))
-                        Remove(m_SystemDetailsVisualElement);
+                    SystemScheduleUtilities.GetSystemDepListFromSystemTypes(GetSystemTypesFromNamesInSearchFilter(graph), m_SystemDependencyList);
+                    if (null == m_SystemDependencyList || !m_SystemDependencyList.Any())
+                    {
+                        if (this.Contains(m_SystemDetailsVisualElement))
+                            Remove(m_SystemDetailsVisualElement);
+                    }
                 }
-            }
 
-            foreach (var node in graph.Roots)
-            {
-                if (!node.ShowForWorld(m_World))
-                    continue;
+                foreach (var node in graph.Roots)
+                {
+                    if (!node.ShowForWorld(m_World))
+                        continue;
 
-                if (!node.IsRunning && !showInactiveSystems)
-                    continue;
+                    var item = SystemSchedulePool.GetSystemTreeViewItem(graph, node, null, m_World);
 
-                var item = SystemSchedulePool.GetSystemTreeViewItem(graph, node, null, m_World, showInactiveSystems);
-
-                PopulateAllChildren(item);
-                m_TreeRootItems.Add(item);
+                    PopulateAllChildren(item);
+                    m_TreeRootItems.Add(item);
+                }
             }
 
             Refresh();

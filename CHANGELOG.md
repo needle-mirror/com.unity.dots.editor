@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.8.0] - 2020-06-18
+[Added]
+* Entities window was added, accessible through Window > DOTS > Entities
+  
+[Fixed]
+* Systems Window: Fixed systems not appearing in non-default world
+* Systems Window: Fixed system name/entityCount/runningTime label misalignment
+* Systems Window: Fixed issue where adding a system in multiple groups would log errors
+* Fixed constant inspector repainting triggered by selecting a non-converted GameObject
+
+[Changed]
+* Systems Window: The search field is now visible by default and will persist its state across domain reloads
+* Systems Window: Updated disabled systems with "-" instead of 0 for entity matching count and running time
+* Systems Window: The window can now be opened under 'Window > DOTS > Systems' instead of 'Window > DOTS > Systems Schedule'
+* Systems Window: Removed "Show Inactive Systems" option from settings menu so that all systems are shown
+* Updated package `com.unity.entities` to `0.11.1-preview.4`
+* Updated package `com.unity.jobs` to `0.2.10-preview.12`
+
 ## [0.7.0] - 2020-05-25
 [Changed]
 * Updated System windows to be public
@@ -11,6 +29,7 @@
 ## [0.6.0] - 2020-05-01
 [Added]
 * Added package `com.unity.test-framework.performance` version `2.0.8-preview` as a dependency
+
 [Changed]
 * Updated package `com.unity.entities` from `0.9.0-preview.6` to `0.10.1-preview.6`
 * Updated package `com.unity.properties` from `1.1.1-preview` to `1.2.0-preview`
@@ -34,6 +53,7 @@
 ## [0.3.0] - 2020-01-17
 [Changed]
 * Updated package dependencies
+
 [Fixed]
 * Fixed multi-selected GameObjects conversion toggle issue
 * Fixed inaccurate conversion message

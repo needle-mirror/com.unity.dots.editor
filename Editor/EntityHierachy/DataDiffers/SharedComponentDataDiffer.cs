@@ -297,7 +297,7 @@ namespace Unity.Entities.Editor
 
                     var version = chunk->GetChangeVersion(0);
                     var sequenceNumber = chunk->SequenceNumber;
-                    processedChunks.Add(sequenceNumber, 0);
+                    processedChunks[sequenceNumber] = 0;
                     var entityDataPtr = chunk->Buffer + archetype->Offsets[0];
 
                     if (ShadowChunksBySequenceNumber.TryGetValue(sequenceNumber, out var shadow))

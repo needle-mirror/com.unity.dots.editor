@@ -17,7 +17,7 @@ namespace Unity.Entities.Editor
         /// <summary>
         /// <para>Toggle visibility of this visual element.</para>
         /// </summary>
-        static void ToggleVisibility(VisualElement v, bool isVisible) => v.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+        public static void ToggleVisibility(VisualElement v, bool isVisible) => v.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
 
         /// <summary>
         /// <para>Return if this visual element is visible or not.</para>

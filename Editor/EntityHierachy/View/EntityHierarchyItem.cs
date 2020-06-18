@@ -6,30 +6,34 @@ using UnityEditor;
 
 namespace Unity.Entities.Editor
 {
-    class EntityHierarchyTreeViewItem : ITreeViewItem, IPoolable
+    class EntityHierarchyItem : ITreeViewItem, IPoolable
     {
         static readonly string k_ChildrenListModificationExceptionMessage =
-            L10n.Tr($"{nameof(EntityHierarchyTreeViewItem)} does not allow external modifications to its list of children.");
+            L10n.Tr($"{nameof(EntityHierarchyItem)} does not allow external modifications to its list of children.");
 
-        readonly List<ITreeViewItem> m_Children = new List<ITreeViewItem>();
+        readonly List<EntityHierarchyItem> m_Children = new List<EntityHierarchyItem>();
         bool m_ChildrenInitialized;
-        ITreeViewItem m_Parent;
 
-        public void Initialize(ITreeViewItem parentItem, EntityHierarchyNodeId nodeId, IEntityHierarchyGroupingStrategy strategy)
+        // Caching name and pre-lowercased name to speed-up search
+        string m_CachedName;
+        string m_CachedLowerCaseName;
+
+        IEntityHierarchy m_EntityHierarchy;
+
+        public void Initialize(ITreeViewItem parentItem, in EntityHierarchyNodeId nodeId, IEntityHierarchy entityHierarchy)
         {
-            m_Parent = parentItem;
+            parent = parentItem;
             NodeId = nodeId;
-            Strategy = strategy;
+            m_EntityHierarchy = entityHierarchy;
         }
 
         public EntityHierarchyNodeId NodeId { get; private set; }
-        public IEntityHierarchyGroupingStrategy Strategy { get; private set; }
 
-        int ITreeViewItem.id => NodeId.GetHashCode();
+        public IEntityHierarchyGroupingStrategy Strategy => m_EntityHierarchy.Strategy;
 
-        ITreeViewItem ITreeViewItem.parent => m_Parent;
+        public World World => m_EntityHierarchy.World;
 
-        IEnumerable<ITreeViewItem> ITreeViewItem.children
+        public List<EntityHierarchyItem> Children
         {
             get
             {
@@ -42,7 +46,17 @@ namespace Unity.Entities.Editor
             }
         }
 
-        bool ITreeViewItem.hasChildren => Strategy.HasChildren(NodeId);
+        public string CachedName => m_CachedName ?? (m_CachedName = Strategy.GetNodeName(NodeId));
+
+        public string GetCachedLowerCaseName() => m_CachedLowerCaseName ?? (m_CachedLowerCaseName = CachedName.ToLowerInvariant());
+
+        public int id => NodeId.GetHashCode();
+
+        public ITreeViewItem parent { get; private set; }
+
+        IEnumerable<ITreeViewItem> ITreeViewItem.children => Children;
+
+        public bool hasChildren => Strategy.HasChildren(NodeId);
 
         void ITreeViewItem.AddChild(ITreeViewItem _) => throw new NotSupportedException(k_ChildrenListModificationExceptionMessage);
 
@@ -54,9 +68,10 @@ namespace Unity.Entities.Editor
         {
             NodeId = default;
 
-            Strategy = null;
-
-            m_Parent = null;
+            m_CachedName = null;
+            m_CachedLowerCaseName = null;
+            m_EntityHierarchy = null;
+            parent = null;
             m_Children.Clear();
             m_ChildrenInitialized = false;
         }
@@ -75,7 +90,7 @@ namespace Unity.Entities.Editor
             {
                 foreach (var node in childNodes)
                 {
-                    var item = EntityHierarchyPool.GetTreeViewItem(this, node, Strategy);
+                    var item = EntityHierarchyPool.GetTreeViewItem(this, node, m_EntityHierarchy);
                     m_Children.Add(item);
                 }
             }

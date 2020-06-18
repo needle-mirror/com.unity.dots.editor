@@ -5,7 +5,7 @@ using Unity.Transforms;
 
 namespace Unity.Entities.Editor.Tests
 {
-    class DifferIntegrationTests : DifferTestFixture
+    class EntityHierarchyGroupingStrategyTests : DifferTestFixture
     {
         NativeList<Entity> m_NewEntities;
         NativeList<Entity> m_RemovedEntities;
@@ -165,6 +165,111 @@ namespace Unity.Entities.Editor.Tests
             m_AssertHelper.AssertHierarchy(expectedHierarchy.Build());
         }
 
+        [Test]
+        public unsafe void EntityAndComponentDiffer_PartialParenting_StartFilteredThenFull()
+        {
+            // Entity with missing parent should be at root
+            // and should be correctly re-parented when parent appears
+
+            World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
+            var entityA = World.EntityManager.CreateEntity();
+            var entityB = World.EntityManager.CreateEntity();
+            var entityC = World.EntityManager.CreateEntity();
+            var entityD = World.EntityManager.CreateEntity();
+            World.EntityManager.AddBuffer<Child>(entityA).Add(new Child { Value = entityB });
+            World.EntityManager.AddBuffer<Child>(entityB).Add(new Child { Value = entityC });
+            World.EntityManager.AddBuffer<Child>(entityC).Add(new Child { Value = entityD });
+            World.EntityManager.AddComponentData(entityB, new Parent { Value = entityA });
+            World.EntityManager.AddComponentData(entityC, new Parent { Value = entityB });
+            World.EntityManager.AddComponentData(entityD, new Parent { Value = entityC });
+            World.EntityManager.AddComponent(entityB, typeof(EcsTestData));
+
+            using (var query = World.EntityManager.CreateEntityQuery(new EntityQueryDesc { None = new ComponentType[] { typeof(EcsTestData) } }))
+            {
+                GatherChangesAndApplyToStrategy(query);
+
+                // Even though entityB is not matched by the query, entityC should be visible at the root
+                var expectedHierarchy = TestHierarchy.CreateRoot();
+                expectedHierarchy.AddChild(entityA);
+                expectedHierarchy.AddChild(entityC)
+                                    .AddChild(entityD);
+
+                m_AssertHelper.AssertHierarchy(expectedHierarchy.Build());
+            }
+
+            World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
+
+            {
+                GatherChangesAndApplyToStrategy(World.EntityManager.UniversalQuery);
+
+                var expectedHierarchy = TestHierarchy.CreateRoot();
+                expectedHierarchy.AddChild(entityA)
+                                    .AddChild(entityB)
+                                        .AddChild(entityC)
+                                            .AddChild(entityD);
+
+                m_AssertHelper.AssertHierarchy(expectedHierarchy.Build());
+            }
+        }
+
+        [Test]
+        public unsafe void EntityAndComponentDiffer_PartialParenting_StartFullThenFilter()
+        {
+            // Entity with missing parent should be at root
+            // and should be correctly re-parented when parent appears
+
+            World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
+
+            var entityA = World.EntityManager.CreateEntity();
+            var entityB = World.EntityManager.CreateEntity();
+            var entityC = World.EntityManager.CreateEntity();
+            var entityD = World.EntityManager.CreateEntity();
+            World.EntityManager.AddBuffer<Child>(entityA).Add(new Child { Value = entityB });
+            World.EntityManager.AddBuffer<Child>(entityB).Add(new Child { Value = entityC });
+            World.EntityManager.AddBuffer<Child>(entityC).Add(new Child { Value = entityD });
+            World.EntityManager.AddComponentData(entityB, new Parent { Value = entityA });
+            World.EntityManager.AddComponentData(entityC, new Parent { Value = entityB });
+            World.EntityManager.AddComponentData(entityD, new Parent { Value = entityC });
+            World.EntityManager.AddComponent(entityB, typeof(EcsTestData));
+
+            {
+                GatherChangesAndApplyToStrategy(World.EntityManager.UniversalQuery);
+
+                var expectedHierarchy = TestHierarchy.CreateRoot();
+                expectedHierarchy.AddChild(entityA)
+                                    .AddChild(entityB)
+                                        .AddChild(entityC)
+                                            .AddChild(entityD);
+
+                m_AssertHelper.AssertHierarchy(expectedHierarchy.Build());
+            }
+
+            using (var query = World.EntityManager.CreateEntityQuery(new EntityQueryDesc { None = new ComponentType[] { typeof(EcsTestData) } }))
+            {
+                GatherChangesAndApplyToStrategy(query);
+
+                // Even though entityB is not matched by the query, entityC should be visible at the root
+                var expectedHierarchy = TestHierarchy.CreateRoot();
+                expectedHierarchy.AddChild(entityA);
+                expectedHierarchy.AddChild(entityC)
+                                    .AddChild(entityD);
+
+                m_AssertHelper.AssertHierarchy(expectedHierarchy.Build());
+            }
+
+            {
+                GatherChangesAndApplyToStrategy(World.EntityManager.UniversalQuery);
+
+                var expectedHierarchy = TestHierarchy.CreateRoot();
+                expectedHierarchy.AddChild(entityA)
+                                    .AddChild(entityB)
+                                        .AddChild(entityC)
+                                            .AddChild(entityD);
+
+                m_AssertHelper.AssertHierarchy(expectedHierarchy.Build());
+            }
+        }
+
         unsafe void AssertInSameChunk(params Entity[] entities)
         {
             ulong chunkSequenceNumber = 0;
@@ -189,10 +294,10 @@ namespace Unity.Entities.Editor.Tests
             }
         }
 
-        void GatherChangesAndApplyToStrategy()
+        void GatherChangesAndApplyToStrategy(EntityQuery? query = null)
         {
-            var entityJobHandle = m_EntityDiffer.GetEntityQueryMatchDiffAsync(World.EntityManager.UniversalQuery, m_NewEntities, m_RemovedEntities);
-            using (var changes = m_ComponentDiffer.GatherComponentChangesAsync(World.EntityManager.UniversalQuery, Allocator.TempJob, out var componentJobHandle))
+            var entityJobHandle = m_EntityDiffer.GetEntityQueryMatchDiffAsync(query ?? World.EntityManager.UniversalQuery, m_NewEntities, m_RemovedEntities);
+            using (var changes = m_ComponentDiffer.GatherComponentChangesAsync(query ?? World.EntityManager.UniversalQuery, Allocator.TempJob, out var componentJobHandle))
             {
                 m_Strategy.BeginApply(World.EntityManager.GlobalSystemVersion);
                 entityJobHandle.Complete();

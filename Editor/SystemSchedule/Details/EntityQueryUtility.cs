@@ -67,7 +67,7 @@ namespace Unity.Entities.Editor
             return name;
         }
 
-        public static string StyleForAccessMode(ComponentType.AccessMode? mode)
+        public static string StyleForAccessMode(ComponentType.AccessMode mode)
         {
             switch (mode)
             {

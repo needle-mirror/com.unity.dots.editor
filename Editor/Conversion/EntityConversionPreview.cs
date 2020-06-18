@@ -601,12 +601,12 @@ namespace Unity.Entities.Editor
                     // @TODO Handle multiple targets correctly.
                     m_LastConversionData = EntityConversionUtility.GetConversionData(targets, world).FirstOrDefault();
 
-                    if (m_LastConversionData != EntityConversionData.Null)
-                    {
-                        m_LastChunk = world.EntityManager.GetChunk(m_LastConversionData.PrimaryEntity);
-                    }
+                    if (m_LastConversionData == EntityConversionData.Null)
+                        return false;
 
+                    m_LastChunk = world.EntityManager.GetChunk(m_LastConversionData.PrimaryEntity);
                     return true;
+
                 }
 
                 var chunk = world.EntityManager.GetChunk(m_LastConversionData.PrimaryEntity);
