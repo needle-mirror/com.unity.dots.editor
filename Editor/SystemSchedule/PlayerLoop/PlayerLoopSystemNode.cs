@@ -10,7 +10,7 @@ namespace Unity.Entities.Editor
     class PlayerLoopSystemNode : PlayerLoopNode<PlayerLoopSystem>, IPlayerLoopSystemData
     {
         public override string Name => UnityEditor.ObjectNames.NicifyVariableName(Value.type.Name);
-        public override string WorldName => Name;
+        public override string NameWithWorld => Name;
         public override string FullName => Value.type.FullName;
 
         public override bool Enabled

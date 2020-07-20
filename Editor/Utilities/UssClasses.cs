@@ -54,6 +54,9 @@ namespace Unity.Entities.Editor
                 public const string SystemIcon = Icon + "--system";
                 public const string SystemGroupIcon = Icon + "--system-group";
                 public const string CommandBufferIcon = Icon + "--command-buffer";
+
+                public const string SystemNameNormal = Base + "__name-label-normal";
+                public const string SystemNameBold = Base + "__name-label-bold";
             }
 
             public static class Detail
@@ -124,6 +127,14 @@ namespace Unity.Entities.Editor
                 public const string PingGameObjectButton = k_Base + "__ping-gameobject-button";
 
                 public const string VisibleOnHover = k_Base + "__visible-on-hover";
+            }
+
+            public static class SearchEmptyMessage
+            {
+                const string k_Base = k_EntityHierarchyBase + "-search-empty-message";
+
+                public const string Title = k_Base + "__title";
+                public const string Message = k_Base + "__message";
             }
         }
     }

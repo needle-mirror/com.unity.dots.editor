@@ -79,14 +79,14 @@ namespace Unity.Entities.Editor
 
         public ComponentType[] ComponentsToWatch { get; } = { typeof(Parent), typeof(SceneTag) };
 
-        void IEntityHierarchyGroupingStrategy.BeginApply(uint version)
+        void IEntityHierarchyGroupingStrategy.BeginApply(IEntityHierarchyGroupingContext context)
         {
             m_AddedNodes.Clear();
             m_MovedNodes.Clear();
             m_RemovedNodes.Clear();
         }
 
-        void IEntityHierarchyGroupingStrategy.ApplyEntityChanges(NativeArray<Entity> newEntities, NativeArray<Entity> removedEntities, uint version)
+        void IEntityHierarchyGroupingStrategy.ApplyEntityChanges(NativeArray<Entity> newEntities, NativeArray<Entity> removedEntities, IEntityHierarchyGroupingContext context)
         {
             // Remove entities
             foreach (var entity in removedEntities)
@@ -100,19 +100,19 @@ namespace Unity.Entities.Editor
             MoveEntitiesUnderFoundMissingParents();
         }
 
-        void IEntityHierarchyGroupingStrategy.ApplyComponentDataChanges(ComponentType componentType, in ComponentDataDiffer.ComponentChanges componentChanges, uint version)
+        void IEntityHierarchyGroupingStrategy.ApplyComponentDataChanges(ComponentType componentType, in ComponentDataDiffer.ComponentChanges componentChanges, IEntityHierarchyGroupingContext context)
         {
             if (componentType == typeof(Parent))
                 ApplyParentComponentChanges(componentChanges);
         }
 
-        void IEntityHierarchyGroupingStrategy.ApplySharedComponentDataChanges(ComponentType componentType, in SharedComponentDataDiffer.ComponentChanges componentChanges, uint version)
+        void IEntityHierarchyGroupingStrategy.ApplySharedComponentDataChanges(ComponentType componentType, in SharedComponentDataDiffer.ComponentChanges componentChanges, IEntityHierarchyGroupingContext context)
         {
             if (componentType == typeof(SceneTag))
-                ApplySceneTagChanges(componentChanges, version);
+                ApplySceneTagChanges(componentChanges, context);
         }
 
-        bool IEntityHierarchyGroupingStrategy.EndApply(uint version)
+        bool IEntityHierarchyGroupingStrategy.EndApply(IEntityHierarchyGroupingContext context)
         {
             // NOTE - Order matters:
             // 1.Removed - can add move operation, when a parent is removed, children are moved under root
@@ -124,7 +124,7 @@ namespace Unity.Entities.Editor
             var hasRemovals = m_RemovedNodes.Count > 0;
 
             foreach (var node in m_RemovedNodes.Keys)
-                RemoveNode(node, version);
+                RemoveNode(node, context.Version);
 
             var hasMoves = m_MovedNodes.Count > 0;
 
@@ -132,7 +132,7 @@ namespace Unity.Entities.Editor
             {
                 var node = kvp.Key;
                 var operation = kvp.Value;
-                AddNode(operation.Parent, node, version);
+                AddNode(operation.Parent, node, context.Version);
                 m_EntityNodes[node] = operation.Entity;
             }
 
@@ -140,13 +140,13 @@ namespace Unity.Entities.Editor
             {
                 var node = kvp.Key;
                 var operation = kvp.Value;
-                MoveNode(operation.FromNode, operation.ToNode, node, version);
+                MoveNode(operation.FromNode, operation.ToNode, node, context);
             }
 
             if (hasRemovals || hasMoves)
             {
-                if (TryRemoveEmptySceneNodes(NodeKind.SubScene, version))
-                    TryRemoveEmptySceneNodes(NodeKind.Scene, version);
+                if (TryRemoveEmptySceneNodes(NodeKind.SubScene, context.Version))
+                    TryRemoveEmptySceneNodes(NodeKind.Scene, context.Version);
             }
 
             return hasAdditions || hasMoves || hasRemovals;
@@ -346,10 +346,8 @@ namespace Unity.Entities.Editor
             }
         }
 
-        void ApplySceneTagChanges(SharedComponentDataDiffer.ComponentChanges componentChanges, uint version)
+        void ApplySceneTagChanges(SharedComponentDataDiffer.ComponentChanges componentChanges, IEntityHierarchyGroupingContext context)
         {
-            var sceneMapper = World.DefaultGameObjectInjectionWorld.GetExistingSystem<SceneMappingSystem>();
-
             for (var i = 0; i < componentChanges.RemovedEntitiesCount; ++i)
             {
                 var entity = componentChanges.GetRemovedEntity(i);
@@ -361,7 +359,7 @@ namespace Unity.Entities.Editor
 
                 var entityNodeId = EntityHierarchyNodeId.FromEntity(entity);
 
-                var subsceneHash = sceneMapper.GetSubsceneHash(tag.SceneEntity);
+                var subsceneHash = context.SceneMapper.GetSubsceneHash(m_World, tag.SceneEntity);
                 if (subsceneHash == default)
                     continue; // Previous parent was not a scene or was a scene that does not exist anymore; skip
 
@@ -378,8 +376,8 @@ namespace Unity.Entities.Editor
 
                 if (m_RootEntitiesQueryMask.Matches(entity) || m_AddedNodes.TryGetValue(entityNodeId, out var addOperation) && addOperation.Parent == EntityHierarchyNodeId.Root)
                 {
-                    var subsceneHash = sceneMapper.GetSubsceneHash(tag.SceneEntity);
-                    var newParentNodeId = subsceneHash == default ? EntityHierarchyNodeId.Root : GetOrCreateSubsceneNode(subsceneHash, version);
+                    var subsceneHash = context.SceneMapper.GetSubsceneHash(m_World, tag.SceneEntity);
+                    var newParentNodeId = subsceneHash == default ? EntityHierarchyNodeId.Root : GetOrCreateSubsceneNode(subsceneHash, context);
                     RegisterMoveOperation(newParentNodeId, entityNodeId);
                 }
             }
@@ -388,23 +386,21 @@ namespace Unity.Entities.Editor
         Hash128 GetSceneHash(in EntityHierarchyNodeId nodeId)
             => m_SceneNodes[nodeId];
 
-        EntityHierarchyNodeId GetOrCreateSubsceneNode(Hash128 subSceneHash, uint version)
+        EntityHierarchyNodeId GetOrCreateSubsceneNode(Hash128 subSceneHash, IEntityHierarchyGroupingContext context)
         {
-            var sceneMapper = World.DefaultGameObjectInjectionWorld.GetExistingSystem<SceneMappingSystem>();
-
-            if (!sceneMapper.TryGetSceneOrSubSceneInstanceId(subSceneHash, out var subSceneInstanceId))
+            if (!context.SceneMapper.TryGetSceneOrSubSceneInstanceId(subSceneHash, out var subSceneInstanceId))
             {
-                Debug.LogWarning($"SubScene hash {subSceneHash} not found in {nameof(SceneMappingSystem)} state, unable to create node id for it.");
+                Debug.LogWarning($"SubScene hash {subSceneHash} not found in {nameof(SceneMapper)} state, unable to create node id for it.");
                 return default;
             }
 
             var subSceneNodeId = EntityHierarchyNodeId.FromSubScene(subSceneInstanceId);
             if (!Exists(subSceneNodeId))
             {
-                var parentSceneHash = sceneMapper.GetParentSceneHash(subSceneHash);
-                if (!sceneMapper.TryGetSceneOrSubSceneInstanceId(parentSceneHash, out var parentSceneInstanceId))
+                var parentSceneHash = context.SceneMapper.GetParentSceneHash(subSceneHash);
+                if (!context.SceneMapper.TryGetSceneOrSubSceneInstanceId(parentSceneHash, out var parentSceneInstanceId))
                 {
-                    Debug.LogWarning($"Scene hash {parentSceneHash} not found in {nameof(SceneMappingSystem)} state, unable to create node id for it.");
+                    Debug.LogWarning($"Scene hash {parentSceneHash} not found in {nameof(SceneMapper)} state, unable to create node id for it.");
                     return default;
                 }
 
@@ -412,11 +408,11 @@ namespace Unity.Entities.Editor
                 if (!Exists(parentSceneNodeId))
                 {
                     m_SceneNodes[parentSceneNodeId] = parentSceneHash;
-                    AddNode(EntityHierarchyNodeId.Root, parentSceneNodeId, version);
+                    AddNode(EntityHierarchyNodeId.Root, parentSceneNodeId, context.Version);
                 }
 
                 m_SceneNodes[subSceneNodeId] = subSceneHash;
-                AddNode(parentSceneNodeId, subSceneNodeId, version);
+                AddNode(parentSceneNodeId, subSceneNodeId, context.Version);
             }
 
             return subSceneNodeId;
@@ -527,7 +523,7 @@ namespace Unity.Entities.Editor
             }
         }
 
-        void MoveNode(in EntityHierarchyNodeId previousParent, EntityHierarchyNodeId newParent, in EntityHierarchyNodeId node, uint version)
+        void MoveNode(in EntityHierarchyNodeId previousParent, EntityHierarchyNodeId newParent, in EntityHierarchyNodeId node, IEntityHierarchyGroupingContext context)
         {
             if (previousParent.Equals(default))
                 throw new ArgumentException("Trying to unparent from an invalid node.");
@@ -548,19 +544,18 @@ namespace Unity.Entities.Editor
                 && newParent == EntityHierarchyNodeId.Root
                 && m_SceneTagPerEntity.TryGetValue(m_EntityNodes[node], out var tag))
             {
-                var sceneMapper = World.DefaultGameObjectInjectionWorld.GetExistingSystem<SceneMappingSystem>();
-                var subsceneHash = sceneMapper.GetSubsceneHash(tag.SceneEntity);
+                var subsceneHash = context.SceneMapper.GetSubsceneHash(m_World, tag.SceneEntity);
 
-                newParent = subsceneHash == default ? EntityHierarchyNodeId.Root : GetOrCreateSubsceneNode(subsceneHash, version);
+                newParent = subsceneHash == default ? EntityHierarchyNodeId.Root : GetOrCreateSubsceneNode(subsceneHash, context);
             }
 
             RemoveChild(m_Children, previousParent, node);
             if (Exists(previousParent))
-                m_Versions[previousParent] = version;
+                m_Versions[previousParent] = context.Version;
 
             m_Parents[node] = newParent;
             AddChild(m_Children, newParent, node);
-            m_Versions[newParent] = version;
+            m_Versions[newParent] = context.Version;
         }
 
         static void AddChild(NativeHashMap<EntityHierarchyNodeId, UnsafeHashMap<EntityHierarchyNodeId, byte>> children, in EntityHierarchyNodeId parentId, in EntityHierarchyNodeId newChild)

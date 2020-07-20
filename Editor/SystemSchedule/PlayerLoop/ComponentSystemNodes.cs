@@ -12,7 +12,7 @@ namespace Unity.Entities.Editor
         public override string Name => UnityEditor.ObjectNames.NicifyVariableName(Value.GetType().Name);
 
         public override string FullName => Value.GetType().FullName;
-        public override string WorldName => Name + " (" + Value.World.Name + ")";
+        public override string NameWithWorld => Name + " (" + Value.World.Name + ")";
         public override bool Enabled
         {
             get => Value.Enabled;
@@ -27,7 +27,7 @@ namespace Unity.Entities.Editor
             {
                 unchecked
                 {
-                    var hashCode = Value.World.Name.GetHashCode();
+                    var hashCode = NameWithWorld.GetHashCode();
                     hashCode = (hashCode * 397) ^ (Parent?.Name.GetHashCode() ?? 0);
                     hashCode = (hashCode * 397) ^ Value.GetHashCode();
                     return hashCode;

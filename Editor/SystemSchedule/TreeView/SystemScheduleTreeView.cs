@@ -8,7 +8,7 @@ namespace Unity.Entities.Editor
 {
     class SystemScheduleTreeView : VisualElement
     {
-        readonly TreeView SystemTreeView;
+        readonly TreeView m_SystemTreeView;
         readonly IList<ITreeViewItem> m_TreeRootItems = new List<ITreeViewItem>();
         SystemDetailsVisualElement m_SystemDetailsVisualElement;
         SystemTreeViewItem m_LastSelectedItem;
@@ -21,19 +21,21 @@ namespace Unity.Entities.Editor
         /// <summary>
         /// Constructor of the tree view.
         /// </summary>
-        public SystemScheduleTreeView()
+        public SystemScheduleTreeView(string editorWindowInstanceKey)
         {
-            SystemTreeView = new TreeView(m_TreeRootItems, 20, MakeItem, BindItem);
-            SystemTreeView.viewDataKey = Constants.State.ViewDataKeyPrefix + nameof(SystemScheduleTreeView);
-            SystemTreeView.style.flexGrow = 1;
-            Add(SystemTreeView);
+            m_SystemTreeView = new TreeView(m_TreeRootItems, Constants.ListView.ItemHeight, MakeItem, BindItem)
+            {
+                viewDataKey = $"{Constants.State.ViewDataKeyPrefix}{typeof(SystemScheduleWindow).FullName}+{editorWindowInstanceKey}",
+                style = { flexGrow = 1 }
+            };
+            Add(m_SystemTreeView);
             CreateSystemDetailsSection();
         }
 
         void CreateSystemDetailsSection()
         {
             m_SystemDetailsVisualElement = new SystemDetailsVisualElement();
-            SystemTreeView.onSelectionChange += (selectedItems) =>
+            m_SystemTreeView.onSelectionChange += (selectedItems) =>
             {
                 var item = selectedItems.OfType<SystemTreeViewItem>().FirstOrDefault();
                 if (null == item)
@@ -167,7 +169,7 @@ namespace Unity.Entities.Editor
         {
             // This is needed because `ListView.Refresh` will re-create all the elements.
             SystemSchedulePool.ReturnAllToPool(this);
-            SystemTreeView.Refresh();
+            m_SystemTreeView.Refresh();
 
             // System details need to be updated also.
             m_SystemDetailsVisualElement.Target = m_LastSelectedItem;

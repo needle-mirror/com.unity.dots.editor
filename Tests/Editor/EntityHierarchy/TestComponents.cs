@@ -25,4 +25,9 @@ namespace Unity.Entities.Editor.Tests
             return $"{nameof(value)}: {value}";
         }
     }
+
+    struct EcsTestBufferElementData : IBufferElementData
+    {
+        public int I;
+    }
 }

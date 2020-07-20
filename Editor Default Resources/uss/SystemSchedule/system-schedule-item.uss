@@ -33,6 +33,7 @@
     width: 65px;
     min-width: 65px;
     max-width: 65px;
+    padding-right: 3px;
 }
 
 .system-schedule-item__column-3
@@ -40,6 +41,7 @@
     width: 75px;
     min-width: 75px;
     max-width: 75px;
+    padding-right: 8px;
     white-space: nowrap;
 }
 
@@ -71,6 +73,16 @@
     flex: 1; 
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.system-schedule-item__name-label-normal
+{
+    -unity-font-style: normal;
+}
+
+.system-schedule-item__name-label-bold
+{
+    -unity-font-style: bold;
 }
 
 .system-schedule-item__matches-label

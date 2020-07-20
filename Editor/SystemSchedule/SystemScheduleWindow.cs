@@ -1,8 +1,8 @@
-using System;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Unity.Serialization.Editor;
 
 namespace Unity.Entities.Editor
 {
@@ -12,13 +12,10 @@ namespace Unity.Entities.Editor
         static readonly string k_ShowFullPlayerLoopString = L10n.Tr("Show Full Player Loop");
         static readonly Vector2 k_MinWindowSize = new Vector2(200, 200);
 
-        static World CurrentWorld { get; set; }
-
         SystemScheduleTreeView m_SystemTreeView;
-        ToolbarMenu m_WorldMenu;
-
-        // To get information after domain reload.
-        const string k_StateKey = nameof(SystemScheduleWindow) + "." + nameof(State);
+        VisualElement m_WorldSelector;
+        VisualElement m_EmptySelectorWhenShowingFullPlayerLoop;
+        int m_LastTimedFrame;
 
         /// <summary>
         /// Helper container to store session state data.
@@ -46,12 +43,12 @@ namespace Unity.Entities.Editor
         /// <summary>
         /// Build the GUI for the system window.
         /// </summary>
-        public void OnEnable()
+        void OnEnable()
         {
             titleContent = EditorGUIUtility.TrTextContent(k_WindowName, EditorIcons.System);
             minSize = k_MinWindowSize;
 
-            m_State = SessionState<State>.GetOrCreateState(k_StateKey);
+            m_State = SessionState<State>.GetOrCreate($"{typeof(SystemScheduleWindow).FullName}+{nameof(State)}+{EditorWindowInstanceKey}");
 
             Resources.Templates.SystemSchedule.AddStyles(rootVisualElement);
             Resources.Templates.DotsEditorCommon.AddStyles(rootVisualElement);
@@ -81,8 +78,10 @@ namespace Unity.Entities.Editor
             toolbar.AddToClassList(UssClasses.SystemScheduleWindow.ToolbarContainer);
             root.Add(toolbar);
 
-            m_WorldMenu = CreateWorldSelector();
-            toolbar.Add(m_WorldMenu);
+            m_WorldSelector = CreateWorldSelector();
+            toolbar.Add(m_WorldSelector);
+            m_EmptySelectorWhenShowingFullPlayerLoop = new ToolbarMenu { text = k_ShowFullPlayerLoopString };
+            toolbar.Add(m_EmptySelectorWhenShowingFullPlayerLoop);
 
             var rightSideContainer = new VisualElement();
             rightSideContainer.AddToClassList(UssClasses.SystemScheduleWindow.ToolbarRightSideContainer);
@@ -90,26 +89,25 @@ namespace Unity.Entities.Editor
             AddSearchIcon(rightSideContainer, UssClasses.DotsEditorCommon.SearchIcon);
             AddSearchFieldContainer(root, UssClasses.DotsEditorCommon.SearchFieldContainer);
 
-            var dropDownSettings = CreateDropDownSettings(UssClasses.DotsEditorCommon.SettingsIcon);
-            UpdateDropDownSettings(dropDownSettings);
-            rightSideContainer.Add(dropDownSettings);
-
-            toolbar.Add(rightSideContainer);
-        }
-
-        void UpdateDropDownSettings(ToolbarMenu dropdownSettings)
-        {
-            var menu = dropdownSettings.menu;
-
-            menu.AppendAction(k_ShowFullPlayerLoopString, a =>
+            var dropdownSettings = CreateDropdownSettings(UssClasses.DotsEditorCommon.SettingsIcon);
+            dropdownSettings.menu.AppendAction(k_ShowFullPlayerLoopString, a =>
             {
                 m_State.ShowFullPlayerLoop = !m_State.ShowFullPlayerLoop;
-                if (!m_State.ShowFullPlayerLoop)
-                    UpdateWorldDropDownMenu();
+
+                UpdateWorldSelectorDisplay();
 
                 if (World.All.Count > 0)
                     BuildAll();
             }, a => m_State.ShowFullPlayerLoop ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
+            UpdateWorldSelectorDisplay();
+            rightSideContainer.Add(dropdownSettings);
+            toolbar.Add(rightSideContainer);
+        }
+
+        void UpdateWorldSelectorDisplay()
+        {
+            m_WorldSelector.ToggleVisibility(!m_State.ShowFullPlayerLoop);
+            m_EmptySelectorWhenShowingFullPlayerLoop.ToggleVisibility(m_State.ShowFullPlayerLoop);
         }
 
         // Manually create header for the tree view.
@@ -142,7 +140,7 @@ namespace Unity.Entities.Editor
 
         void CreateTreeView(VisualElement root)
         {
-            m_SystemTreeView = new SystemScheduleTreeView();
+            m_SystemTreeView = new SystemScheduleTreeView(EditorWindowInstanceKey);
             m_SystemTreeView.style.flexGrow = 1;
             m_SystemTreeView.SearchFilter = SearchFilter;
             root.Add(m_SystemTreeView);
@@ -150,31 +148,10 @@ namespace Unity.Entities.Editor
 
         void BuildAll()
         {
-            CurrentWorld = !m_State.ShowFullPlayerLoop ? GetCurrentlySelectedWorld() : null;
-            m_SystemTreeView.Refresh(CurrentWorld);
+            m_SystemTreeView.Refresh(m_State.ShowFullPlayerLoop ? null : SelectedWorld);
         }
 
         protected override void OnUpdate()
-        {
-            if (null != m_State && m_State.ShowFullPlayerLoop)
-            {
-                var menu = m_WorldMenu.menu;
-                var menuItemsCount = menu.MenuItems().Count;
-
-                for (var i = 0; i < menuItemsCount; i++)
-                {
-                    menu.RemoveItemAt(0);
-                }
-
-                m_WorldMenu.text = k_ShowFullPlayerLoopString;
-            }
-
-            UpdateTimings();
-        }
-
-        int m_LastTimedFrame;
-
-        void UpdateTimings()
         {
             if (Time.frameCount == m_LastTimedFrame)
                 return;
@@ -187,6 +164,7 @@ namespace Unity.Entities.Editor
 
             m_LastTimedFrame = Time.frameCount;
         }
+
 
         protected override void OnWorldSelected(World world)
         {

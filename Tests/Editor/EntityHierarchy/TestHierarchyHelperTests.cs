@@ -216,11 +216,11 @@ namespace Unity.Entities.Editor.Tests
             public void Dispose() {}
             public World World { get; }
             public ComponentType[] ComponentsToWatch { get; }
-            public void BeginApply(uint version) {}
-            public void ApplyEntityChanges(NativeArray<Entity> newEntities, NativeArray<Entity> removedEntities, uint version) {}
-            public void ApplyComponentDataChanges(ComponentType componentType, in ComponentDataDiffer.ComponentChanges componentChanges, uint version) {}
-            public void ApplySharedComponentDataChanges(ComponentType componentType, in SharedComponentDataDiffer.ComponentChanges componentChanges, uint version) {}
-            public bool EndApply(uint version) => false;
+            public void BeginApply(IEntityHierarchyGroupingContext context) {}
+            public void ApplyEntityChanges(NativeArray<Entity> newEntities, NativeArray<Entity> removedEntities, IEntityHierarchyGroupingContext context) {}
+            public void ApplyComponentDataChanges(ComponentType componentType, in ComponentDataDiffer.ComponentChanges componentChanges, IEntityHierarchyGroupingContext context) {}
+            public void ApplySharedComponentDataChanges(ComponentType componentType, in SharedComponentDataDiffer.ComponentChanges componentChanges,  IEntityHierarchyGroupingContext context) {}
+            public bool EndApply(IEntityHierarchyGroupingContext context) => false;
 
             public bool HasChildren(in EntityHierarchyNodeId nodeId)
                 => m_Children.TryGetValue(nodeId, out var children) && children.Count > 0;

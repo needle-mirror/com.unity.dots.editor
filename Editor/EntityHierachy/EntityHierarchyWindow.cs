@@ -1,5 +1,4 @@
 using System;
-using Unity.Scenes;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -13,21 +12,18 @@ namespace Unity.Entities.Editor
         EntityQueryDesc QueryDesc { get; }
 
         World World { get; }
-
-        void OnStructuralChangeDetected();
     }
 
     class EntityHierarchyWindow : DOTSEditorWindow, IEntityHierarchy
     {
         static readonly string k_WindowName = L10n.Tr("Entities");
-        static readonly Vector2 k_MinWindowSize = new Vector2(200, 200); // Matches SceneHierarchy's min size
 
-        static readonly TimeSpan k_RefreshPeriod = TimeSpan.FromMilliseconds(500);
-        static DateTime s_LastUpdate;
+        static readonly Vector2 k_MinWindowSize = new Vector2(200, 200); // Matches SceneHierarchy's min size
 
         readonly EntityHierarchyQueryBuilder m_EntityHierarchyQueryBuilder = new EntityHierarchyQueryBuilder();
 
         EntityHierarchy m_EntityHierarchy;
+        EntityHierarchyDiffer m_EntityHierarchyDiffer;
         VisualElement m_EnableLiveLinkMessage;
         VisualElement m_Header;
 
@@ -52,7 +48,7 @@ namespace Unity.Entities.Editor
             m_EntityHierarchyQueryBuilder.Initialize();
 
             CreateToolbar();
-            m_EntityHierarchy = new EntityHierarchy();
+            m_EntityHierarchy = new EntityHierarchy(new EntityHierarchyState(EditorWindowInstanceKey));
             rootVisualElement.Add(m_EntityHierarchy);
             CreateEnableLiveLinkMessage();
 
@@ -72,7 +68,7 @@ namespace Unity.Entities.Editor
             m_EntityHierarchy.Dispose();
             if (Strategy != null)
             {
-                EntityHierarchyDiffSystem.Unregister(this);
+                m_EntityHierarchyDiffer?.Dispose();
                 Strategy.Dispose();
             }
         }
@@ -111,8 +107,6 @@ namespace Unity.Entities.Editor
             UpdateEnableLiveLinkMessage();
         }
 
-        void IEntityHierarchy.OnStructuralChangeDetected() => m_EntityHierarchy?.UpdateStructure();
-
         protected override void OnWorldSelected(World world)
         {
             if (world == World)
@@ -120,7 +114,7 @@ namespace Unity.Entities.Editor
 
             if (Strategy != null)
             {
-                EntityHierarchyDiffSystem.Unregister(this);
+                m_EntityHierarchyDiffer?.Dispose();
                 Strategy.Dispose();
                 Strategy = null;
             }
@@ -129,7 +123,7 @@ namespace Unity.Entities.Editor
             if (World != null)
             {
                 Strategy = new EntityHierarchyDefaultGroupingStrategy(world);
-                EntityHierarchyDiffSystem.Register(this);
+                m_EntityHierarchyDiffer = new EntityHierarchyDiffer(this, 16);
                 m_EntityHierarchy.Refresh(this);
             }
             else
@@ -140,22 +134,18 @@ namespace Unity.Entities.Editor
 
         protected override void OnFilterChanged(string filter)
         {
-            var query = m_EntityHierarchyQueryBuilder.BuildQuery(filter, out var nameFilter);
-            QueryDesc = query;
-            EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
-
-            m_EntityHierarchy.SetFilter(nameFilter);
+            var result = m_EntityHierarchyQueryBuilder.BuildQuery(filter);
+            QueryDesc = result.QueryDesc;
+            m_EntityHierarchy.SetFilter(result);
         }
 
         protected override void OnUpdate()
         {
-            // Ugly hack to ensure the systems are called in editor
-            var utcNow = DateTime.UtcNow;
-            if (utcNow - s_LastUpdate >= k_RefreshPeriod)
-            {
-                s_LastUpdate = utcNow;
-                EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
-            }
+            if (World == null || !m_EntityHierarchyDiffer.TryUpdate(out var structuralChangeDetected))
+                return;
+
+            if (structuralChangeDetected)
+                m_EntityHierarchy.UpdateStructure();
 
             m_EntityHierarchy.OnUpdate();
         }

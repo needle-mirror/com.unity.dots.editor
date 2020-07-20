@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
+using Unity.Profiling;
 using Unity.Scenes;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -10,56 +12,68 @@ using UnityEngine.SceneManagement;
 
 namespace Unity.Entities.Editor
 {
-    [DisableAutoCreation, AlwaysUpdateSystem, UsedImplicitly]
-    class SceneMappingSystem : SystemBase
+    interface ISceneMapper
     {
+        Hash128 GetSubsceneHash(World world, Entity tagSceneEntity);
+
+        bool TryGetSceneOrSubSceneInstanceId(Hash128 subSceneHash, out int instanceId);
+
+        Hash128 GetParentSceneHash(Hash128 subSceneHash);
+    }
+
+    class SceneMapper : ISceneMapper, IDisposable
+    {
+        static readonly ProfilerMarker k_GetSceneSectionMappingProfilerMarker = new ProfilerMarker($"{nameof(SceneMapper)}.{nameof(GetSceneSectionMapping)}");
+
         readonly Dictionary<Hash128, Hash128> m_SubsceneOwnershipMap = new Dictionary<Hash128, Hash128>(8);
         readonly Dictionary<Hash128, int> m_SceneAndSubSceneHashToGameObjectInstanceId = new Dictionary<Hash128, int>(8);
-        NativeHashMap<Entity, Entity> m_SceneSectionToSubsceneMap;
 
         Hash128 m_ScenesCountFingerprint;
+        uint m_CachedSceneSectionMappingVersion;
+        NativeHashMap<Entity, Entity> m_CachedSceneSectionMapping;
+
         public bool SceneManagerDirty { get; private set; }
 
         public Hash128 GetParentSceneHash(Hash128 subsceneGUID) => m_SubsceneOwnershipMap.TryGetValue(subsceneGUID, out var result) ? result : default;
 
-        public Hash128 GetSubsceneHash(Entity entity)
+        public Hash128 GetSubsceneHash(World world, Entity entity)
         {
             if (entity == Entity.Null)
                 return default;
 
             var subsceneEntity = Entity.Null;
-
-            if (m_SceneSectionToSubsceneMap.TryGetValue(entity, out var entityToSubscene))
+            var sceneSectionToSubSceneMap = GetSceneSectionMapping(world);
+            if (sceneSectionToSubSceneMap.TryGetValue(entity, out var entityToSubscene))
             {
                 // Entity is a scene section
                 subsceneEntity = entityToSubscene;
             }
-            else if (EntityManager.HasComponent<SceneTag>(entity))
+            else if (world.EntityManager.HasComponent<SceneTag>(entity))
             {
                 // Entity is in a subscene
-                var sceneEntity = EntityManager.GetSharedComponentData<SceneTag>(entity).SceneEntity;
+                var sceneEntity = world.EntityManager.GetSharedComponentData<SceneTag>(entity).SceneEntity;
 
                 // Currently, it seems like SceneTag.SceneEntity does not point to an actual SceneEntity, but to a SceneSection. If so, use this reverse lookup.
-                if (m_SceneSectionToSubsceneMap.TryGetValue(sceneEntity, out var sceneEntityToSubscene))
+                if (sceneSectionToSubSceneMap.TryGetValue(sceneEntity, out var sceneEntityToSubscene))
                     subsceneEntity = sceneEntityToSubscene;
                 else
                     // Subscene may not be loaded
-                    Debug.LogWarning($"Entity {EntityManager.GetName(entity)} has a {nameof(SceneTag)} component, but its subscene could not be found.");
+                    Debug.LogWarning($"Entity {world.EntityManager.GetName(entity)} has a {nameof(SceneTag)} component, but its subscene could not be found.");
             }
 
             if (subsceneEntity != Entity.Null)
             {
-                if (EntityManager.HasComponent<SubScene>(subsceneEntity))
-                    return EntityManager.GetComponentObject<SubScene>(subsceneEntity).SceneGUID;
+                if (world.EntityManager.HasComponent<SubScene>(subsceneEntity))
+                    return world.EntityManager.GetComponentObject<SubScene>(subsceneEntity).SceneGUID;
 
-                if (EntityManager.HasComponent<SceneReference>(subsceneEntity))
-                    return EntityManager.GetComponentData<SceneReference>(subsceneEntity).SceneGUID;
+                if (world.EntityManager.HasComponent<SceneReference>(subsceneEntity))
+                    return world.EntityManager.GetComponentData<SceneReference>(subsceneEntity).SceneGUID;
             }
 
             return default;
         }
 
-        protected override void OnCreate()
+        public SceneMapper()
         {
             m_ScenesCountFingerprint = default;
             SceneManagerDirty = true; // Ensures cache rebuild on first tick
@@ -69,19 +83,19 @@ namespace Unity.Entities.Editor
             EditorSceneManager.sceneOpened += SetSceneManagerDirty;
             EditorSceneManager.sceneClosed += SetSceneManagerDirty;
             EditorSceneManager.newSceneCreated += SetSceneManagerDirty;
+            m_CachedSceneSectionMapping = new NativeHashMap<Entity, Entity>(10, Allocator.Persistent);
         }
 
-        protected override void OnDestroy()
+        public void Dispose()
         {
+            m_CachedSceneSectionMapping.Dispose();
+            m_CachedSceneSectionMappingVersion = 0;
             LiveLinkConfigHelper.LiveLinkEnabledChanged -= SetSceneManagerDirty;
             SceneManager.sceneLoaded -= SetSceneManagerDirty;
             SceneManager.sceneUnloaded -= SetSceneManagerDirty;
             EditorSceneManager.sceneOpened -= SetSceneManagerDirty;
             EditorSceneManager.sceneClosed -= SetSceneManagerDirty;
             EditorSceneManager.newSceneCreated -= SetSceneManagerDirty;
-
-            if (m_SceneSectionToSubsceneMap.IsCreated)
-                m_SceneSectionToSubsceneMap.Dispose();
         }
 
         void SetSceneManagerDirty(Scene scene) => SceneManagerDirty = true;
@@ -90,7 +104,7 @@ namespace Unity.Entities.Editor
         void SetSceneManagerDirty(Scene scene, NewSceneSetup _, NewSceneMode __) => SceneManagerDirty = true;
         void SetSceneManagerDirty() => SceneManagerDirty = true;
 
-        protected override void OnUpdate()
+        public void Update()
         {
             var newSceneCountFingerprint = new Hash128(
                 (uint)SceneManager.sceneCount,
@@ -104,7 +118,7 @@ namespace Unity.Entities.Editor
 
             if (SceneManagerDirty || m_ScenesCountFingerprint != newSceneCountFingerprint)
             {
-                RebuildSubsceneMaps();
+                RebuildSubsceneOwnershipMap();
                 m_ScenesCountFingerprint = newSceneCountFingerprint;
                 SceneManagerDirty = false;
             }
@@ -112,12 +126,6 @@ namespace Unity.Entities.Editor
 
         public bool TryGetSceneOrSubSceneInstanceId(Hash128 sceneHash, out int instanceId)
             => m_SceneAndSubSceneHashToGameObjectInstanceId.TryGetValue(sceneHash, out instanceId);
-
-        void RebuildSubsceneMaps()
-        {
-            RebuildSubsceneOwnershipMap();
-            RebuildSceneSectionsMap();
-        }
 
         void RebuildSubsceneOwnershipMap()
         {
@@ -170,32 +178,50 @@ namespace Unity.Entities.Editor
             }
         }
 
-        void RebuildSceneSectionsMap()
+        NativeHashMap<Entity, Entity> GetSceneSectionMapping(World world)
         {
-            int sectionsCount = 0;
-            Entities
-               .WithName("CountSceneSections")
-               .ForEach(
-                (in DynamicBuffer<ResolvedSectionEntity> buffer) =>
+            if (world.EntityManager.GlobalSystemVersion == m_CachedSceneSectionMappingVersion)
+                return m_CachedSceneSectionMapping;
+
+            m_CachedSceneSectionMappingVersion = world.EntityManager.GlobalSystemVersion;
+            m_CachedSceneSectionMapping.Clear();
+
+            using (k_GetSceneSectionMappingProfilerMarker.Auto())
+            {
+                var query = world.EntityManager.CreateEntityQuery(typeof(ResolvedSectionEntity));
+                var entities = query.ToEntityArrayAsync(Allocator.TempJob, out var handle);
+                var job = new GetSceneSectionMappingJob
                 {
-                    sectionsCount += buffer.Length;
-                }).Run();
+                    Entities = entities,
+                    BufferAccessor = world.EntityManager.GetBufferFromEntity<ResolvedSectionEntity>(isReadOnly: true),
+                    SceneSectionToSubsceneMap = m_CachedSceneSectionMapping
+                }.Schedule(handle);
+                job.Complete();
+                query.Dispose();
 
-            if (m_SceneSectionToSubsceneMap.IsCreated)
-                m_SceneSectionToSubsceneMap.Dispose();
-            m_SceneSectionToSubsceneMap = new NativeHashMap<Entity, Entity>(sectionsCount, Allocator.Persistent);
+                return m_CachedSceneSectionMapping;
+            }
+        }
 
-            var parallelBuffer = m_SceneSectionToSubsceneMap.AsParallelWriter();
-            var fillJobFence = new JobHandle();
+        [BurstCompile]
+        struct GetSceneSectionMappingJob : IJob
+        {
+            [ReadOnly] public BufferFromEntity<ResolvedSectionEntity> BufferAccessor;
+            [ReadOnly, DeallocateOnJobCompletion] public NativeArray<Entity> Entities;
+            [WriteOnly] public NativeHashMap<Entity, Entity> SceneSectionToSubsceneMap;
 
-            Entities
-               .WithName("CreateSceneSectionLookup")
-               .ForEach(
-                (Entity entity, in DynamicBuffer<ResolvedSectionEntity> buffer) =>
+            public void Execute()
+            {
+                for (var i = 0; i < Entities.Length; i++)
                 {
-                    for (int i = 0; i < buffer.Length; ++i)
-                        parallelBuffer.TryAdd(buffer[i].SectionEntity, entity);
-                }).ScheduleParallel(fillJobFence).Complete();
+                    var entity = Entities[i];
+                    var buffer = BufferAccessor[entity];
+                    for (var j = 0; j < buffer.Length; j++)
+                    {
+                        SceneSectionToSubsceneMap.TryAdd(buffer[j].SectionEntity, entity);
+                    }
+                }
+            }
         }
     }
 }

@@ -1,3 +1,4 @@
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
@@ -8,6 +9,7 @@ namespace Unity.Entities.Editor
         SystemTreeViewItem m_Target;
         public SystemScheduleTreeView TreeView { get; set; }
         const float k_SystemNameLabelWidth = 100f;
+        const float k_SingleIndentWidth = 12f;
 
         public SystemTreeViewItem Target
         {
@@ -58,10 +60,10 @@ namespace Unity.Entities.Editor
             if (null == Target)
                 return;
 
-            if (m_Target.System != null && m_Target.System.World == null)
+            if (Target.System != null && Target.System.World == null)
                 return;
 
-            if (string.Empty == GetSystemClass(m_Target?.System))
+            if (string.Empty == GetSystemClass(Target?.System))
             {
                 m_Icon.style.display = DisplayStyle.None;
             }
@@ -74,7 +76,8 @@ namespace Unity.Entities.Editor
             SetSystemNameLabelWidth(m_SystemNameLabel, k_SystemNameLabelWidth);
             SetText(m_EntityMatchLabel, Target.GetEntityMatches());
             SetText(m_RunningTimeLabel, Target.GetRunningTime());
-            SetSystemClass(m_Icon, m_Target?.System);
+            SetSystemClass(m_Icon, Target?.System);
+            SetGroupNodeLabelBold(m_SystemNameLabel, Target?.System);
 
             if (Target.System == null) // player loop system without children
             {
@@ -102,8 +105,7 @@ namespace Unity.Entities.Editor
         {
             var treeViewItemVisualElement = this.parent.parent;
             var itemIndentsContainerName = treeViewItemVisualElement.Q("unity-tree-view__item-indents");
-            var indentWidth = itemIndentsContainerName.localBound.size.x;
-            label.style.width = fixedWidth - indentWidth;
+            label.style.width = fixedWidth - itemIndentsContainerName.childCount * k_SingleIndentWidth;
         }
 
         static void SetSystemClass(VisualElement element, ComponentSystemBase system)
@@ -129,6 +131,23 @@ namespace Unity.Entities.Editor
                     element.RemoveFromClassList(UssClasses.SystemScheduleWindow.Items.CommandBufferIcon);
                     element.RemoveFromClassList(UssClasses.SystemScheduleWindow.Items.SystemGroupIcon);
                     element.AddToClassList(UssClasses.SystemScheduleWindow.Items.SystemIcon);
+                    break;
+            }
+        }
+
+        static void SetGroupNodeLabelBold(VisualElement element, ComponentSystemBase system)
+        {
+            switch (system)
+            {
+                case null:
+                case ComponentSystemGroup _:
+                    element.AddToClassList(UssClasses.SystemScheduleWindow.Items.SystemNameBold);
+                    element.RemoveFromClassList(UssClasses.SystemScheduleWindow.Items.SystemNameNormal);
+                    break;
+                case EntityCommandBufferSystem _:
+                case ComponentSystemBase _:
+                    element.RemoveFromClassList(UssClasses.SystemScheduleWindow.Items.SystemNameBold);
+                    element.AddToClassList(UssClasses.SystemScheduleWindow.Items.SystemNameNormal);
                     break;
             }
         }

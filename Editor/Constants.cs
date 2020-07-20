@@ -21,6 +21,11 @@ namespace Unity.Entities.Editor
             public const string EntityHierarchyWindow = "Window/DOTS/Entities";
         }
 
+        public static class ListView
+        {
+            public const int ItemHeight = 16;
+        }
+
         public static class Settings
         {
             public const string InspectorSettings = "Inspector Settings";
@@ -39,7 +44,6 @@ namespace Unity.Entities.Editor
 
         public static class EntityHierarchy
         {
-            public const int ItemHeight = 20;
             public const string FullViewName = "FullView";
             public const string SearchViewName = "SearchView";
         }

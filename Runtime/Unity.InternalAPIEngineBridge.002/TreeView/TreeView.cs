@@ -122,6 +122,16 @@ namespace Unity.Editor.Bridge
             set { m_ListView.itemHeight = value; }
         }
 
+        public new string viewDataKey
+        {
+            get => base.viewDataKey;
+            set
+            {
+                base.viewDataKey = value;
+                m_ListView.viewDataKey = value;
+            }
+        }
+
 #if UNITY_2020_1_OR_NEWER
         public bool showBorder
         {
@@ -169,7 +179,6 @@ namespace Unity.Editor.Bridge
             m_ListView = new ListView();
             m_ListView.name = s_ListViewName;
             m_ListView.itemsSource = m_ItemWrappers;
-            m_ListView.viewDataKey = s_ListViewName;
             m_ListView.AddToClassList(s_ListViewName);
             hierarchy.Add(m_ListView);
 

@@ -2,20 +2,25 @@ using System.Collections.Generic;
 
 namespace Unity.Entities.Editor
 {
-    static class EntityHierarchyState
+    class EntityHierarchyState
     {
-        static Dictionary<TreeViewItemStateKey, bool> FoldingState => Unity.Serialization.Editor.SessionState<Dictionary<TreeViewItemStateKey, bool>>.GetOrCreate(typeof(EntityHierarchyState).FullName);
+        readonly Dictionary<TreeViewItemStateKey, bool> m_FoldingState;
 
-        public static void OnFoldingStateChanged(in EntityHierarchyNodeId nodeId, bool isExpanded)
+        public EntityHierarchyState(string key)
+        {
+            m_FoldingState = Unity.Serialization.Editor.SessionState<Dictionary<TreeViewItemStateKey, bool>>.GetOrCreate($"{typeof(EntityHierarchyState).FullName}+{key}");
+        }
+
+        public void OnFoldingStateChanged(in EntityHierarchyNodeId nodeId, bool isExpanded)
         {
             if (nodeId.Kind != NodeKind.Scene && nodeId.Kind != NodeKind.SubScene)
                 return;
 
-            FoldingState[nodeId] = isExpanded;
+            m_FoldingState[nodeId] = isExpanded;
         }
 
-        public static bool? GetFoldingState(in EntityHierarchyNodeId nodeId)
-            => FoldingState.TryGetValue(nodeId, out var isExpanded) ? isExpanded : (bool?)null;
+        public bool? GetFoldingState(in EntityHierarchyNodeId nodeId)
+            => m_FoldingState.TryGetValue(nodeId, out var isExpanded) ? isExpanded : (bool?)null;
 
         internal struct TreeViewItemStateKey
         {

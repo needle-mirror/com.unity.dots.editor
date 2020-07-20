@@ -7,6 +7,7 @@ using Unity.Editor.Legacy;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
+using Unity.Serialization.Editor;
 using Object = UnityEngine.Object;
 
 namespace Unity.Entities.Editor
@@ -144,7 +145,7 @@ namespace Unity.Entities.Editor
         /// <returns>The currently selected <see cref="World"/>.</returns>
         public static World GetCurrentlySelectedWorld()
         {
-            var state = SessionState<SharedState>.GetOrCreateState(k_SharedStateKey);
+            var state = SessionState<SharedState>.GetOrCreate(k_SharedStateKey);
 
             if (Worlds.FilteredWorlds.Count == 0)
             {
@@ -168,8 +169,8 @@ namespace Unity.Entities.Editor
             var mainTarget = m_GameObjectTargets.FirstOrDefault();
             var instanceId = mainTarget.GetInstanceID();
 
-            m_State = SessionState<State>.GetOrCreateState($"{nameof(EntityConversionPreview)}.{nameof(State)}.{instanceId}");
-            m_SharedState = SessionState<SharedState>.GetOrCreateState(k_SharedStateKey);
+            m_State = SessionState<State>.GetOrCreate($"{nameof(EntityConversionPreview)}.{nameof(State)}.{instanceId}");
+            m_SharedState = SessionState<SharedState>.GetOrCreate(k_SharedStateKey);
             m_RuntimeComponentsDrawer = new RuntimeComponentsDrawer();
             m_RuntimeComponentsDrawer.OnDeselectComponent += typeIndex => m_State.SelectedComponentTypes.Remove(typeIndex);
             m_ChangeTracker = new GameObjectConversionChangeTracker();

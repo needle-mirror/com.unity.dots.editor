@@ -5,7 +5,7 @@ using Unity.Transforms;
 
 namespace Unity.Entities.Editor.Tests
 {
-    class EntityHierarchyGroupingStrategyTests : DifferTestFixture
+    class EntityHierarchyGroupingStrategyTests : DifferTestFixture, IEntityHierarchyGroupingContext
     {
         NativeList<Entity> m_NewEntities;
         NativeList<Entity> m_RemovedEntities;
@@ -299,12 +299,34 @@ namespace Unity.Entities.Editor.Tests
             var entityJobHandle = m_EntityDiffer.GetEntityQueryMatchDiffAsync(query ?? World.EntityManager.UniversalQuery, m_NewEntities, m_RemovedEntities);
             using (var changes = m_ComponentDiffer.GatherComponentChangesAsync(query ?? World.EntityManager.UniversalQuery, Allocator.TempJob, out var componentJobHandle))
             {
-                m_Strategy.BeginApply(World.EntityManager.GlobalSystemVersion);
+                m_Strategy.BeginApply(this);
                 entityJobHandle.Complete();
-                m_Strategy.ApplyEntityChanges(m_NewEntities, m_RemovedEntities, World.EntityManager.GlobalSystemVersion);
+                m_Strategy.ApplyEntityChanges(m_NewEntities, m_RemovedEntities, this);
                 componentJobHandle.Complete();
-                m_Strategy.ApplyComponentDataChanges(typeof(Parent), changes, World.EntityManager.GlobalSystemVersion);
-                m_Strategy.EndApply(World.EntityManager.GlobalSystemVersion);
+                m_Strategy.ApplyComponentDataChanges(typeof(Parent), changes, this);
+                m_Strategy.EndApply(this);
+            }
+        }
+
+        public uint Version => World.EntityManager.GlobalSystemVersion;
+        public ISceneMapper SceneMapper { get; } = new NoopSceneMapper();
+
+        class NoopSceneMapper : ISceneMapper
+        {
+            public Hash128 GetSubsceneHash(World world, Entity tagSceneEntity)
+            {
+                return default;
+            }
+
+            public bool TryGetSceneOrSubSceneInstanceId(Hash128 subSceneHash, out int instanceId)
+            {
+                instanceId = 0;
+                return false;
+            }
+
+            public Hash128 GetParentSceneHash(Hash128 subSceneHash)
+            {
+                return default;
             }
         }
     }

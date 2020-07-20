@@ -26,7 +26,7 @@ namespace Unity.Entities.Editor
         /// <summary>
         /// Returns the display name of the node when inspecting the full player loop.
         /// </summary>
-        string WorldName { get; }
+        string NameWithWorld { get; }
 
         /// <summary>
         /// Returns <see langword="true"/> if the current node is enabled, <see langword="false"/> otherwise.

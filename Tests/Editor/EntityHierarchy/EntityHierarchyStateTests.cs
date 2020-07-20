@@ -1,60 +1,41 @@
-using System.Collections.Generic;
-using System.Linq;
+using System;
 using NUnit.Framework;
 
 namespace Unity.Entities.Editor.Tests
 {
     class EntityHierarchyStateTests
     {
-        Dictionary<EntityHierarchyState.TreeViewItemStateKey, bool> m_PreviousData;
-
-        static Dictionary<EntityHierarchyState.TreeViewItemStateKey, bool> InternalStateAccessor
-            => Unity.Serialization.Editor.SessionState<Dictionary<EntityHierarchyState.TreeViewItemStateKey, bool>>.GetOrCreate(typeof(EntityHierarchyState).FullName);
-
-        [SetUp]
-        public void Setup()
-        {
-            m_PreviousData = InternalStateAccessor.ToDictionary(k => k.Key, v => v.Value);
-            InternalStateAccessor.Clear();
-        }
-
-        [TearDown]
-        public void Teardown()
-        {
-            InternalStateAccessor.Clear();
-            foreach (var kvp in m_PreviousData)
-            {
-                InternalStateAccessor[kvp.Key] = kvp.Value;
-            }
-        }
-
         [Test]
         public void ShouldPersistState()
         {
+            var state = new EntityHierarchyState(Guid.NewGuid().ToString("N"));
+
             var subSceneA = EntityHierarchyNodeId.FromSubScene(1);
             var subSceneB = EntityHierarchyNodeId.FromSubScene(2);
             var unknownSubScene = EntityHierarchyNodeId.FromSubScene(3);
 
-            EntityHierarchyState.OnFoldingStateChanged(subSceneA, true);
-            EntityHierarchyState.OnFoldingStateChanged(subSceneB, false);
+            state.OnFoldingStateChanged(subSceneA, true);
+            state.OnFoldingStateChanged(subSceneB, false);
 
-            Assert.That(EntityHierarchyState.GetFoldingState(subSceneA), Is.True);
-            Assert.That(EntityHierarchyState.GetFoldingState(subSceneB), Is.False);
-            Assert.That(EntityHierarchyState.GetFoldingState(unknownSubScene), Is.Null);
+            Assert.That(state.GetFoldingState(subSceneA), Is.True);
+            Assert.That(state.GetFoldingState(subSceneB), Is.False);
+            Assert.That(state.GetFoldingState(unknownSubScene), Is.Null);
         }
 
         [Test]
         public void ShouldIgnoreEverythingExceptSceneAndSubScenes()
         {
-            EntityHierarchyState.OnFoldingStateChanged(EntityHierarchyNodeId.Root, true);
-            EntityHierarchyState.OnFoldingStateChanged(EntityHierarchyNodeId.FromEntity(new Entity { Index = 1, Version = 1 }), true);
-            EntityHierarchyState.OnFoldingStateChanged(EntityHierarchyNodeId.FromScene(1), true);
-            EntityHierarchyState.OnFoldingStateChanged(EntityHierarchyNodeId.FromSubScene(1), false);
+            var state = new EntityHierarchyState(Guid.NewGuid().ToString("N"));
 
-            Assert.That(EntityHierarchyState.GetFoldingState(EntityHierarchyNodeId.Root), Is.Null);
-            Assert.That(EntityHierarchyState.GetFoldingState(EntityHierarchyNodeId.FromEntity(new Entity { Index = 1, Version = 1 })), Is.Null);
-            Assert.That(EntityHierarchyState.GetFoldingState(EntityHierarchyNodeId.FromScene(1)), Is.True);
-            Assert.That(EntityHierarchyState.GetFoldingState(EntityHierarchyNodeId.FromSubScene(1)), Is.False);
+            state.OnFoldingStateChanged(EntityHierarchyNodeId.Root, true);
+            state.OnFoldingStateChanged(EntityHierarchyNodeId.FromEntity(new Entity { Index = 1, Version = 1 }), true);
+            state.OnFoldingStateChanged(EntityHierarchyNodeId.FromScene(1), true);
+            state.OnFoldingStateChanged(EntityHierarchyNodeId.FromSubScene(1), false);
+
+            Assert.That(state.GetFoldingState(EntityHierarchyNodeId.Root), Is.Null);
+            Assert.That(state.GetFoldingState(EntityHierarchyNodeId.FromEntity(new Entity { Index = 1, Version = 1 })), Is.Null);
+            Assert.That(state.GetFoldingState(EntityHierarchyNodeId.FromScene(1)), Is.True);
+            Assert.That(state.GetFoldingState(EntityHierarchyNodeId.FromSubScene(1)), Is.False);
         }
     }
 }

@@ -1,9 +1,25 @@
 # Changelog
 
+## [0.8.1] - 2020-07-20
+[Fixed]
+* Entities Window: Now supports non-default world bootstrappers (works with netcode setup and custom user world bootstrappers)
+* Entities Window: Inspector now clears selection when deselecting an entity
+* Entities Window: Window selection now clears when selecting something else in the editor
+* Entities Window: Search by any component type instead of only `IComponentData` and `ISharedComponentData`
+* Entities Window: Made component types case insensitive in search
+* Entities Window: Now supports duplicate component type name (if multiple types are found all of them will be used in the search)
+* Entities Window: Now always shows results as a listview instead of a mix of treeview/listview based on the search
+* Entities Window: Now shows an error message when failing to resolve a component type name when typing `c:mycomponent`
+* Entities Window: Now shows a message when no entity match the requested search
+* Entities Window: Changed visual elements height from 20px to 16px
+* System Window: Fixed the issue with cropped system name becoming un-cropped for a moment upon tree view refresh
+* System Window: Changed visual elements height from 20px to 16px
+* Fixed restoration of the previously selected world after domain reload
+
 ## [0.8.0] - 2020-06-18
 [Added]
 * Entities window was added, accessible through Window > DOTS > Entities
-  
+
 [Fixed]
 * Systems Window: Fixed systems not appearing in non-default world
 * Systems Window: Fixed system name/entityCount/runningTime label misalignment

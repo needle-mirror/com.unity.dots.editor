@@ -80,7 +80,7 @@ namespace Unity.Entities.Editor
             // These are overwritten by ListView in a way that conflicts with the TreeView representation
             // NOTE: Adding those to "ClearDynamicStyles()" messes-up the rendering of the ListView
             style.top = 0.0f;
-            style.bottom = Constants.EntityHierarchy.ItemHeight;
+            style.bottom = Constants.ListView.ItemHeight;
             style.position = Position.Relative;
         }
 

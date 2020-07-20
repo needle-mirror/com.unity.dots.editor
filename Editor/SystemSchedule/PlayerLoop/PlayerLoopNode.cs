@@ -24,7 +24,7 @@ namespace Unity.Entities.Editor
         public abstract string Name { get; }
 
         /// <inheritdoc/>
-        public abstract string WorldName { get; }
+        public abstract string NameWithWorld { get; }
 
         /// <summary>
         /// Returns the full name of the node's value.

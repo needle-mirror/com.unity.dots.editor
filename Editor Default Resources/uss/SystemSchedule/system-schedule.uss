@@ -20,12 +20,13 @@
 .system-schedule__tree-view__header {
     justify-content: flex-start;
     align-items: center;
+    padding-right: 10px;
 }
 
 .system-schedule__tree-view__system-label {
     padding-left: 25px;
-    width: 180px;
     flex-grow: 1;
+    width: 172px;
 }
 
 .system-schedule__tree-view__matches-label {

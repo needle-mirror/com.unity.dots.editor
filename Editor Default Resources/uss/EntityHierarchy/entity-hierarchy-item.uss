@@ -2,10 +2,6 @@
 {
     flex-direction: row;
     background-color: initial;
-
-    /* Fixup for hover detection */
-    height: 20px;
-    margin-top: -1px;
 }
 
 .entity-hierarchy-item__column-1
@@ -23,7 +19,6 @@
 {
     flex-direction: row;
     padding-right: 4px;
-    padding-top: 3px;
 }
 
 .entity-hierarchy-item__icon
@@ -37,13 +32,11 @@
 
 .entity-hierarchy-item__icon--scene
 {
-    margin-top: 1px;
     background-image: var(--scene-icon);
 }
 
 .entity-hierarchy-item__icon--entity
 {
-    margin-top: 1px;
     background-image: var(--entity-icon);
 }
 

@@ -4,15 +4,21 @@ using Unity.Collections;
 
 namespace Unity.Entities.Editor
 {
+    interface IEntityHierarchyGroupingContext
+    {
+        uint Version { get; }
+        ISceneMapper SceneMapper { get; }
+    }
+
     interface IEntityHierarchyGroupingStrategy : IDisposable
     {
         ComponentType[] ComponentsToWatch { get; }
 
-        void BeginApply(uint version);
-        void ApplyEntityChanges(NativeArray<Entity> newEntities, NativeArray<Entity> removedEntities, uint version);
-        void ApplyComponentDataChanges(ComponentType componentType, in ComponentDataDiffer.ComponentChanges componentChanges, uint version);
-        void ApplySharedComponentDataChanges(ComponentType componentType, in SharedComponentDataDiffer.ComponentChanges componentChanges, uint version);
-        bool EndApply(uint version);
+        void BeginApply(IEntityHierarchyGroupingContext context);
+        void ApplyEntityChanges(NativeArray<Entity> newEntities, NativeArray<Entity> removedEntities, IEntityHierarchyGroupingContext context);
+        void ApplyComponentDataChanges(ComponentType componentType, in ComponentDataDiffer.ComponentChanges componentChanges, IEntityHierarchyGroupingContext context);
+        void ApplySharedComponentDataChanges(ComponentType componentType, in SharedComponentDataDiffer.ComponentChanges componentChanges, IEntityHierarchyGroupingContext context);
+        bool EndApply(IEntityHierarchyGroupingContext context);
 
         bool HasChildren(in EntityHierarchyNodeId nodeId);
 

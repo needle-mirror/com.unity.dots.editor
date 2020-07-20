@@ -23,7 +23,7 @@ namespace Unity.Entities.Editor
             if (world == null ||
                 (Node is IComponentSystemNode componentSystemNode && componentSystemNode.System.World.Name != world.Name))
             {
-                return Node.WorldName;
+                return Node.NameWithWorld;
             }
 
             return Node.Name;
