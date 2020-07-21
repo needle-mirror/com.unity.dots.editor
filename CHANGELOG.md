@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.2] - 2020-07-21
+[Fixed]
+* Entities Window: Fixed entity selection in Unity 2020.2
+
 ## [0.8.1] - 2020-07-20
 [Fixed]
 * Entities Window: Now supports non-default world bootstrappers (works with netcode setup and custom user world bootstrappers)

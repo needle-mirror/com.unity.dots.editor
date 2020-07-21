@@ -53,7 +53,7 @@ namespace Unity.Entities.Editor
             };
             m_TreeView.style.flexGrow = 1.0f;
             m_TreeView.onSelectionChange += OnSelectionChanged;
-            m_TreeView.RegisterCallback<PointerDownEvent>(evt =>
+            m_TreeView.Q<ListView>().RegisterCallback<PointerDownEvent>(evt =>
             {
                 if (evt.button == (int)MouseButton.LeftMouse)
                     Selection.activeObject = null;
