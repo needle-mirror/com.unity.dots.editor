@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0] - 2020-07-24
+[Changed]
+* Updated package `com.unity.entities` to `0.13.0-preview.24`
+* Updated package `com.unity.jobs` to `0.4.0-preview.18`
+* Updated package `com.unity.properties` to `1.3.1-preview`
+* Updated package `com.unity.properties.ui` to `1.3.1-preview`
+* Updated package `com.unity.serialization` to `1.3.1-preview`
+* Updated package `com.unity.burst` to `1.3.2`
+* Minimum Unity version required is now 2020.1.0b15
+  
 ## [0.8.2] - 2020-07-21
 [Fixed]
 * Entities Window: Fixed entity selection in Unity 2020.2
