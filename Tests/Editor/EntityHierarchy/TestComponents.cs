@@ -28,6 +28,8 @@ namespace Unity.Entities.Editor.Tests
 
     struct EcsTestBufferElementData : IBufferElementData
     {
+#pragma warning disable 649
         public int I;
+#pragma warning restore 649
     }
 }

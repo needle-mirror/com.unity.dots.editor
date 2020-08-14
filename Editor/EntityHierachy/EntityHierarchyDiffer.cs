@@ -3,11 +3,19 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Profiling;
 
 namespace Unity.Entities.Editor
 {
     class EntityHierarchyDiffer : IEntityHierarchyGroupingContext, IDisposable
     {
+        static readonly ProfilerMarker k_TryUpdateMarker = new ProfilerMarker($"{nameof(EntityHierarchyDiffer)}.{nameof(TryUpdate)}");
+        static readonly ProfilerMarker k_TryUpdateCompleteJobs = new ProfilerMarker($"{nameof(EntityHierarchyDiffer)}.{nameof(TryUpdate)} complete jobs");
+        static readonly ProfilerMarker k_GetDiffSinceLastFrameAsync = new ProfilerMarker($"{nameof(EntityHierarchyDiffer)}.{nameof(GetDiffSinceLastFrameAsync)}");
+        static readonly ProfilerMarker k_ApplyDiffResultsToStrategy = new ProfilerMarker($"{nameof(EntityHierarchyDiffer)}.{nameof(ApplyDiffResultsToStrategy)}");
+        static readonly ProfilerMarker k_UpdateCachedQueries = new ProfilerMarker($"{nameof(EntityHierarchyDiffer)}.{nameof(UpdateCachedQueries)}");
+
+
         readonly IEntityHierarchy m_Hierarchy;
         readonly EntityDiffer m_EntityDiffer;
         readonly Cooldown m_Cooldown;
@@ -24,6 +32,7 @@ namespace Unity.Entities.Editor
         NativeList<Entity> m_RemovedEntities;
         readonly ComponentDataDiffer.ComponentChanges[] m_ComponentDataDifferResults;
         readonly SharedComponentDataDiffer.ComponentChanges[] m_SharedComponentDataDifferResults;
+        NativeArray<JobHandle> m_DifferHandles;
 
         public uint Version => m_Hierarchy.World.EntityManager.GlobalSystemVersion;
 
@@ -60,6 +69,10 @@ namespace Unity.Entities.Editor
 
             m_ComponentDataDifferResults = new ComponentDataDiffer.ComponentChanges[m_ComponentDataDiffers.Count];
             m_SharedComponentDataDifferResults = new SharedComponentDataDiffer.ComponentChanges[m_SharedComponentDataDiffers.Count];
+
+            m_NewEntities = new NativeList<Entity>(1024, Allocator.Persistent);
+            m_RemovedEntities = new NativeList<Entity>(1024, Allocator.Persistent);
+            m_DifferHandles = new NativeArray<JobHandle>(m_ComponentDataDiffers.Count + 1, Allocator.Persistent);
         }
 
         public void Dispose()
@@ -75,6 +88,10 @@ namespace Unity.Entities.Editor
 
             foreach (var sharedComponentDataDiffer in m_SharedComponentDataDiffers)
                 sharedComponentDataDiffer.Dispose();
+
+            m_NewEntities.Dispose();
+            m_RemovedEntities.Dispose();
+            m_DifferHandles.Dispose();
         }
 
         public bool TryUpdate(out bool structuralChangeDetected)
@@ -85,17 +102,23 @@ namespace Unity.Entities.Editor
                 return false;
             }
 
-            var handle = GetDiffSinceLastFrameAsync();
+            using (k_TryUpdateMarker.Auto())
+            {
+                var handle = GetDiffSinceLastFrameAsync();
 
-            var sceneManagerDirty = m_SceneMapper.SceneManagerDirty;
-            m_SceneMapper.Update();
+                var sceneManagerDirty = m_SceneMapper.SceneManagerDirty;
+                m_SceneMapper.Update();
 
-            handle.Complete();
+                using (k_TryUpdateCompleteJobs.Auto())
+                {
+                    handle.Complete();
+                }
 
-            var strategyStateChanged = ApplyDiffResultsToStrategy();
-            structuralChangeDetected = sceneManagerDirty || strategyStateChanged;
+                var strategyStateChanged = ApplyDiffResultsToStrategy();
+                structuralChangeDetected = sceneManagerDirty || strategyStateChanged;
 
-            return true;
+                return true;
+            }
         }
 
         JobHandle GetDiffSinceLastFrameAsync()
@@ -107,58 +130,59 @@ namespace Unity.Entities.Editor
                 return default;
             }
 
-            UpdateCachedQueries();
-
-            var handles = new NativeArray<JobHandle>(m_ComponentDataDiffers.Count + 1, Allocator.Temp);
-            var handleIdx = 0;
-
-            m_NewEntities = new NativeList<Entity>(Allocator.TempJob);
-            m_RemovedEntities = new NativeList<Entity>(Allocator.TempJob);
-            handles[handleIdx++] = m_EntityDiffer.GetEntityQueryMatchDiffAsync(m_MainQuery, m_NewEntities, m_RemovedEntities);
-
-            for (var i = 0; i < m_ComponentDataDiffers.Count; i++)
+            using (k_GetDiffSinceLastFrameAsync.Auto())
             {
-                m_ComponentDataDifferResults[i] = m_ComponentDataDiffers[i].GatherComponentChangesAsync(m_MainQuery, Allocator.TempJob, out var componentDataDifferHandle);
-                handles[handleIdx++] = componentDataDifferHandle;
+                UpdateCachedQueries();
+
+                var handleIdx = 0;
+                m_DifferHandles[handleIdx++] = m_EntityDiffer.GetEntityQueryMatchDiffAsync(m_MainQuery, m_NewEntities, m_RemovedEntities);
+
+                for (var i = 0; i < m_ComponentDataDiffers.Count; i++)
+                {
+                    m_ComponentDataDifferResults[i] = m_ComponentDataDiffers[i].GatherComponentChangesAsync(m_MainQuery, Allocator.TempJob, out var componentDataDifferHandle);
+                    m_DifferHandles[handleIdx++] = componentDataDifferHandle;
+                }
+
+                for (var i = 0; i < m_SharedComponentDataDiffers.Count; i++)
+                {
+                    m_SharedComponentDataDifferResults[i] = m_SharedComponentDataDiffers[i].GatherComponentChanges(m_Hierarchy.World.EntityManager, m_MainQuery, Allocator.TempJob);
+                }
+
+                var handle = JobHandle.CombineDependencies(m_DifferHandles);
+
+                return handle;
             }
-
-            for (var i = 0; i < m_SharedComponentDataDiffers.Count; i++)
-            {
-                m_SharedComponentDataDifferResults[i] = m_SharedComponentDataDiffers[i].GatherComponentChanges(m_Hierarchy.World.EntityManager, m_MainQuery, Allocator.TempJob);
-            }
-
-            var handle = JobHandle.CombineDependencies(handles);
-            handles.Dispose();
-
-            return handle;
         }
 
         void UpdateCachedQueries()
         {
-            var entityManager = m_Hierarchy.World.EntityManager;
-
-            if (m_Hierarchy.QueryDesc != null && m_Hierarchy.QueryDesc == m_CachedQueryDescription
-                || m_Hierarchy.QueryDesc == null && m_MainQuery == entityManager.UniversalQuery)
-                return;
-
-            m_CachedQueryDescription = m_Hierarchy.QueryDesc;
-            if (m_MainQuery != entityManager.UniversalQuery && entityManager.IsQueryValid(m_MainQuery))
-                m_MainQuery.Dispose();
-
-            if (m_Hierarchy.QueryDesc != null)
+            using (k_UpdateCachedQueries.Auto())
             {
-                try
+                var entityManager = m_Hierarchy.World.EntityManager;
+
+                if (m_Hierarchy.QueryDesc != null && m_Hierarchy.QueryDesc == m_CachedQueryDescription
+                    || m_Hierarchy.QueryDesc == null && m_MainQuery == entityManager.UniversalQuery)
+                    return;
+
+                m_CachedQueryDescription = m_Hierarchy.QueryDesc;
+                if (m_MainQuery != entityManager.UniversalQuery && entityManager.IsQueryValid(m_MainQuery))
+                    m_MainQuery.Dispose();
+
+                if (m_Hierarchy.QueryDesc != null)
                 {
-                    m_MainQuery = entityManager.CreateEntityQuery(m_Hierarchy.QueryDesc);
+                    try
+                    {
+                        m_MainQuery = entityManager.CreateEntityQuery(m_Hierarchy.QueryDesc);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogException(new Exception($"Entities window: Unable to filter entities, query contains too many {m_Hierarchy.QueryDesc.Any.Length} different types.", e));
+                        m_MainQuery = entityManager.UniversalQuery;
+                    }
                 }
-                catch (Exception e)
-                {
-                    Debug.LogException(new Exception($"Entities window: Unable to filter entities, query contains too many {m_Hierarchy.QueryDesc.Any.Length} different types.", e));
+                else
                     m_MainQuery = entityManager.UniversalQuery;
-                }
             }
-            else
-                m_MainQuery = entityManager.UniversalQuery;
         }
 
         bool ApplyDiffResultsToStrategy()
@@ -170,30 +194,30 @@ namespace Unity.Entities.Editor
                 return default;
             }
 
-            var strategy = m_Hierarchy.Strategy;
-            strategy.BeginApply(this);
-            strategy.ApplyEntityChanges(m_NewEntities, m_RemovedEntities, this);
-
-            for (var i = 0; i < m_ComponentDataDifferResults.Length; i++)
+            using (k_ApplyDiffResultsToStrategy.Auto())
             {
-                var componentType = m_ComponentDataDiffers[i].WatchedComponentType;
-                strategy.ApplyComponentDataChanges(componentType, m_ComponentDataDifferResults[i], this);
-                m_ComponentDataDifferResults[i].Dispose();
+                var strategy = m_Hierarchy.Strategy;
+                strategy.BeginApply(this);
+                strategy.ApplyEntityChanges(m_NewEntities, m_RemovedEntities, this);
+
+                for (var i = 0; i < m_ComponentDataDifferResults.Length; i++)
+                {
+                    var componentType = m_ComponentDataDiffers[i].WatchedComponentType;
+                    strategy.ApplyComponentDataChanges(componentType, m_ComponentDataDifferResults[i], this);
+                    m_ComponentDataDifferResults[i].Dispose();
+                }
+
+                for (var i = 0; i < m_SharedComponentDataDifferResults.Length; i++)
+                {
+                    var componentType = m_SharedComponentDataDiffers[i].WatchedComponentType;
+                    strategy.ApplySharedComponentDataChanges(componentType, m_SharedComponentDataDifferResults[i], this);
+                    m_SharedComponentDataDifferResults[i].Dispose();
+                }
+
+                var strategyStateChanged = strategy.EndApply(this);
+
+                return strategyStateChanged;
             }
-
-            for (var i = 0; i < m_SharedComponentDataDifferResults.Length; i++)
-            {
-                var componentType = m_SharedComponentDataDiffers[i].WatchedComponentType;
-                strategy.ApplySharedComponentDataChanges(componentType, m_SharedComponentDataDifferResults[i], this);
-                m_SharedComponentDataDifferResults[i].Dispose();
-            }
-
-            var strategyStateChanged = strategy.EndApply(this);
-
-            m_NewEntities.Dispose();
-            m_RemovedEntities.Dispose();
-
-            return strategyStateChanged;
         }
     }
 }

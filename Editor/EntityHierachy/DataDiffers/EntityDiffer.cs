@@ -3,72 +3,97 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Profiling;
 
 namespace Unity.Entities.Editor
 {
     class EntityDiffer : IDisposable
     {
+        static readonly ProfilerMarker k_GetEntityQueryMatchDiffAsync = new ProfilerMarker($"{nameof(EntityDiffer)}.{nameof(GetEntityQueryMatchDiffAsync)}");
+        static readonly ProfilerMarker k_GetEntityQueryMatchDiffAsyncAllocateBuffers = new ProfilerMarker($"{nameof(EntityDiffer)}.{nameof(GetEntityQueryMatchDiffAsync)} buffer allocations");
+        static readonly ProfilerMarker k_GetEntityQueryMatchDiffAsyncScheduling = new ProfilerMarker($"{nameof(EntityDiffer)}.{nameof(GetEntityQueryMatchDiffAsync)} scheduling");
+
         readonly World m_World;
 
         NativeHashMap<ulong, ShadowChunk> m_ShadowChunks;
+
+        NativeList<ChangesCollector> m_GatheredChanges;
+        NativeList<ShadowChunk> m_AllocatedShadowChunksForTheFrame;
+        NativeList<Entity> m_RemovedChunkEntities;
 
         public EntityDiffer(World world)
         {
             m_World = world;
             m_ShadowChunks = new NativeHashMap<ulong, ShadowChunk>(16, Allocator.Persistent);
+
+            m_GatheredChanges = new NativeList<ChangesCollector>(16, Allocator.Persistent);
+            m_AllocatedShadowChunksForTheFrame = new NativeList<ShadowChunk>(16, Allocator.Persistent);
+            m_RemovedChunkEntities = new NativeList<Entity>(Allocator.Persistent);
         }
 
         public void Dispose()
         {
             m_ShadowChunks.Dispose();
+            m_GatheredChanges.Dispose();
+            m_AllocatedShadowChunksForTheFrame.Dispose();
+            m_RemovedChunkEntities.Dispose();
         }
 
         public unsafe JobHandle GetEntityQueryMatchDiffAsync(EntityQuery query, NativeList<Entity> newEntities, NativeList<Entity> missingEntities)
         {
-            newEntities.Clear();
-            missingEntities.Clear();
-
-            var queryMask = m_World.EntityManager.GetEntityQueryMask(query);
-
-            var chunks = query.CreateArchetypeChunkArrayAsync(Allocator.TempJob, out var chunksJobHandle);
-            var gatheredChanges = new NativeArray<ChangesCollector>(chunks.Length, Allocator.TempJob);
-            var allocatedShadowChunksForTheFrame = new NativeArray<ShadowChunk>(chunks.Length, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            var removedChunkEntities = new NativeList<Entity>(Allocator.TempJob);
-
-            var gatherEntityChangesJob = new GatherEntityChangesJob
+            using (k_GetEntityQueryMatchDiffAsync.Auto())
             {
-                QueryMask = queryMask,
-                Chunks = chunks,
-                ShadowChunksBySequenceNumber = m_ShadowChunks,
-                GatheredChanges = (ChangesCollector*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(gatheredChanges)
-            }.Schedule(chunks.Length, 1, chunksJobHandle);
+                newEntities.Clear();
+                missingEntities.Clear();
 
-            var allocateNewShadowChunksJobHandle = new AllocateNewShadowChunksJob
-            {
-                QueryMask = queryMask,
-                Chunks = chunks,
-                ShadowChunksBySequenceNumber = m_ShadowChunks,
-                AllocatedShadowChunks = (ShadowChunk*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(allocatedShadowChunksForTheFrame)
-            }.Schedule(chunks.Length, 1, chunksJobHandle);
+                var queryMask = m_World.EntityManager.GetEntityQueryMask(query);
 
-            var copyJobHandle = new CopyEntityDataJob
-            {
-                QueryMask = queryMask,
-                Chunks = chunks, // deallocate on job completion
-                ShadowChunksBySequenceNumber = m_ShadowChunks,
-                AllocatedShadowChunks = allocatedShadowChunksForTheFrame, // deallocate on job completion
-                RemovedChunkEntities = removedChunkEntities
-            }.Schedule(JobHandle.CombineDependencies(gatherEntityChangesJob, allocateNewShadowChunksJobHandle));
+                var chunks = query.CreateArchetypeChunkArrayAsync(Allocator.TempJob, out var chunksJobHandle);
+                k_GetEntityQueryMatchDiffAsyncAllocateBuffers.Begin();
+                m_GatheredChanges.Clear();
+                m_GatheredChanges.Resize(chunks.Length, NativeArrayOptions.ClearMemory);
+                m_AllocatedShadowChunksForTheFrame.Clear();
+                m_AllocatedShadowChunksForTheFrame.ResizeUninitialized(chunks.Length);
+                m_RemovedChunkEntities.Clear();
+                k_GetEntityQueryMatchDiffAsyncAllocateBuffers.End();
 
-            var concatResults = new ConcatResultsJob
-            {
-                GatheredChanges = gatheredChanges, // deallocate on job completion
-                RemovedChunkEntities = removedChunkEntities.AsDeferredJobArray(),
-                AddedEntities = newEntities,
-                RemovedEntities = missingEntities
-            }.Schedule(copyJobHandle);
+                k_GetEntityQueryMatchDiffAsyncScheduling.Begin();
+                var gatherEntityChangesJob = new GatherEntityChangesJob
+                {
+                    QueryMask = queryMask,
+                    Chunks = chunks,
+                    ShadowChunksBySequenceNumber = m_ShadowChunks,
+                    GatheredChanges = (ChangesCollector*) m_GatheredChanges.GetUnsafeList()->Ptr
+                }.Schedule(chunks.Length, 1, chunksJobHandle);
 
-            return removedChunkEntities.Dispose(concatResults);
+                var allocateNewShadowChunksJobHandle = new AllocateNewShadowChunksJob
+                {
+                    QueryMask = queryMask,
+                    Chunks = chunks,
+                    ShadowChunksBySequenceNumber = m_ShadowChunks,
+                    AllocatedShadowChunks = (ShadowChunk*) m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr
+                }.Schedule(chunks.Length, 1, chunksJobHandle);
+
+                var copyJobHandle = new CopyEntityDataJob
+                {
+                    QueryMask = queryMask,
+                    Chunks = chunks, // deallocate on job completion
+                    ShadowChunksBySequenceNumber = m_ShadowChunks,
+                    AllocatedShadowChunks = m_AllocatedShadowChunksForTheFrame,
+                    RemovedChunkEntities = m_RemovedChunkEntities
+                }.Schedule(JobHandle.CombineDependencies(gatherEntityChangesJob, allocateNewShadowChunksJobHandle));
+
+                var concatResults = new ConcatResultsJob
+                {
+                    GatheredChanges = m_GatheredChanges, // deallocate on job completion
+                    RemovedChunkEntities = m_RemovedChunkEntities,
+                    AddedEntities = newEntities,
+                    RemovedEntities = missingEntities
+                }.Schedule(copyJobHandle);
+                k_GetEntityQueryMatchDiffAsyncScheduling.End();
+
+                return concatResults;
+            }
         }
 
         unsafe struct ShadowChunk
@@ -207,7 +232,7 @@ namespace Unity.Entities.Editor
 
             [ReadOnly, DeallocateOnJobCompletion]
             public NativeArray<ArchetypeChunk> Chunks;
-            [ReadOnly, DeallocateOnJobCompletion]
+            [ReadOnly]
             public NativeArray<ShadowChunk> AllocatedShadowChunks;
             public NativeHashMap<ulong, ShadowChunk> ShadowChunksBySequenceNumber;
             [WriteOnly]
@@ -272,8 +297,8 @@ namespace Unity.Entities.Editor
         [BurstCompile]
         unsafe struct ConcatResultsJob : IJob
         {
-            [ReadOnly, DeallocateOnJobCompletion] public NativeArray<ChangesCollector> GatheredChanges;
-            [ReadOnly] public NativeArray<Entity> RemovedChunkEntities;
+            [ReadOnly] public NativeList<ChangesCollector> GatheredChanges;
+            [ReadOnly] public NativeList<Entity> RemovedChunkEntities;
 
             [WriteOnly] public NativeList<Entity> AddedEntities;
             [WriteOnly] public NativeList<Entity> RemovedEntities;

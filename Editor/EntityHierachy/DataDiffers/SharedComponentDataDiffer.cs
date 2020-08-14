@@ -5,17 +5,29 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Profiling;
 
 namespace Unity.Entities.Editor
 {
     class SharedComponentDataDiffer : IDisposable
     {
+        static readonly ProfilerMarker k_GatherComponentChanges = new ProfilerMarker($"{nameof(SharedComponentDataDiffer)}.{nameof(GatherComponentChanges)}");
+        static readonly ProfilerMarker k_GatherComponentChangesJobWorkScheduling = new ProfilerMarker($"{nameof(SharedComponentDataDiffer)}.{nameof(GatherComponentChanges)} job based diff - scheduling");
+        static readonly ProfilerMarker k_GatherComponentChangesJobWorkCompleting = new ProfilerMarker($"{nameof(SharedComponentDataDiffer)}.{nameof(GatherComponentChanges)} job based diff - completing");
+        static readonly ProfilerMarker k_GatherComponentChangesResultProcessing = new ProfilerMarker($"{nameof(SharedComponentDataDiffer)}.{nameof(GatherComponentChanges)} result processing");
+        static readonly ProfilerMarker k_GatherComponentChangesBufferAlloc = new ProfilerMarker($"{nameof(SharedComponentDataDiffer)}.{nameof(GatherComponentChanges)} buffer alloc");
+        static readonly ProfilerMarker k_GatherComponentChangesResultBufferAlloc = new ProfilerMarker($"{nameof(SharedComponentDataDiffer)}.{nameof(GatherComponentChanges)} result buffers alloc");
+        static readonly ProfilerMarker k_GatherComponentChangesResultBufferDispose = new ProfilerMarker($"{nameof(SharedComponentDataDiffer)}.{nameof(GatherComponentChanges)} result buffers dispose");
+
         readonly int m_TypeIndex;
         readonly object m_DefaultComponentDataValue;
         readonly List<object> m_ManagedComponentStoreStateCopy = new List<object>();
 
         NativeHashMap<ulong, int> m_ManagedComponentIndexInCopyByChunk;
         NativeHashMap<ulong, ShadowChunk> m_ShadowChunks;
+        NativeList<ShadowChunk> m_AllocatedShadowChunksForTheFrame;
+        NativeList<ChangesCollector> m_GatheredChanges;
+        NativeList<ulong> m_RemovedShadowChunks;
 
         unsafe struct ShadowChunk
         {
@@ -34,6 +46,10 @@ namespace Unity.Entities.Editor
             m_ManagedComponentIndexInCopyByChunk = new NativeHashMap<ulong, int>(100, Allocator.Persistent);
             m_ShadowChunks = new NativeHashMap<ulong, ShadowChunk>(100, Allocator.Persistent);
             m_DefaultComponentDataValue = Activator.CreateInstance(componentType.GetManagedType());
+
+            m_AllocatedShadowChunksForTheFrame = new NativeList<ShadowChunk>(16, Allocator.Persistent);
+            m_GatheredChanges = new NativeList<ChangesCollector>(16, Allocator.Persistent);
+            m_RemovedShadowChunks = new NativeList<ulong>(Allocator.Persistent);
         }
 
         public ComponentType WatchedComponentType { get; }
@@ -53,117 +69,133 @@ namespace Unity.Entities.Editor
 
             m_ManagedComponentIndexInCopyByChunk.Dispose();
             m_ShadowChunks.Dispose();
+            m_AllocatedShadowChunksForTheFrame.Dispose();
+            m_GatheredChanges.Dispose();
+            m_RemovedShadowChunks.Dispose();
         }
 
         public unsafe ComponentChanges GatherComponentChanges(EntityManager entityManager, EntityQuery query, Allocator allocator)
         {
-            var chunks = query.CreateArchetypeChunkArrayAsync(Allocator.TempJob, out var chunksJobHandle);
-            var allocatedShadowChunksForTheFrame = new NativeArray<ShadowChunk>(chunks.Length, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            var gatheredChanges = new NativeArray<ChangesCollector>(chunks.Length, Allocator.TempJob);
-            var removedShadowChunks = new NativeList<ulong>(Allocator.TempJob);
-
-            var changesJobHandle = new GatherChangesJob
+            using (k_GatherComponentChanges.Auto())
             {
-                TypeIndex = m_TypeIndex,
-                Chunks = chunks,
-                ShadowChunksBySequenceNumber = m_ShadowChunks,
-                GatheredChanges = (ChangesCollector*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(gatheredChanges)
-            }.Schedule(chunks.Length, 1, chunksJobHandle);
+                var chunks = query.CreateArchetypeChunkArrayAsync(Allocator.TempJob, out var chunksJobHandle);
+                k_GatherComponentChangesBufferAlloc.Begin();
+                m_AllocatedShadowChunksForTheFrame.Clear();
+                m_AllocatedShadowChunksForTheFrame.ResizeUninitialized(chunks.Length);
+                m_GatheredChanges.Clear();
+                m_GatheredChanges.Resize(chunks.Length, NativeArrayOptions.ClearMemory);
+                m_RemovedShadowChunks.Clear();
+                k_GatherComponentChangesBufferAlloc.End();
+                k_GatherComponentChangesResultBufferAlloc.Begin();
+                var sharedComponentDataBuffer = new NativeList<GCHandle>(allocator);
+                var addedEntities = new NativeList<Entity>(allocator);
+                var addedEntitiesMapping = new NativeList<int>(allocator);
+                var removedEntities = new NativeList<Entity>(allocator);
+                var removedEntitiesMapping = new NativeList<int>(allocator);
 
-            var allocateNewShadowChunksJobHandle = new AllocateNewShadowChunksJob
-            {
-                TypeIndex = m_TypeIndex,
-                Chunks = chunks,
-                ShadowChunksBySequenceNumber = m_ShadowChunks,
-                AllocatedShadowChunks = (ShadowChunk*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(allocatedShadowChunksForTheFrame)
-            }.Schedule(chunks.Length, 1, chunksJobHandle);
+                var indexOfFirstAdded = 0;
+                var indicesInManagedComponentStore = new NativeList<int>(Allocator.TempJob);
+                k_GatherComponentChangesResultBufferAlloc.End();
 
-            var copyJobHandle = new CopyStateToShadowChunksJob
-            {
-                TypeIndex = m_TypeIndex,
-                Chunks = chunks,
-                ShadowChunksBySequenceNumber = m_ShadowChunks,
-                AllocatedShadowChunks = (ShadowChunk*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(allocatedShadowChunksForTheFrame),
-                RemovedChunks = removedShadowChunks
-            }.Schedule(JobHandle.CombineDependencies(changesJobHandle, allocateNewShadowChunksJobHandle));
+                k_GatherComponentChangesJobWorkScheduling.Begin();
+                var changesJobHandle = new GatherChangesJob
+                {
+                    TypeIndex = m_TypeIndex,
+                    Chunks = chunks,
+                    ShadowChunksBySequenceNumber = m_ShadowChunks,
+                    GatheredChanges = (ChangesCollector*) m_GatheredChanges.GetUnsafeList()->Ptr
+                }.Schedule(chunks.Length, 1, chunksJobHandle);
 
-            var sharedComponentDataBuffer = new NativeList<GCHandle>(allocator);
-            var addedEntities = new NativeList<Entity>(allocator);
-            var addedEntitiesMapping = new NativeList<int>(allocator);
-            var removedEntities = new NativeList<Entity>(allocator);
-            var removedEntitiesMapping = new NativeList<int>(allocator);
+                var allocateNewShadowChunksJobHandle = new AllocateNewShadowChunksJob
+                {
+                    TypeIndex = m_TypeIndex,
+                    Chunks = chunks,
+                    ShadowChunksBySequenceNumber = m_ShadowChunks,
+                    AllocatedShadowChunks = (ShadowChunk*) m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr
+                }.Schedule(chunks.Length, 1, chunksJobHandle);
 
-            var indexOfFirstAdded = 0;
-            var indicesInManagedComponentStore = new NativeList<int>(Allocator.TempJob);
+                var copyJobHandle = new CopyStateToShadowChunksJob
+                {
+                    TypeIndex = m_TypeIndex,
+                    Chunks = chunks,
+                    ShadowChunksBySequenceNumber = m_ShadowChunks,
+                    AllocatedShadowChunks = (ShadowChunk*) m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr,
+                    RemovedChunks = m_RemovedShadowChunks
+                }.Schedule(JobHandle.CombineDependencies(changesJobHandle, allocateNewShadowChunksJobHandle));
 
-            var prepareResultJob = new PrepareResultsJob
-            {
-                GatheredChanges = gatheredChanges,
-                RemovedShadowChunks = removedShadowChunks.AsDeferredJobArray(),
-                IndexOfFirstAdded = &indexOfFirstAdded,
-                ShadowChunksBySequenceNumber = m_ShadowChunks,
-                IndicesInManagedComponentStore = indicesInManagedComponentStore,
-                AddedEntities = addedEntities,
-                AddedEntitiesMappingToComponent = addedEntitiesMapping,
-                RemovedEntities = removedEntities,
-                RemovedEntitiesMappingToComponent = removedEntitiesMapping,
-            }.Schedule(copyJobHandle);
+                var prepareResultJob = new PrepareResultsJob
+                {
+                    GatheredChanges = m_GatheredChanges,
+                    RemovedShadowChunks = m_RemovedShadowChunks.AsDeferredJobArray(),
+                    IndexOfFirstAdded = &indexOfFirstAdded,
+                    ShadowChunksBySequenceNumber = m_ShadowChunks,
+                    IndicesInManagedComponentStore = indicesInManagedComponentStore,
+                    AddedEntities = addedEntities,
+                    AddedEntitiesMappingToComponent = addedEntitiesMapping,
+                    RemovedEntities = removedEntities,
+                    RemovedEntitiesMappingToComponent = removedEntitiesMapping,
+                }.Schedule(copyJobHandle);
 
-            var concatResultsJob = new ConcatResultsJob
-            {
-                TypeIndex = m_TypeIndex,
-                GatheredChanges = gatheredChanges,
-                RemovedShadowChunks = removedShadowChunks.AsDeferredJobArray(),
-                ShadowChunksBySequenceNumber = m_ShadowChunks,
-                SharedComponentValueIndexByChunk = m_ManagedComponentIndexInCopyByChunk,
-                IndicesInManagedComponentStore = indicesInManagedComponentStore.AsDeferredJobArray(),
-                AddedEntities = addedEntities.AsDeferredJobArray(),
-                AddedEntitiesMappingToComponent = addedEntitiesMapping.AsDeferredJobArray(),
-                RemovedEntities = removedEntities.AsDeferredJobArray(),
-                RemovedEntitiesMappingToComponent = removedEntitiesMapping.AsDeferredJobArray()
-            }.Schedule(prepareResultJob);
+                var concatResultsJob = new ConcatResultsJob
+                {
+                    TypeIndex = m_TypeIndex,
+                    GatheredChanges = m_GatheredChanges,
+                    RemovedShadowChunks = m_RemovedShadowChunks.AsDeferredJobArray(),
+                    ShadowChunksBySequenceNumber = m_ShadowChunks,
+                    SharedComponentValueIndexByChunk = m_ManagedComponentIndexInCopyByChunk,
+                    IndicesInManagedComponentStore = indicesInManagedComponentStore.AsDeferredJobArray(),
+                    AddedEntities = addedEntities.AsDeferredJobArray(),
+                    AddedEntitiesMappingToComponent = addedEntitiesMapping.AsDeferredJobArray(),
+                    RemovedEntities = removedEntities.AsDeferredJobArray(),
+                    RemovedEntitiesMappingToComponent = removedEntitiesMapping.AsDeferredJobArray()
+                }.Schedule(prepareResultJob);
+                k_GatherComponentChangesJobWorkScheduling.End();
 
-            concatResultsJob.Complete();
+                k_GatherComponentChangesJobWorkCompleting.Begin();
+                concatResultsJob.Complete();
+                k_GatherComponentChangesJobWorkCompleting.End();
 
-            sharedComponentDataBuffer.Capacity = indicesInManagedComponentStore.Length;
-            for (var i = 0; i < indexOfFirstAdded; i++)
-            {
-                sharedComponentDataBuffer.AddNoResize(GCHandle.Alloc(m_ManagedComponentStoreStateCopy[indicesInManagedComponentStore[i]]));
+                k_GatherComponentChangesResultProcessing.Begin();
+                sharedComponentDataBuffer.Capacity = indicesInManagedComponentStore.Length;
+                for (var i = 0; i < indexOfFirstAdded; i++)
+                {
+                    sharedComponentDataBuffer.AddNoResize(GCHandle.Alloc(m_ManagedComponentStoreStateCopy[indicesInManagedComponentStore[i]]));
+                }
+
+                var count = entityManager.GetCheckedEntityDataAccess()->ManagedComponentStore.GetSharedComponentCount();
+                m_ManagedComponentStoreStateCopy.Capacity = count;
+                m_ManagedComponentStoreStateCopy.Clear();
+
+                // Add the default component value in position 0
+                // and query GetSharedComponentData *NonDefault* Boxed to avoid calling Activator.CreateInstance for the default value.
+                // A downside is the default shared component value is reused between runs and can be mutated by user code.
+                // Can be prevented by adding a check like TypeManager.Equals(m_DefaultComponentDataValue, default(T)) but that would be more expensive.
+                m_ManagedComponentStoreStateCopy.Add(m_DefaultComponentDataValue);
+                for (var i = 1; i < count; i++)
+                {
+                    var sharedComponentDataNonDefaultBoxed = entityManager.GetCheckedEntityDataAccess()->ManagedComponentStore.GetSharedComponentDataNonDefaultBoxed(i);
+                    m_ManagedComponentStoreStateCopy.Add(sharedComponentDataNonDefaultBoxed);
+                }
+
+                for (var i = indexOfFirstAdded; i < indicesInManagedComponentStore.Length; i++)
+                {
+                    sharedComponentDataBuffer.AddNoResize(GCHandle.Alloc(m_ManagedComponentStoreStateCopy[indicesInManagedComponentStore[i]]));
+                }
+                k_GatherComponentChangesResultProcessing.End();
+
+                k_GatherComponentChangesResultBufferDispose.Begin();
+                for (var i = 0; i < m_GatheredChanges.Length; i++)
+                {
+                    var c = m_GatheredChanges[i];
+                    c.Dispose();
+                }
+
+                chunks.Dispose();
+                indicesInManagedComponentStore.Dispose();
+                k_GatherComponentChangesResultBufferDispose.End();
+
+                return new ComponentChanges(m_TypeIndex, sharedComponentDataBuffer, addedEntities, addedEntitiesMapping, removedEntities, removedEntitiesMapping);
             }
-
-            var count = entityManager.GetCheckedEntityDataAccess()->ManagedComponentStore.GetSharedComponentCount();
-            m_ManagedComponentStoreStateCopy.Capacity = count;
-            m_ManagedComponentStoreStateCopy.Clear();
-
-            // Add the default component value in position 0
-            // and query GetSharedComponentData *NonDefault* Boxed to avoid calling Activator.CreateInstance for the default value.
-            // A downside is the default shared component value is reused between runs and can be mutated by user code.
-            // Can be prevented by adding a check like TypeManager.Equals(m_DefaultComponentDataValue, default(T)) but that would be more expensive.
-            m_ManagedComponentStoreStateCopy.Add(m_DefaultComponentDataValue);
-            for (var i = 1; i < count; i++)
-            {
-                var sharedComponentDataNonDefaultBoxed = entityManager.GetCheckedEntityDataAccess()->ManagedComponentStore.GetSharedComponentDataNonDefaultBoxed(i);
-                m_ManagedComponentStoreStateCopy.Add(sharedComponentDataNonDefaultBoxed);
-            }
-
-            for (var i = indexOfFirstAdded; i < indicesInManagedComponentStore.Length; i++)
-            {
-                sharedComponentDataBuffer.AddNoResize(GCHandle.Alloc(m_ManagedComponentStoreStateCopy[indicesInManagedComponentStore[i]]));
-            }
-
-            for (var i = 0; i < gatheredChanges.Length; i++)
-            {
-                var c = gatheredChanges[i];
-                c.Dispose();
-            }
-
-            chunks.Dispose();
-            gatheredChanges.Dispose();
-            allocatedShadowChunksForTheFrame.Dispose();
-            removedShadowChunks.Dispose();
-            indicesInManagedComponentStore.Dispose();
-
-            return new ComponentChanges(m_TypeIndex, sharedComponentDataBuffer, addedEntities, addedEntitiesMapping, removedEntities, removedEntitiesMapping);
         }
 
         [BurstCompile]

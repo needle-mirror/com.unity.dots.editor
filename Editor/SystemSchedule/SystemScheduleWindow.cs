@@ -12,7 +12,9 @@ namespace Unity.Entities.Editor
         static readonly string k_ShowFullPlayerLoopString = L10n.Tr("Show Full Player Loop");
         static readonly Vector2 k_MinWindowSize = new Vector2(200, 200);
 
-        SystemScheduleTreeView m_SystemTreeView;
+        VisualElement m_Root;
+        VisualElement m_NoWorld;
+        internal SystemScheduleTreeView m_SystemTreeView;
         VisualElement m_WorldSelector;
         VisualElement m_EmptySelectorWhenShowingFullPlayerLoop;
         int m_LastTimedFrame;
@@ -48,14 +50,23 @@ namespace Unity.Entities.Editor
             titleContent = EditorGUIUtility.TrTextContent(k_WindowName, EditorIcons.System);
             minSize = k_MinWindowSize;
 
+            m_Root = new VisualElement { style = { flexGrow = 1 } };
+            rootVisualElement.Add(m_Root);
+
+            m_NoWorld = CreateNoWorldMessage();
+            rootVisualElement.Add(m_NoWorld);
+            m_NoWorld.Hide();
+
             m_State = SessionState<State>.GetOrCreate($"{typeof(SystemScheduleWindow).FullName}+{nameof(State)}+{EditorWindowInstanceKey}");
 
-            Resources.Templates.SystemSchedule.AddStyles(rootVisualElement);
-            Resources.Templates.DotsEditorCommon.AddStyles(rootVisualElement);
+            Resources.Templates.SystemSchedule.AddStyles(m_Root);
+            Resources.Templates.DotsEditorCommon.AddStyles(m_Root);
 
-            CreateToolBar(rootVisualElement);
-            CreateTreeViewHeader(rootVisualElement);
-            CreateTreeView(rootVisualElement);
+            CreateToolBar(m_Root);
+            CreateTreeViewHeader(m_Root);
+            CreateTreeView(m_Root);
+
+            PlayerLoopSystemGraph.Register();
 
             if (World.All.Count > 0)
                 BuildAll();
@@ -65,11 +76,19 @@ namespace Unity.Entities.Editor
             SystemDetailsVisualElement.OnRemoveFilter += OnRemoveFilter;
         }
 
+        protected override void OnWorldsChanged(bool containsAnyWorld)
+        {
+            m_Root.ToggleVisibility(containsAnyWorld);
+            m_NoWorld.ToggleVisibility(!containsAnyWorld);
+        }
+
         void OnDisable()
         {
             PlayerLoopSystemGraph.OnGraphChanged -= BuildAll;
             SystemDetailsVisualElement.OnAddFilter -= OnAddFilter;
             SystemDetailsVisualElement.OnRemoveFilter -= OnRemoveFilter;
+
+            PlayerLoopSystemGraph.Unregister();
         }
 
         void CreateToolBar(VisualElement root)
@@ -140,9 +159,11 @@ namespace Unity.Entities.Editor
 
         void CreateTreeView(VisualElement root)
         {
-            m_SystemTreeView = new SystemScheduleTreeView(EditorWindowInstanceKey);
-            m_SystemTreeView.style.flexGrow = 1;
-            m_SystemTreeView.SearchFilter = SearchFilter;
+            m_SystemTreeView = new SystemScheduleTreeView(EditorWindowInstanceKey)
+            {
+                style = { flexGrow = 1},
+                SearchFilter = SystemScheduleSearchBuilder.ParseSearchString(SearchFilter)
+            };
             root.Add(m_SystemTreeView);
         }
 
@@ -186,7 +207,7 @@ namespace Unity.Entities.Editor
 
         protected override void OnFilterChanged(string filter)
         {
-            m_SystemTreeView.SearchFilter = filter;
+            m_SystemTreeView.SearchFilter = SystemScheduleSearchBuilder.ParseSearchString(filter);
             BuildAll();
         }
     }

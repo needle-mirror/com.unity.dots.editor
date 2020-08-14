@@ -24,6 +24,7 @@ namespace Unity.Entities.Editor
     class SceneMapper : ISceneMapper, IDisposable
     {
         static readonly ProfilerMarker k_GetSceneSectionMappingProfilerMarker = new ProfilerMarker($"{nameof(SceneMapper)}.{nameof(GetSceneSectionMapping)}");
+        static readonly ProfilerMarker k_RebuildSubsceneOwnershipMapProfilerMarker = new ProfilerMarker($"{nameof(SceneMapper)}.{nameof(RebuildSubsceneOwnershipMap)}");
 
         readonly Dictionary<Hash128, Hash128> m_SubsceneOwnershipMap = new Dictionary<Hash128, Hash128>(8);
         readonly Dictionary<Hash128, int> m_SceneAndSubSceneHashToGameObjectInstanceId = new Dictionary<Hash128, int>(8);
@@ -107,14 +108,14 @@ namespace Unity.Entities.Editor
         public void Update()
         {
             var newSceneCountFingerprint = new Hash128(
-                (uint)SceneManager.sceneCount,
-                (uint)EditorSceneManager.loadedSceneCount,
+                (uint) SceneManager.sceneCount,
+                (uint) EditorSceneManager.loadedSceneCount,
 #if UNITY_2020_1_OR_NEWER
-                (uint)EditorSceneManager.loadedRootSceneCount,
+                (uint) EditorSceneManager.loadedRootSceneCount,
 #else
                 0,
 #endif
-                (uint)EditorSceneManager.previewSceneCount);
+                (uint) EditorSceneManager.previewSceneCount);
 
             if (SceneManagerDirty || m_ScenesCountFingerprint != newSceneCountFingerprint)
             {
@@ -129,6 +130,7 @@ namespace Unity.Entities.Editor
 
         void RebuildSubsceneOwnershipMap()
         {
+            using (k_RebuildSubsceneOwnershipMapProfilerMarker.Auto())
             using (var sceneToHandleMap = PooledDictionary<Hash128, int>.Make())
             using (var subSceneToInstanceIdMap = PooledDictionary<Hash128, int>.Make())
             {

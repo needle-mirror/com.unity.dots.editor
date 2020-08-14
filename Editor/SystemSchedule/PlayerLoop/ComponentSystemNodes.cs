@@ -12,7 +12,7 @@ namespace Unity.Entities.Editor
         public override string Name => UnityEditor.ObjectNames.NicifyVariableName(Value.GetType().Name);
 
         public override string FullName => Value.GetType().FullName;
-        public override string NameWithWorld => Name + " (" + Value.World.Name + ")";
+        public override string NameWithWorld => Name + " (" + Value.World?.Name + ")";
         public override bool Enabled
         {
             get => Value.Enabled;

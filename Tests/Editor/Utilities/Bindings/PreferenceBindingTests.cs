@@ -10,7 +10,7 @@ namespace Unity.Entities.Editor.Tests
     {
         abstract class AdvancedSettingsBinding<TValue> : PreferenceBinding<AdvancedSettings, TValue>
         {
-            protected sealed override string SettingsKey { get; } = Constants.Settings.AdvancedSettings;
+            protected sealed override string SettingsKey { get; } = Constants.Settings.Advanced;
         }
 
         class ShowAdvancedWorldBinding : AdvancedSettingsBinding<bool>
@@ -22,7 +22,7 @@ namespace Unity.Entities.Editor.Tests
 
             protected override void OnUpdate(bool value)
             {
-                Assert.That(value, Is.EqualTo(UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds));
+                Assert.That(value, Is.EqualTo(UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds));
             }
         }
 
@@ -31,13 +31,13 @@ namespace Unity.Entities.Editor.Tests
         [SetUp]
         public void Setup()
         {
-            m_BackupValue = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds;
+            m_BackupValue = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds;
         }
 
         [TearDown]
         public void Teardown()
         {
-            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds = m_BackupValue;
+            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds = m_BackupValue;
         }
 
         [Test]
@@ -46,10 +46,10 @@ namespace Unity.Entities.Editor.Tests
             var binding = (IBinding) new ShowAdvancedWorldBinding();
             binding.Update();
 
-            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds = true;
+            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds = true;
             binding.Update();
 
-            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds = false;
+            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds = false;
             binding.Update();
         }
 
@@ -66,10 +66,10 @@ namespace Unity.Entities.Editor.Tests
             );
             binding.Update();
 
-            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds = true;
+            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds = true;
             binding.Update();
 
-            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds = false;
+            UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds = false;
             binding.Update();
         }
     }

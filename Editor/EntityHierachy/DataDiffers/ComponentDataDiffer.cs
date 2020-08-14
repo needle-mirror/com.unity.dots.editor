@@ -3,14 +3,24 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Profiling;
 
 namespace Unity.Entities.Editor
 {
     class ComponentDataDiffer : IDisposable
     {
+        static readonly ProfilerMarker k_GatherComponentChangesAsync = new ProfilerMarker($"{nameof(ComponentDataDiffer)}.{nameof(GatherComponentChangesAsync)}");
+        static readonly ProfilerMarker k_GatherComponentChangesAsyncBufferAlloc = new ProfilerMarker($"{nameof(ComponentDataDiffer)}.{nameof(GatherComponentChangesAsync)} buffer mgmt");
+        static readonly ProfilerMarker k_GatherComponentChangesAsyncScheduling = new ProfilerMarker($"{nameof(ComponentDataDiffer)}.{nameof(GatherComponentChangesAsync)} scheduling");
+
         readonly int m_TypeIndex;
         readonly int m_ComponentSize;
         readonly NativeHashMap<ulong, ShadowChunk> m_PreviousChunksBySequenceNumber;
+
+        NativeList<ShadowChunk> m_AllocatedShadowChunksForTheFrame;
+        NativeList<ChangesCollector> m_GatheredChanges;
+        NativeList<byte> m_RemovedChunkBuffer;
+        NativeList<Entity> m_RemovedChunkEntities;
 
         public ComponentDataDiffer(ComponentType componentType)
         {
@@ -23,6 +33,11 @@ namespace Unity.Entities.Editor
             m_TypeIndex = typeInfo.TypeIndex;
             m_ComponentSize = typeInfo.SizeInChunk;
             m_PreviousChunksBySequenceNumber = new NativeHashMap<ulong, ShadowChunk>(16, Allocator.Persistent);
+
+            m_AllocatedShadowChunksForTheFrame = new NativeList<ShadowChunk>(16, Allocator.Persistent);
+            m_GatheredChanges = new NativeList<ChangesCollector>(16, Allocator.Persistent);
+            m_RemovedChunkBuffer = new NativeList<byte>(Allocator.Persistent);
+            m_RemovedChunkEntities = new NativeList<Entity>(Allocator.Persistent);
         }
 
         public ComponentType WatchedComponentType { get; }
@@ -48,73 +63,74 @@ namespace Unity.Entities.Editor
             }
 
             m_PreviousChunksBySequenceNumber.Dispose();
+            m_AllocatedShadowChunksForTheFrame.Dispose();
+            m_GatheredChanges.Dispose();
+            m_RemovedChunkBuffer.Dispose();
+            m_RemovedChunkEntities.Dispose();
         }
 
         public unsafe ComponentChanges GatherComponentChangesAsync(EntityQuery query, Allocator allocator, out JobHandle jobHandle)
         {
-            var chunks = query.CreateArchetypeChunkArrayAsync(Allocator.TempJob, out var chunksJobHandle);
-            var allocatedShadowChunksForTheFrame = new NativeArray<ShadowChunk>(chunks.Length, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            var gatheredChanges = new NativeArray<ChangesCollector>(chunks.Length, Allocator.TempJob);
-            var removedChunkBuffer = new NativeList<byte>(Allocator.TempJob);
-            var removedChunkEntities = new NativeList<Entity>(Allocator.TempJob);
-
-            var buffer = new NativeList<byte>(allocator);
-            var addedComponents = new NativeList<Entity>(allocator);
-            var removedComponents = new NativeList<Entity>(allocator);
-
-            var changesJobHandle = new GatherComponentChangesJob
+            using (k_GatherComponentChangesAsync.Auto())
             {
-                TypeIndex = m_TypeIndex,
-                ComponentSize = m_ComponentSize,
-                Chunks = chunks,
-                ShadowChunksBySequenceNumber = m_PreviousChunksBySequenceNumber,
-                GatheredChanges = (ChangesCollector*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(gatheredChanges)
-            }.Schedule(chunks.Length, 1, chunksJobHandle);
+                var chunks = query.CreateArchetypeChunkArrayAsync(Allocator.TempJob, out var chunksJobHandle);
 
-            var allocateNewShadowChunksJobHandle = new AllocateNewShadowChunksJob
-            {
-                TypeIndex = m_TypeIndex,
-                ComponentSize = m_ComponentSize,
-                Chunks = chunks,
-                ShadowChunksBySequenceNumber = m_PreviousChunksBySequenceNumber,
-                AllocatedShadowChunks = (ShadowChunk*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(allocatedShadowChunksForTheFrame)
-            }.Schedule(chunks.Length, 1, chunksJobHandle);
+                k_GatherComponentChangesAsyncBufferAlloc.Begin();
+                m_AllocatedShadowChunksForTheFrame.Clear();
+                m_AllocatedShadowChunksForTheFrame.ResizeUninitialized(chunks.Length);
+                m_GatheredChanges.Clear();
+                m_GatheredChanges.Resize(chunks.Length, NativeArrayOptions.ClearMemory);
+                m_RemovedChunkBuffer.Clear();
+                m_RemovedChunkEntities.Clear();
+                var result = new NativeReference<Result>(allocator);
+                k_GatherComponentChangesAsyncBufferAlloc.End();
 
-            var copyJobHandle = new CopyComponentDataJob
-            {
-                TypeIndex = m_TypeIndex,
-                ComponentSize = m_ComponentSize,
-                Chunks = chunks,
-                ShadowChunksBySequenceNumber = m_PreviousChunksBySequenceNumber,
-                AllocatedShadowChunks = (ShadowChunk*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(allocatedShadowChunksForTheFrame),
-                RemovedChunkComponentDataBuffer = removedChunkBuffer,
-                RemovedChunkEntities = removedChunkEntities
-            }.Schedule(JobHandle.CombineDependencies(changesJobHandle, allocateNewShadowChunksJobHandle));
+                k_GatherComponentChangesAsyncScheduling.Begin();
+                var changesJobHandle = new GatherComponentChangesJob
+                {
+                    TypeIndex = m_TypeIndex,
+                    ComponentSize = m_ComponentSize,
+                    Chunks = chunks,
+                    ShadowChunksBySequenceNumber = m_PreviousChunksBySequenceNumber,
+                    GatheredChanges = (ChangesCollector*) m_GatheredChanges.GetUnsafeList()->Ptr
+                }.Schedule(chunks.Length, 1, chunksJobHandle);
 
-            var concatResultJobHandle = new ConcatResultJob
-            {
-                ComponentSize = m_ComponentSize,
-                GatheredChanges = gatheredChanges,
-                RemovedChunkComponentDataBuffer = removedChunkBuffer.AsDeferredJobArray(),
-                RemovedChunkEntities = removedChunkEntities.AsDeferredJobArray(),
+                var allocateNewShadowChunksJobHandle = new AllocateNewShadowChunksJob
+                {
+                    TypeIndex = m_TypeIndex,
+                    ComponentSize = m_ComponentSize,
+                    Chunks = chunks,
+                    ShadowChunksBySequenceNumber = m_PreviousChunksBySequenceNumber,
+                    AllocatedShadowChunks = (ShadowChunk*) m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr
+                }.Schedule(chunks.Length, 1, chunksJobHandle);
 
-                ComponentDataBuffer = buffer,
-                AddedComponents = addedComponents,
-                RemovedComponents = removedComponents
-            }.Schedule(copyJobHandle);
+                var copyJobHandle = new CopyComponentDataJob
+                {
+                    TypeIndex = m_TypeIndex,
+                    ComponentSize = m_ComponentSize,
+                    Chunks = chunks,
+                    ShadowChunksBySequenceNumber = m_PreviousChunksBySequenceNumber,
+                    AllocatedShadowChunks = (ShadowChunk*) m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr,
+                    RemovedChunkComponentDataBuffer = m_RemovedChunkBuffer,
+                    RemovedChunkEntities = m_RemovedChunkEntities
+                }.Schedule(JobHandle.CombineDependencies(changesJobHandle, allocateNewShadowChunksJobHandle));
 
-            var handles = new NativeArray<JobHandle>(5, Allocator.Temp)
-            {
-                [0] = chunks.Dispose(copyJobHandle),
-                [1] = gatheredChanges.Dispose(concatResultJobHandle),
-                [2] = removedChunkBuffer.Dispose(concatResultJobHandle),
-                [3] = removedChunkEntities.Dispose(concatResultJobHandle),
-                [4] = allocatedShadowChunksForTheFrame.Dispose(copyJobHandle)
-            };
-            jobHandle = JobHandle.CombineDependencies(handles);
-            handles.Dispose();
+                var concatResultJobHandle = new ConcatResultJob
+                {
+                    ComponentSize = m_ComponentSize,
+                    Allocator = allocator,
+                    GatheredChanges = m_GatheredChanges.AsDeferredJobArray(),
+                    RemovedChunkComponentDataBuffer = m_RemovedChunkBuffer.AsDeferredJobArray(),
+                    RemovedChunkEntities = m_RemovedChunkEntities.AsDeferredJobArray(),
 
-            return new ComponentChanges(m_TypeIndex, buffer, addedComponents, removedComponents);
+                    Result = result
+                }.Schedule(copyJobHandle);
+
+                jobHandle = JobHandle.CombineDependencies(chunks.Dispose(copyJobHandle), concatResultJobHandle);
+                k_GatherComponentChangesAsyncScheduling.End();
+
+                return new ComponentChanges(m_TypeIndex, result);
+            }
         }
 
         [BurstCompile]
@@ -342,13 +358,12 @@ namespace Unity.Entities.Editor
         unsafe struct ConcatResultJob : IJob
         {
             public int ComponentSize;
+            public Allocator Allocator;
             [ReadOnly] public NativeArray<ChangesCollector> GatheredChanges;
             [ReadOnly] public NativeArray<byte> RemovedChunkComponentDataBuffer;
             [ReadOnly] public NativeArray<Entity> RemovedChunkEntities;
 
-            [WriteOnly] public NativeList<byte> ComponentDataBuffer;
-            [WriteOnly] public NativeList<Entity> AddedComponents;
-            [WriteOnly] public NativeList<Entity> RemovedComponents;
+            [WriteOnly] public NativeReference<Result> Result;
 
             public void Execute()
             {
@@ -364,9 +379,9 @@ namespace Unity.Entities.Editor
                 if (addedEntityCount == 0 && removedEntityCount == 0)
                     return;
 
-                ComponentDataBuffer.Capacity = (addedEntityCount + removedEntityCount) * ComponentSize;
-                AddedComponents.Capacity = addedEntityCount;
-                RemovedComponents.Capacity = removedEntityCount;
+                var buffer = new UnsafeList(UnsafeUtility.SizeOf<byte>(), UnsafeUtility.AlignOf<byte>(), (addedEntityCount + removedEntityCount) * ComponentSize, Allocator);
+                var addedComponents = new UnsafeList(UnsafeUtility.SizeOf<Entity>(), UnsafeUtility.AlignOf<Entity>(), addedEntityCount, Allocator);
+                var removedComponents = new UnsafeList(UnsafeUtility.SizeOf<Entity>(), UnsafeUtility.AlignOf<Entity>(), removedEntityCount, Allocator);
 
                 var chunksWithRemovedData = new NativeList<int>(GatheredChanges.Length, Allocator.Temp);
                 for (var i = 0; i < GatheredChanges.Length; i++)
@@ -374,8 +389,8 @@ namespace Unity.Entities.Editor
                     var changesForChunk = GatheredChanges[i];
                     if (changesForChunk.AddedComponentDataBuffer.IsCreated)
                     {
-                        ComponentDataBuffer.AddRangeNoResize(changesForChunk.AddedComponentDataBuffer.Ptr, changesForChunk.AddedComponentDataBuffer.Length);
-                        AddedComponents.AddRangeNoResize(changesForChunk.AddedComponentEntities.Ptr, changesForChunk.AddedComponentEntities.Length);
+                        buffer.AddRangeNoResize<byte>(changesForChunk.AddedComponentDataBuffer.Ptr, changesForChunk.AddedComponentDataBuffer.Length);
+                        addedComponents.AddRangeNoResize<Entity>(changesForChunk.AddedComponentEntities.Ptr, changesForChunk.AddedComponentEntities.Length);
 
                         changesForChunk.AddedComponentDataBuffer.Dispose();
                         changesForChunk.AddedComponentEntities.Dispose();
@@ -388,8 +403,8 @@ namespace Unity.Entities.Editor
                 for (var i = 0; i < chunksWithRemovedData.Length; i++)
                 {
                     var changesForChunk = GatheredChanges[chunksWithRemovedData[i]];
-                    ComponentDataBuffer.AddRangeNoResize(changesForChunk.RemovedComponentDataBuffer.Ptr, changesForChunk.RemovedComponentDataBuffer.Length);
-                    RemovedComponents.AddRangeNoResize(changesForChunk.RemovedComponentEntities.Ptr, changesForChunk.RemovedComponentEntities.Length);
+                    buffer.AddRangeNoResize<byte>(changesForChunk.RemovedComponentDataBuffer.Ptr, changesForChunk.RemovedComponentDataBuffer.Length);
+                    removedComponents.AddRangeNoResize<Entity>(changesForChunk.RemovedComponentEntities.Ptr, changesForChunk.RemovedComponentEntities.Length);
 
                     changesForChunk.RemovedComponentDataBuffer.Dispose();
                     changesForChunk.RemovedComponentEntities.Dispose();
@@ -397,8 +412,15 @@ namespace Unity.Entities.Editor
 
                 chunksWithRemovedData.Dispose();
 
-                ComponentDataBuffer.AddRangeNoResize(RemovedChunkComponentDataBuffer.GetUnsafeReadOnlyPtr(), RemovedChunkComponentDataBuffer.Length);
-                RemovedComponents.AddRangeNoResize(RemovedChunkEntities.GetUnsafeReadOnlyPtr(), RemovedChunkEntities.Length);
+                buffer.AddRangeNoResize<byte>(RemovedChunkComponentDataBuffer.GetUnsafeReadOnlyPtr(), RemovedChunkComponentDataBuffer.Length);
+                removedComponents.AddRangeNoResize<Entity>(RemovedChunkEntities.GetUnsafeReadOnlyPtr(), RemovedChunkEntities.Length);
+
+                Result.Value = new Result
+                {
+                    Buffer = buffer,
+                    AddedComponents = addedComponents,
+                    RemovedComponents = removedComponents
+                };
             }
         }
 
@@ -419,45 +441,58 @@ namespace Unity.Entities.Editor
             public UnsafeList RemovedComponentEntities;
         }
 
-        internal readonly struct ComponentChanges : IDisposable
+        internal struct Result
+        {
+            public UnsafeList Buffer;
+            public UnsafeList AddedComponents;
+            public UnsafeList RemovedComponents;
+        }
+
+        internal readonly unsafe struct ComponentChanges : IDisposable
         {
             readonly int m_ComponentTypeIndex;
-            readonly NativeList<byte> m_Buffer;
-            readonly NativeList<Entity> m_AddedComponents;
-            readonly NativeList<Entity> m_RemovedComponents;
+            readonly NativeReference<Result> m_Result;
 
             public ComponentChanges(int componentTypeIndex,
-                                    NativeList<byte> buffer,
-                                    NativeList<Entity> addedComponents,
-                                    NativeList<Entity> removedComponents)
+                                    NativeReference<Result> result)
             {
                 m_ComponentTypeIndex = componentTypeIndex;
-                m_Buffer = buffer;
-                m_AddedComponents = addedComponents;
-                m_RemovedComponents = removedComponents;
+                m_Result = result;
             }
 
-            public int AddedComponentsCount => m_AddedComponents.Length;
-            public int RemovedComponentsCount => m_RemovedComponents.Length;
+            public int AddedComponentsCount =>  m_Result.Value.AddedComponents.IsCreated ? m_Result.Value.AddedComponents.Length : 0;
+            public int RemovedComponentsCount => m_Result.Value.RemovedComponents.IsCreated ? m_Result.Value.RemovedComponents.Length : 0;
 
-            public unsafe (NativeArray<Entity> entities, NativeArray<T> componentData) GetAddedComponents<T>(Allocator allocator) where T : struct
+            public (NativeArray<Entity> entities, NativeArray<T> componentData) GetAddedComponents<T>(Allocator allocator) where T : struct
             {
                 EnsureIsExpectedComponent<T>();
 
-                var entities = new NativeArray<Entity>(m_AddedComponents, allocator);
-                var components = new NativeArray<T>(m_AddedComponents.Length, allocator);
-                UnsafeUtility.MemCpy(components.GetUnsafePtr(), (byte*)m_Buffer.GetUnsafeReadOnlyPtr(), m_AddedComponents.Length * UnsafeUtility.SizeOf<T>());
+                if (!m_Result.Value.Buffer.IsCreated)
+                    return (new NativeArray<Entity>(0, allocator), new NativeArray<T>(0, allocator));
+
+                var result = m_Result.Value;
+                var addedComponents = result.AddedComponents;
+                var entities = new NativeArray<Entity>(addedComponents.Length, allocator);
+                var components = new NativeArray<T>(addedComponents.Length, allocator);
+                UnsafeUtility.MemCpy(entities.GetUnsafePtr(), addedComponents.Ptr, addedComponents.Length * UnsafeUtility.SizeOf<Entity>());
+                UnsafeUtility.MemCpy(components.GetUnsafePtr(), result.Buffer.Ptr, addedComponents.Length * UnsafeUtility.SizeOf<T>());
 
                 return (entities, components);
             }
 
-            public unsafe (NativeArray<Entity> entities, NativeArray<T> componentData) GetRemovedComponents<T>(Allocator allocator) where T : struct
+            public (NativeArray<Entity> entities, NativeArray<T> componentData) GetRemovedComponents<T>(Allocator allocator) where T : struct
             {
                 EnsureIsExpectedComponent<T>();
 
-                var entities = new NativeArray<Entity>(m_RemovedComponents, allocator);
-                var components = new NativeArray<T>(m_RemovedComponents.Length, allocator);
-                UnsafeUtility.MemCpy(components.GetUnsafePtr(), (byte*)m_Buffer.GetUnsafeReadOnlyPtr() + m_AddedComponents.Length * UnsafeUtility.SizeOf<T>(), m_RemovedComponents.Length * UnsafeUtility.SizeOf<T>());
+                if (!m_Result.Value.Buffer.IsCreated)
+                    return (new NativeArray<Entity>(0, allocator), new NativeArray<T>(0, allocator));
+
+                var result = m_Result.Value;
+                var removedComponents = result.RemovedComponents;
+                var entities = new NativeArray<Entity>(removedComponents.Length, allocator);
+                var components = new NativeArray<T>(removedComponents.Length, allocator);
+                UnsafeUtility.MemCpy(entities.GetUnsafePtr(), removedComponents.Ptr, removedComponents.Length * UnsafeUtility.SizeOf<Entity>());
+                UnsafeUtility.MemCpy(components.GetUnsafePtr(), (byte*)result.Buffer.Ptr + result.AddedComponents.Length * UnsafeUtility.SizeOf<T>(), removedComponents.Length * UnsafeUtility.SizeOf<T>());
 
                 return (entities, components);
             }
@@ -470,9 +505,15 @@ namespace Unity.Entities.Editor
 
             public void Dispose()
             {
-                m_Buffer.Dispose();
-                m_AddedComponents.Dispose();
-                m_RemovedComponents.Dispose();
+                if (m_Result.Value.Buffer.IsCreated)
+                {
+                    var tempResults = m_Result.Value;
+                    tempResults.Buffer.Dispose();
+                    tempResults.AddedComponents.Dispose();
+                    tempResults.RemovedComponents.Dispose();
+                }
+
+                m_Result.Dispose();
             }
         }
     }

@@ -28,8 +28,8 @@ namespace Unity.Entities.Editor
 
         public static class Settings
         {
-            public const string InspectorSettings = "Inspector Settings";
-            public const string AdvancedSettings = "Advanced Settings";
+            public const string Inspector = "Entity Inspector Settings";
+            public const string Advanced = "Advanced Settings";
         }
 
         public static class SystemSchedule
@@ -37,6 +37,7 @@ namespace Unity.Entities.Editor
             public const string k_ComponentToken = "c:";
             public const int k_ComponentTokenLength = 2;
             public const string k_SystemDependencyToken = "sd:";
+            public const int k_SystemDependencyTokenLength = 3;
             public const string k_ScriptType = " t:Script";
             public const int k_ShowMinimumQueryCount = 2;
             public const string k_Dash = "-";

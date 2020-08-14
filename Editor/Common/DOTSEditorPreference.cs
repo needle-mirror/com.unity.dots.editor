@@ -3,7 +3,7 @@ using Unity.Properties;
 
 namespace Unity.Entities.Editor
 {
-    [DOTSEditorPreferencesSetting(Constants.Settings.AdvancedSettings), UsedImplicitly]
+    [DOTSEditorPreferencesSetting(Constants.Settings.Advanced), UsedImplicitly]
     class AdvancedSettings : ISetting
     {
         public bool ShowAdvancedWorlds;

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.0] - 2020-08-14
+[Changed]
+* Entities window: improve change detector performance
+* Entities window: add specific view when no world exists
+* Systems window: add specific view when no world exists
+* Updated package `com.unity.entities` to `0.14.0-preview.18`
+* Updated package `com.unity.jobs` to `0.5.0-preview.14`
+* Updated package `com.unity.properties` to `1.4.3-preview`
+* Updated package `com.unity.properties.ui` to `1.4.3-preview`
+* Updated package `com.unity.serialization` to `1.4.3-preview`
+* Updated package `com.unity.test-framework.performance` to `2.3.1-preview`
+
+[Fixed]
+* Systems window: remove unnecessary code running after the window is closed
+
 ## [0.9.0] - 2020-07-24
 [Changed]
 * Updated package `com.unity.entities` to `0.13.0-preview.24`

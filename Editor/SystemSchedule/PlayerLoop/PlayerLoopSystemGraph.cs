@@ -10,27 +10,40 @@ namespace Unity.Entities.Editor
 
     class PlayerLoopSystemGraph
     {
-        static DateTime s_LastValidate;
-        static readonly TimeSpan s_OneSecond = TimeSpan.FromSeconds(1);
+        static int s_RefCount;
+        static readonly Cooldown k_Cooldown = new Cooldown(TimeSpan.FromSeconds(1));
 
         // We only support one graph at a time for now, so this is encapsulated here.
         public static PlayerLoopSystemGraph Current { get; private set; } = new PlayerLoopSystemGraph();
         public static event Action OnGraphChanged;
 
-        static PlayerLoopSystemGraph()
+        public static void Register()
         {
-            ParsePlayerLoopSystem(PlayerLoop.GetCurrentPlayerLoop(), Current);
-            s_LastValidate = DateTime.Now;
-            EditorApplication.update += ValidateCurrentGraph;
-        }
-
-        static void ValidateCurrentGraph()
-        {
-            var now = DateTime.Now;
-            if (now - s_LastValidate < s_OneSecond)
+            if (s_RefCount++ != 0)
                 return;
 
-            s_LastValidate = now;
+            ValidateCurrentGraph(force: true);
+            EditorApplication.update += PeriodicValidateCurrentGraph;
+        }
+
+        public static void Unregister()
+        {
+            if (s_RefCount == 0 || --s_RefCount > 0)
+                return;
+
+            // ReSharper disable DelegateSubtraction
+            EditorApplication.update -= PeriodicValidateCurrentGraph;
+            // ReSharper restore DelegateSubtraction
+        }
+
+        static void PeriodicValidateCurrentGraph()
+            => ValidateCurrentGraph(force: false);
+
+        internal static void ValidateCurrentGraph(bool force = false)
+        {
+            var shouldRun = k_Cooldown.Update(DateTime.Now);
+            if (!force && !shouldRun)
+                return;
 
             var graph = new PlayerLoopSystemGraph();
             ParsePlayerLoopSystem(PlayerLoop.GetCurrentPlayerLoop(), graph);

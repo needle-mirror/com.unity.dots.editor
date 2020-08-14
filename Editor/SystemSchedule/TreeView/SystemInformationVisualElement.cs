@@ -86,7 +86,7 @@ namespace Unity.Entities.Editor
             }
             else
             {
-                this.SetEnabled(true);
+                SetEnabled(true);
                 m_SystemEnableToggle.style.display = DisplayStyle.Flex;
                 var systemState = Target.System?.Enabled ?? true;
 
@@ -103,7 +103,7 @@ namespace Unity.Entities.Editor
 
         void SetSystemNameLabelWidth(VisualElement label, float fixedWidth)
         {
-            var treeViewItemVisualElement = this.parent.parent;
+            var treeViewItemVisualElement = parent.parent;
             var itemIndentsContainerName = treeViewItemVisualElement.Q("unity-tree-view__item-indents");
             label.style.width = fixedWidth - itemIndentsContainerName.childCount * k_SingleIndentWidth;
         }

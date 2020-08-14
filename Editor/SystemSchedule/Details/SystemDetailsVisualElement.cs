@@ -17,7 +17,7 @@ namespace Unity.Entities.Editor
         static readonly string k_ShowLess = L10n.Tr("Show less");
 
         EntityQuery[] m_Query;
-        string m_SearchFilter;
+        SystemScheduleSearchBuilder.ParseResult m_SearchFilter;
         Toolbar m_SystemDetailToolbar;
         VisualElement m_HeaderRightSide;
         VisualElement m_SystemIcon;
@@ -47,20 +47,13 @@ namespace Unity.Entities.Editor
             }
         }
 
-        SystemTreeViewItem m_LastSelectedItem;
-        public SystemTreeViewItem LastSelectedItem
-        {
-            get => m_LastSelectedItem;
+        public SystemTreeViewItem LastSelectedItem { get; set; }
 
-            set { m_LastSelectedItem = value; }
-        }
-
-        public string SearchFilter
+        public SystemScheduleSearchBuilder.ParseResult SearchFilter
         {
-            get => m_SearchFilter;
             set
             {
-                if (m_SearchFilter == value)
+                if (m_SearchFilter.Equals(value))
                     return;
 
                 m_SearchFilter = value;
@@ -153,7 +146,7 @@ namespace Unity.Entities.Editor
 
             var schedulingToggle = this.Q<ToolbarToggle>(className: UssClasses.SystemScheduleWindow.Detail.SchedulingToggle);
             schedulingToggle.text = k_ShowDependencies;
-            schedulingToggle.value = SearchUtility.CheckIfStringContainsGivenTokenAndName(m_SearchFilter, Constants.SystemSchedule.k_SystemDependencyToken, Target.System.GetType().Name);
+            schedulingToggle.value = m_SearchFilter.DependencySystemNames.Any(system => string.Compare(system, Target.System.GetType().Name, StringComparison.OrdinalIgnoreCase) == 0);
         }
 
         void OnSchedulingToggleStateChanged(ChangeEvent<bool> evt)
@@ -167,7 +160,7 @@ namespace Unity.Entities.Editor
             }
             else
             {
-                if (m_SearchFilter.Contains(Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName))
+                if (m_SearchFilter.Input.IndexOf(Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName, StringComparison.OrdinalIgnoreCase) >=0 )
                     searchString = Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName;
 
                 OnRemoveFilter?.Invoke(searchString);
@@ -220,7 +213,8 @@ namespace Unity.Entities.Editor
                         var componentTypeNameToggle = componentTypeNameToggleContainer.ComponentTypeNameToggle;
 
                         componentTypeNameToggle.text = componentTypeName;
-                        componentTypeNameToggle.value = SearchUtility.CheckIfStringContainsGivenTokenAndName(m_SearchFilter, Constants.SystemSchedule.k_ComponentToken, componentTypeName);
+                        componentTypeNameToggle.value = m_SearchFilter.ComponentNames.Any(comp => string.Compare(comp, componentTypeName, StringComparison.OrdinalIgnoreCase) == 0);
+
                         componentTypeNameToggle.RegisterValueChangedCallback(evt =>
                         {
                             HandleComponentsAddRemoveEvents(evt, componentTypeNameToggle, componentTypeName);
@@ -252,7 +246,7 @@ namespace Unity.Entities.Editor
                 FoldPartOfResults(m_AllQueryResultContainer, toAddList, queryHideCount);
         }
 
-        static ComponentType.AccessMode GetAccessMode(ComponentType queryType, IReadOnlyCollection<ComponentType> readWriteTypeList)
+        internal static ComponentType.AccessMode GetAccessMode(ComponentType queryType, IReadOnlyCollection<ComponentType> readWriteTypeList)
         {
             if (null == readWriteTypeList)
                 return queryType.AccessModeType;
@@ -329,7 +323,7 @@ namespace Unity.Entities.Editor
             }
             else
             {
-                if (m_SearchFilter.Contains(Constants.SystemSchedule.k_ComponentToken + " " + componentTypeName))
+                if (m_SearchFilter.Input.IndexOf(Constants.SystemSchedule.k_ComponentToken + " " + componentTypeName, StringComparison.OrdinalIgnoreCase) >= 0)
                     searchString = Constants.SystemSchedule.k_ComponentToken + " " + componentTypeName;
 
                 OnRemoveFilter?.Invoke(searchString);
@@ -386,7 +380,7 @@ namespace Unity.Entities.Editor
             m_ScriptIcon = m_SystemDetailToolbar.Q(className: UssClasses.SystemScheduleWindow.Detail.ScriptsIconName);
             m_ScriptIcon.AddToClassList(UssClasses.SystemScheduleWindow.Detail.ScriptsIcon);
 
-            this.Insert(0, m_SystemDetailToolbar);
+            Insert(0, m_SystemDetailToolbar);
         }
 
         static UnityEngine.Object SearchForScript(string systemName)

@@ -155,7 +155,7 @@ namespace Unity.Entities.Editor
             throw new NotImplementedException();
         }
 
-        public void PopulateChildren(string searchFilter = null, List<Type> systemDependencyList = null)
+        public void PopulateChildren(SystemScheduleSearchBuilder.ParseResult searchFilter, List<Type> systemDependencyList = null)
         {
             m_CachedChildren.Clear();
 
@@ -165,7 +165,7 @@ namespace Unity.Entities.Editor
                     continue;
 
                 // Filter systems by system name, component types, system dependencies.
-                if (!string.IsNullOrEmpty(searchFilter) && !FilterSystem(child, searchFilter, systemDependencyList))
+                if (!searchFilter.IsEmpty && !FilterSystem(child, searchFilter, systemDependencyList))
                     continue;
 
                 var item = SystemSchedulePool.GetSystemTreeViewItem(Graph, child, this, World);
@@ -173,7 +173,7 @@ namespace Unity.Entities.Editor
             }
         }
 
-        static bool FilterSystem(IPlayerLoopNode node, string searchFilter, List<Type> systemDependencyList)
+        static bool FilterSystem(IPlayerLoopNode node, SystemScheduleSearchBuilder.ParseResult searchFilter, List<Type> systemDependencyList)
         {
             switch (node)
             {
@@ -199,28 +199,32 @@ namespace Unity.Entities.Editor
             return false;
         }
 
-        static bool FilterBaseSystem(ComponentSystemBase system, string searchFilter, List<Type> systemDependencyList)
+       static bool FilterBaseSystem(ComponentSystemBase system, SystemScheduleSearchBuilder.ParseResult searchFilter, List<Type> systemDependencyList)
         {
             if (null == system)
                 return false;
 
             var systemName = system.GetType().Name;
 
-            foreach (var singleString in SearchUtility.SplitSearchStringBySpace(searchFilter))
+            if (searchFilter.ComponentNames.Any())
             {
-                if (singleString.StartsWith(Constants.SystemSchedule.k_ComponentToken, StringComparison.OrdinalIgnoreCase))
+                foreach (var componentName in searchFilter.ComponentNames)
                 {
-                    if (!EntityQueryUtility.ContainsThisComponentType(system, singleString.Substring(Constants.SystemSchedule.k_ComponentTokenLength)))
+                    if (!EntityQueryUtility.ContainsThisComponentType(system, componentName))
                         return false;
                 }
-                else if (singleString.StartsWith(Constants.SystemSchedule.k_SystemDependencyToken, StringComparison.OrdinalIgnoreCase))
+            }
+
+            if (searchFilter.DependencySystemNames.Any() && systemDependencyList != null && !systemDependencyList.Contains(system.GetType()))
+            {
+                return false;
+            }
+
+            if (searchFilter.SystemNames.Any())
+            {
+                foreach (var singleSystemName in searchFilter.SystemNames)
                 {
-                    if (null != systemDependencyList && !systemDependencyList.Contains(system.GetType()))
-                        return false;
-                }
-                else
-                {
-                    if (systemName.IndexOf(singleString, StringComparison.OrdinalIgnoreCase) < 0)
+                    if (systemName.IndexOf(singleSystemName, StringComparison.OrdinalIgnoreCase) < 0)
                         return false;
                 }
             }
@@ -228,7 +232,7 @@ namespace Unity.Entities.Editor
             return true;
         }
 
-        public void Reset()
+       public void Reset()
         {
             World = null;
             Graph = null;

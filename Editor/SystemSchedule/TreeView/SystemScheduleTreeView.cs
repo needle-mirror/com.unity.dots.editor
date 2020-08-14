@@ -9,14 +9,14 @@ namespace Unity.Entities.Editor
     class SystemScheduleTreeView : VisualElement
     {
         readonly TreeView m_SystemTreeView;
-        readonly IList<ITreeViewItem> m_TreeRootItems = new List<ITreeViewItem>();
+        internal readonly IList<ITreeViewItem> m_TreeRootItems = new List<ITreeViewItem>();
         SystemDetailsVisualElement m_SystemDetailsVisualElement;
         SystemTreeViewItem m_LastSelectedItem;
         int m_LastSelectedItemId;
         World m_World;
         List<Type> m_SystemDependencyList = new List<Type>();
 
-        public string SearchFilter { get; set; }
+        public SystemScheduleSearchBuilder.ParseResult SearchFilter { get; set; }
 
         /// <summary>
         /// Constructor of the tree view.
@@ -45,7 +45,7 @@ namespace Unity.Entities.Editor
                 {
                     case null:
                     {
-                        if (this.Contains(m_SystemDetailsVisualElement))
+                        if (Contains(m_SystemDetailsVisualElement))
                             Remove(m_SystemDetailsVisualElement);
 
                         return;
@@ -57,14 +57,14 @@ namespace Unity.Entities.Editor
                 m_LastSelectedItem = item;
 
                 // Start fresh.
-                if (this.Contains(m_SystemDetailsVisualElement))
+                if (Contains(m_SystemDetailsVisualElement))
                     Remove(m_SystemDetailsVisualElement);
 
                 m_SystemDetailsVisualElement.Target = item;
                 m_SystemDetailsVisualElement.SearchFilter = SearchFilter;
                 m_SystemDetailsVisualElement.Parent = this;
                 m_SystemDetailsVisualElement.LastSelectedItem = m_LastSelectedItem;
-                this.Add(m_SystemDetailsVisualElement);
+                Add(m_SystemDetailsVisualElement);
             };
         }
 
@@ -77,8 +77,8 @@ namespace Unity.Entities.Editor
 
         public void Refresh(World world)
         {
-            if ((m_World != world) && (this.Contains(m_SystemDetailsVisualElement)))
-                this.Remove(m_SystemDetailsVisualElement);
+            if (m_World != world && Contains(m_SystemDetailsVisualElement))
+                Remove(m_SystemDetailsVisualElement);
 
             m_World = world;
 
@@ -92,9 +92,9 @@ namespace Unity.Entities.Editor
             {
                 var graph = PlayerLoopSystemGraph.Current;
 
-                if (!string.IsNullOrEmpty(SearchFilter) && SearchFilter.Contains(Constants.SystemSchedule.k_SystemDependencyToken))
+                if (!SearchFilter.IsEmpty && SearchFilter.DependencySystemNames.Any() && SearchFilter.DependencySystemTypes.Any())
                 {
-                    SystemScheduleUtilities.GetSystemDepListFromSystemTypes(GetSystemTypesFromNamesInSearchFilter(graph), m_SystemDependencyList);
+                    SystemScheduleUtilities.GetSystemDepListFromSystemTypes(SearchFilter.DependencySystemTypes, m_SystemDependencyList);
                     if (null == m_SystemDependencyList || !m_SystemDependencyList.Any())
                     {
                         if (this.Contains(m_SystemDetailsVisualElement))
@@ -115,32 +115,6 @@ namespace Unity.Entities.Editor
             }
 
             Refresh();
-        }
-
-        IEnumerable<Type> GetSystemTypesFromNamesInSearchFilter(PlayerLoopSystemGraph graph)
-        {
-            if (string.IsNullOrEmpty(SearchFilter))
-                yield break;
-
-            var systemNameList = SearchUtility.GetStringFollowedByGivenToken(SearchFilter, Constants.SystemSchedule.k_SystemDependencyToken).ToList();
-            if (!systemNameList.Any())
-                yield break;
-
-            using (var pooled = PooledHashSet<Type>.Make())
-            {
-                foreach (var system in graph.AllSystems)
-                {
-                    foreach (var singleSystemName in systemNameList)
-                    {
-                        if (string.Compare(system.GetType().Name, singleSystemName, StringComparison.OrdinalIgnoreCase) == 0)
-                        {
-                            var type = system.GetType();
-                            if (pooled.Set.Add(type))
-                                yield return type;
-                        }
-                    }
-                }
-            }
         }
 
         void PopulateAllChildren(SystemTreeViewItem item)

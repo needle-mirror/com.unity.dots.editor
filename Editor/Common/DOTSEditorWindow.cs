@@ -11,7 +11,7 @@ namespace Unity.Entities.Editor
 {
     abstract class DOTSEditorWindow : EditorWindow
     {
-        static readonly string k_NoWorldString = L10n.Tr("No World");
+        static readonly string k_NoWorldMessageContent = L10n.Tr("No World available");
 
         readonly WorldsChangeDetector m_WorldsChangeDetector = new WorldsChangeDetector();
 
@@ -37,7 +37,7 @@ namespace Unity.Entities.Editor
             }
         }
 
-        BaseStateContainer BaseState => SessionState<BaseStateContainer>.GetOrCreate($"{GetType().Name}.{nameof(BaseStateContainer)}+{EditorWindowInstanceKey}");
+        internal BaseStateContainer BaseState => SessionState<BaseStateContainer>.GetOrCreate($"{GetType().Name}.{nameof(BaseStateContainer)}+{EditorWindowInstanceKey}");
 
         protected string SearchFilter
         {
@@ -49,21 +49,16 @@ namespace Unity.Entities.Editor
             }
         }
 
-        protected World SelectedWorld
+        protected internal World SelectedWorld
         {
             get => m_SelectedWorld;
             set
             {
                 if (m_SelectedWorld == value)
-                {
-                    if (m_SelectedWorld == null)
-                        m_WorldSelector.text = k_NoWorldString;
-
                     return;
-                }
 
                 m_SelectedWorld = value;
-                m_WorldSelector.text = value?.Name ?? k_NoWorldString;
+                m_WorldSelector.text = value?.Name ?? string.Empty;
                 m_SelectedWorldChanged = true;
             }
         }
@@ -77,7 +72,7 @@ namespace Unity.Entities.Editor
 
             var selectedWorld = World.All[0];
 
-            if (string.IsNullOrEmpty(BaseState.SelectedWorldName))
+            if (string.IsNullOrWhiteSpace(BaseState.SelectedWorldName))
                 return selectedWorld;
 
             foreach (var world in World.All)
@@ -100,9 +95,18 @@ namespace Unity.Entities.Editor
             UpdateWorldDropDownMenu();
             SelectedWorld = FindSelectedWorld();
 
-            m_PreviousShowAdvancedWorldsValue = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds;
+            m_PreviousShowAdvancedWorldsValue = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds;
 
             return m_WorldSelector;
+        }
+
+        protected VisualElement CreateNoWorldMessage()
+        {
+            var noWorld = new VisualElement { style = { flexGrow = 1 } };
+            Resources.Templates.NoWorldMessageCommon.Clone(noWorld);
+            noWorld.Q<Label>(className: UssClasses.DotsEditorCommon.NoWorldMessageContent).text = k_NoWorldMessageContent;
+
+            return noWorld;
         }
 
         protected void AddSearchFieldContainer(VisualElement parent, string ussClass)
@@ -120,7 +124,7 @@ namespace Unity.Entities.Editor
         {
             m_SearchField = new ToolbarSearchField
             {
-                value = string.IsNullOrEmpty(BaseState.SearchFilter) ? string.Empty : BaseState.SearchFilter
+                value = string.IsNullOrWhiteSpace(BaseState.SearchFilter) ? string.Empty : BaseState.SearchFilter
             };
             m_SearchField.AddToClassList(ussClass);
             m_SearchField.Q("unity-cancel").AddToClassList(UssClasses.DotsEditorCommon.SearchFieldCancelButton);
@@ -207,7 +211,7 @@ namespace Unity.Entities.Editor
             if (m_WorldsChangeDetector.WorldsChanged())
                 return true;
 
-            var showAdvancedWorlds = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings).ShowAdvancedWorlds;
+            var showAdvancedWorlds = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds;
             if (m_PreviousShowAdvancedWorldsValue != showAdvancedWorlds)
             {
                 m_PreviousShowAdvancedWorldsValue = showAdvancedWorlds;
@@ -229,13 +233,15 @@ namespace Unity.Entities.Editor
                 menu.RemoveItemAt(0);
             }
 
-            var advancedSettings = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.AdvancedSettings);
+            var advancedSettings = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced);
 
             if (World.All.Count > 0)
                 AppendWorldMenu(menu, advancedSettings.ShowAdvancedWorlds);
-            else
-                menu.AppendAction(k_NoWorldString, OnWorldSelected, DropdownMenuAction.AlwaysEnabled);
+
+            OnWorldsChanged(World.All.Count > 0);
         }
+
+        protected virtual void OnWorldsChanged(bool containsAnyWorld) { }
 
         void AppendWorldMenu(DropdownMenu menu, bool showAdvancedWorlds)
         {
@@ -277,11 +283,11 @@ namespace Unity.Entities.Editor
 
         protected void AddStringToSearchField(string toAdd)
         {
-            if (!string.IsNullOrEmpty(SearchFilter)
+            if (!string.IsNullOrWhiteSpace(SearchFilter)
                 && SearchFilter.IndexOf(toAdd, StringComparison.OrdinalIgnoreCase) >= 0)
                 return;
 
-            SearchFilter += string.IsNullOrEmpty(SearchFilter)
+            SearchFilter += string.IsNullOrWhiteSpace(SearchFilter)
                 ? toAdd + " "
                 : " " + toAdd + " ";
 
@@ -290,7 +296,7 @@ namespace Unity.Entities.Editor
 
         protected void RemoveStringFromSearchField(string toRemove)
         {
-            if (string.IsNullOrEmpty(SearchFilter))
+            if (string.IsNullOrWhiteSpace(SearchFilter))
                 return;
 
             SearchFilter = Regex.Replace(SearchFilter, toRemove, string.Empty, RegexOptions.IgnoreCase).Trim();
@@ -307,7 +313,7 @@ namespace Unity.Entities.Editor
         protected abstract void OnWorldSelected(World world);
         protected abstract void OnFilterChanged(string filter);
 
-        class BaseStateContainer
+        internal class BaseStateContainer
         {
             public string SelectedWorldName;
             public string SearchFilter;

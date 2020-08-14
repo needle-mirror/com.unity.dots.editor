@@ -1,4 +1,5 @@
 using System;
+using Unity.Profiling;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -16,6 +17,8 @@ namespace Unity.Entities.Editor
 
     class EntityHierarchyWindow : DOTSEditorWindow, IEntityHierarchy
     {
+        static readonly ProfilerMarker k_OnUpdateMarker = new ProfilerMarker($"{nameof(EntityHierarchyWindow)}.{nameof(OnUpdate)}");
+
         static readonly string k_WindowName = L10n.Tr("Entities");
 
         static readonly Vector2 k_MinWindowSize = new Vector2(200, 200); // Matches SceneHierarchy's min size
@@ -26,6 +29,8 @@ namespace Unity.Entities.Editor
         EntityHierarchyDiffer m_EntityHierarchyDiffer;
         VisualElement m_EnableLiveLinkMessage;
         VisualElement m_Header;
+        VisualElement m_Root;
+        VisualElement m_NoWorld;
 
         [MenuItem(Constants.MenuItems.EntityHierarchyWindow, false, Constants.MenuItems.WindowPriority)]
         static void OpenWindow() => GetWindow<EntityHierarchyWindow>().Show();
@@ -41,15 +46,22 @@ namespace Unity.Entities.Editor
             titleContent = new GUIContent(k_WindowName, EditorIcons.EntityGroup);
             minSize = k_MinWindowSize;
 
-            Resources.Templates.CommonResources.AddStyles(rootVisualElement);
-            Resources.Templates.DotsEditorCommon.AddStyles(rootVisualElement);
-            rootVisualElement.AddToClassList(UssClasses.Resources.EntityHierarchy);
+            m_Root = new VisualElement { style = { flexGrow = 1 } };
+            rootVisualElement.Add(m_Root);
+
+            m_NoWorld = CreateNoWorldMessage();
+            rootVisualElement.Add(m_NoWorld);
+            m_NoWorld.Hide();
+
+            Resources.Templates.CommonResources.AddStyles(m_Root);
+            Resources.Templates.DotsEditorCommon.AddStyles(m_Root);
+            m_Root.AddToClassList(UssClasses.Resources.EntityHierarchy);
 
             m_EntityHierarchyQueryBuilder.Initialize();
 
             CreateToolbar();
             m_EntityHierarchy = new EntityHierarchy(new EntityHierarchyState(EditorWindowInstanceKey));
-            rootVisualElement.Add(m_EntityHierarchy);
+            m_Root.Add(m_EntityHierarchy);
             CreateEnableLiveLinkMessage();
 
             m_EntityHierarchy.Refresh(this);
@@ -59,6 +71,12 @@ namespace Unity.Entities.Editor
 
             LiveLinkConfigHelper.LiveLinkEnabledChanged += UpdateEnableLiveLinkMessage;
             EditorApplication.playModeStateChanged += UpdateEnableLiveLinkMessage;
+        }
+
+        protected override void OnWorldsChanged(bool containsAnyWorld)
+        {
+            m_Root.ToggleVisibility(containsAnyWorld);
+            m_NoWorld.ToggleVisibility(!containsAnyWorld);
         }
 
         void OnDisable()
@@ -94,7 +112,7 @@ namespace Unity.Entities.Editor
             AddSearchIcon(rightSide, UssClasses.DotsEditorCommon.SearchIcon);
             AddSearchFieldContainer(m_Header, UssClasses.DotsEditorCommon.SearchFieldContainer);
 
-            rootVisualElement.Add(m_Header);
+            m_Root.Add(m_Header);
         }
 
         void CreateEnableLiveLinkMessage()
@@ -102,7 +120,7 @@ namespace Unity.Entities.Editor
             m_EnableLiveLinkMessage = new VisualElement { style = { flexGrow = 1 } };
             Resources.Templates.EntityHierarchyEnableLiveLinkMessage.Clone(m_EnableLiveLinkMessage);
             m_EnableLiveLinkMessage.Q<Button>().clicked += () => LiveLinkConfigHelper.LiveLinkEnabledInEditMode = true;
-            rootVisualElement.Add(m_EnableLiveLinkMessage);
+            m_Root.Add(m_EnableLiveLinkMessage);
 
             UpdateEnableLiveLinkMessage();
         }
@@ -141,13 +159,16 @@ namespace Unity.Entities.Editor
 
         protected override void OnUpdate()
         {
-            if (World == null || !m_EntityHierarchyDiffer.TryUpdate(out var structuralChangeDetected))
-                return;
+            using (k_OnUpdateMarker.Auto())
+            {
+                if (World == null || !m_EntityHierarchyDiffer.TryUpdate(out var structuralChangeDetected))
+                    return;
 
-            if (structuralChangeDetected)
-                m_EntityHierarchy.UpdateStructure();
+                if (structuralChangeDetected)
+                    m_EntityHierarchy.UpdateStructure();
 
-            m_EntityHierarchy.OnUpdate();
+                m_EntityHierarchy.OnUpdate();
+            }
         }
     }
 }

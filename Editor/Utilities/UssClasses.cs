@@ -6,6 +6,8 @@ namespace Unity.Entities.Editor
         {
             public const string SystemSchedule = "system-schedule__resources";
             public const string EntityHierarchy = "entity-hierarchy__resources";
+            public const string Inspector = "inspector__resources";
+            public const string ComponentIcons = "component__icons";
         }
 
         public static class DotsEditorCommon
@@ -24,6 +26,9 @@ namespace Unity.Entities.Editor
             public const string CustomToolbarToggleLabel = CustomToolbarToggle + "__label-with-icon";
             public const string CustomToolbarToggleOnlyLabel = CustomToolbarToggle + "__label-without-icon";
             public const string CustomToolbarToggleIcon = CustomToolbarToggle + "__icon";
+
+            const string k_NoWorldMessage = "common-no-world-message";
+            public const string NoWorldMessageContent = k_NoWorldMessage + "__message";
 
             public const string CustomLabelUnderline = "label-with-underline";
         }
@@ -135,6 +140,68 @@ namespace Unity.Entities.Editor
 
                 public const string Title = k_Base + "__title";
                 public const string Message = k_Base + "__message";
+            }
+        }
+
+        public static class Inspector
+        {
+            public static class EntityHeader
+            {
+                public const string OriginatingGameObject = "originating-game-object";
+            }
+
+            public static class Icons
+            {
+                const string k_Base = "inspector-icon";
+                public const string Small = k_Base + "--small";
+                public const string Medium = k_Base + "--medium";
+                public const string Big = k_Base + "--big";
+            }
+
+            public static class Component
+            {
+                const string k_Base = "component";
+                public const string Container = k_Base + "-container";
+                public const string Header = k_Base + "-header";
+                public const string Name = k_Base + "-name";
+                public const string Icon = k_Base + "-icon";
+                public const string Category = k_Base + "-category";
+                public const string Menu = k_Base + "-menu";
+            }
+
+            public static class ComponentTypes
+            {
+                const string k_PostFix = "-data";
+                public const string Component = "component" + k_PostFix;
+                public const string Tag = "tag-component" + k_PostFix;
+                public const string SharedComponent = "shared-component" + k_PostFix;
+                public const string ChunkComponent = "chunk-component" + k_PostFix;
+                public const string ManagedComponent = "managed-component" + k_PostFix;
+                public const string BufferComponent = "buffer-component" + k_PostFix;
+            }
+        }
+
+        public static class UIToolkit
+        {
+            public const string Disabled = "unity-disabled";
+
+            public static class BaseField
+            {
+                const string k_Base = "unity-base-field";
+                public const string Input = k_Base + "__input";
+            }
+
+            public static class ObjectField
+            {
+                public const string ObjectSelector = "unity-object-field__selector";
+                public const string Display = "unity-object-field-display";
+            }
+
+            public static class Toggle
+            {
+                const string k_Base = "unity-toggle";
+                public const string Text = k_Base + "__text";
+                public const string Input = k_Base + "__input";
             }
         }
     }

@@ -1,0 +1,22 @@
+.common-no-world-message__container
+{
+    flex-direction: row;
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+
+    padding: 10px;
+}
+
+.common-no-world-message__title
+{
+    -unity-font-style: bold;
+    margin-bottom: 3px;
+    -unity-text-align: upper-center;
+}
+
+.common-no-world-message__content Label
+{
+    white-space: normal;
+    -unity-text-align: upper-center;
+}
