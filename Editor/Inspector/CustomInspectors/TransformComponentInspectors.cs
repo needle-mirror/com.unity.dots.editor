@@ -26,7 +26,7 @@ namespace Unity.Entities.Editor.Inspectors
 
             for (var i = 0; i < 4; ++i)
             {
-                var column = new Vector4Field {bindingPath = "c" + i};
+                var column = new Vector4Field { bindingPath = "c" + i };
                 column.Query<FloatField>().ForEach(field => field.formatString = "0.###");
                 root.Add(column);
             }
@@ -75,7 +75,7 @@ namespace Unity.Entities.Editor.Inspectors
 
         public override VisualElement Build()
         {
-            var valueField = new Vector3Field {bindingPath = "Value"};
+            var valueField = new Vector3Field { bindingPath = "Value" };
             valueField.Query<FloatField>().ForEach(field => field.formatString = "0.###");
             return valueField;
         }
@@ -176,12 +176,12 @@ namespace Unity.Entities.Editor.Inspectors
         static QuaternionValueInspector()
         {
             TypeConversion.Register<quaternion, Vector4>(v => v.value);
-            TypeConversion.Register<Vector4, quaternion>(v => new quaternion {value = v});
+            TypeConversion.Register<Vector4, quaternion>(v => new quaternion { value = v });
         }
 
         public override VisualElement Build()
         {
-            var valueField = new Vector4Field {bindingPath = "Value"};
+            var valueField = new Vector4Field { bindingPath = "Value" };
             valueField.Query<FloatField>().ForEach(field => field.formatString = "0.###");
             return valueField;
         }

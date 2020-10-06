@@ -8,11 +8,11 @@ namespace Unity.Entities.Editor.Tests
 {
     class TestHierarchyHelper
     {
-        IEntityHierarchyGroupingStrategy m_Strategy;
+        IEntityHierarchyState m_HierarchyState;
 
-        public TestHierarchyHelper(IEntityHierarchyGroupingStrategy strategy)
+        public TestHierarchyHelper(IEntityHierarchyState hierarchyState)
         {
-            m_Strategy = strategy;
+            m_HierarchyState = hierarchyState;
         }
 
         public void AssertHierarchy(TestHierarchy expectedHierarchy)
@@ -25,17 +25,17 @@ namespace Unity.Entities.Editor.Tests
 
         bool AssertNode(TestHierarchy.TestNode expectedNode)
         {
-            if (!m_Strategy.Exists(expectedNode.NodeId))
+            if (!m_HierarchyState.Exists(expectedNode.NodeId))
                 return false;
 
             var isExpectedToHaveChildren = expectedNode.Children.Count > 0;
-            if (m_Strategy.HasChildren(expectedNode.NodeId) != isExpectedToHaveChildren)
+            if (m_HierarchyState.HasChildren(expectedNode.NodeId) != isExpectedToHaveChildren)
                 return false;
 
             if (!isExpectedToHaveChildren)
                 return true;
 
-            using (var children = m_Strategy.GetChildren(expectedNode.NodeId, Allocator.Temp))
+            using (var children = m_HierarchyState.GetChildren(expectedNode.NodeId, Allocator.Temp))
             {
                 if (children.Length != expectedNode.Children.Count)
                     return false;
@@ -63,8 +63,8 @@ namespace Unity.Entities.Editor.Tests
         // Useful in integration tests where an external system assigns Entity Ids, during conversion
         public void AssertHierarchyByKind(TestHierarchy expectedHierarchy)
         {
-            if (!AssertNodes(new []{expectedHierarchy.Root}, new []{EntityHierarchyNodeId.Root}))
-                throw new AssertionException(GenerateTreeErrorMessage(expectedHierarchy));
+            if (!AssertNodes(new[] { expectedHierarchy.Root }, new[] { EntityHierarchyNodeId.Root }))
+                throw new AssertionException(GenerateTreeErrorMessage(expectedHierarchy, true));
 
             Assert.That(true);
         }
@@ -91,9 +91,9 @@ namespace Unity.Entities.Editor.Tests
 
                 expectedChildren.AddRange(expectedNode.Children);
 
-                if (m_Strategy.HasChildren(foundNode))
+                if (m_HierarchyState.HasChildren(foundNode))
                 {
-                    using (var foundNodeChildren = m_Strategy.GetChildren(foundNode, Allocator.Temp))
+                    using (var foundNodeChildren = m_HierarchyState.GetChildren(foundNode, Allocator.Temp))
                         foundChildren.AddRange(foundNodeChildren);
                 }
             }
@@ -104,33 +104,33 @@ namespace Unity.Entities.Editor.Tests
             return AssertNodes(expectedChildren, foundChildren);
         }
 
-        string GenerateTreeErrorMessage(TestHierarchy expectedHierarchy)
+        string GenerateTreeErrorMessage(TestHierarchy expectedHierarchy, bool kindOnly = false)
         {
             var errorMessage = new StringBuilder();
             errorMessage.AppendLine("Expected hierarchy doesn't match actual strategy state.");
             errorMessage.AppendLine("Expected: ");
-            expectedHierarchy.WriteTree(errorMessage, 0);
+            expectedHierarchy.WriteTree(errorMessage, 0, kindOnly);
 
             errorMessage.AppendLine("But was: ");
-            WriteActualStrategyTree(errorMessage, EntityHierarchyNodeId.Root, 0);
+            WriteActualStrategyTree(errorMessage, EntityHierarchyNodeId.Root, 0, kindOnly);
 
             return errorMessage.ToString();
         }
 
-        internal void WriteActualStrategyTree(StringBuilder errorMessage, EntityHierarchyNodeId nodeId, int indent)
+        internal void WriteActualStrategyTree(StringBuilder errorMessage, EntityHierarchyNodeId nodeId, int indent, bool kindOnly = false)
         {
             errorMessage.Append(' ', indent);
             errorMessage.Append("- ");
-            errorMessage.AppendLine(nodeId.ToString());
+            errorMessage.AppendLine(kindOnly ? nodeId.Kind.ToString() : nodeId.ToString());
 
-            if (!m_Strategy.HasChildren(nodeId))
+            if (!m_HierarchyState.HasChildren(nodeId))
                 return;
             indent++;
 
-            var children = m_Strategy.GetChildren(nodeId, Allocator.Temp);
+            var children = m_HierarchyState.GetChildren(nodeId, Allocator.Temp);
             foreach (var child in children.OrderBy(x => x))
             {
-                WriteActualStrategyTree(errorMessage, child, indent);
+                WriteActualStrategyTree(errorMessage, child, indent, kindOnly);
             }
 
             children.Dispose();

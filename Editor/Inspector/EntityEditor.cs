@@ -1,7 +1,7 @@
+using JetBrains.Annotations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using JetBrains.Annotations;
 using Unity.Properties;
 using Unity.Properties.UI;
 using UnityEditor;
@@ -31,7 +31,7 @@ namespace Unity.Entities.Editor
         ToolbarSearchField m_SearchField;
         ToolbarMenu m_Settings;
 
-        EntitySelectionProxy Target => (EntitySelectionProxy) target;
+        EntitySelectionProxy Target => (EntitySelectionProxy)target;
 
         [RootEditor(supportsAddComponent: false), UsedImplicitly]
         public static Type GetEditor(UnityObject[] targets)
@@ -42,15 +42,15 @@ namespace Unity.Entities.Editor
                 if (list.Count == 0)
                     return null;
 
-                if (!list[0].World.IsCreated)
+                var proxy = list[0];
+                if (null == proxy.World || !proxy.World.IsCreated)
                     return null;
 
-                var proxy = list[0];
                 if (!proxy.EntityManager.Exists(proxy.Entity))
                     return null;
             }
 
-            return InspectorUtility.Settings.InternalBackend == InspectorSettings.InspectorBackend.Debug
+            return InspectorUtility.Settings.Backend == InspectorSettings.InspectorBackend.Debug
                 ? null
                 : typeof(EntityEditor);
         }
@@ -58,7 +58,7 @@ namespace Unity.Entities.Editor
         void OnEnable()
         {
             s_Editors.Add(this);
-            m_Root = new BindableElement() {name = "Entity Inspector", binding = this};
+            m_Root = new BindableElement() { name = "Entity Inspector", binding = this };
             EntitySelectionProxy.OnEntitySelectionChanged += OnEntitySelectionChanged;
         }
 

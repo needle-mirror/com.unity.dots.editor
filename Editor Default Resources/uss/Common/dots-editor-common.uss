@@ -54,7 +54,8 @@
 
 .toolbar-toggle__label-with-icon
 {
- 	padding: 2px 4px 2px 4px; 
+ 	padding: 2px;
+ 	margin: 0;
 	border-radius: 0px 4px 4px 0px;
 }
 

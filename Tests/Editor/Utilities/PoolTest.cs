@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using NUnit.Framework;
+using System.Collections.Generic;
 
 namespace Unity.Entities.Editor.Tests
 {
@@ -33,7 +33,7 @@ namespace Unity.Entities.Editor.Tests
         [Test]
         public void GetAndReleaseClearList()
         {
-            var list = new List<int> {0, 1, 2, 3, 4, 5};
+            var list = new List<int> { 0, 1, 2, 3, 4, 5 };
             List<int> hackerList;
             using (var pooled = list.ToPooledList())
             {
@@ -106,7 +106,7 @@ namespace Unity.Entities.Editor.Tests
         [Test]
         public void CreatePooledListFromLinq()
         {
-            var list = new List<int> {0, 1, 2, 3, 4, 5};
+            var list = new List<int> { 0, 1, 2, 3, 4, 5 };
             using (var pooled = list.ToPooledList())
             {
                 Assert.That(list, Is.EqualTo(pooled.List));

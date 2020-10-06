@@ -13,10 +13,8 @@ namespace Unity.Entities.Editor
             [UsedImplicitly] Normal = 1
         }
 
-        // TODO: Rename this field to Backend when removing the `InternalSetting` and flip the default value to
-        // InspectorBackend.Normal. This will force a re-serialization to make it default for users.
         [InternalSetting]
-        public InspectorBackend InternalBackend = InspectorBackend.Debug;
+        public InspectorBackend Backend = InspectorBackend.Normal;
 
         [InternalSetting]
         public bool DisplayComponentType = false;
@@ -24,7 +22,7 @@ namespace Unity.Entities.Editor
         void ISetting.OnSettingChanged(PropertyPath path)
         {
             var p = path.ToString();
-            if (p == nameof(InternalBackend))
+            if (p == nameof(Backend))
                 InspectorWindowBridge.ReloadAllInspectors();
         }
     }

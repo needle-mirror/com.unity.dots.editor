@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -9,16 +7,12 @@ namespace Unity.Entities.Editor
     class EntityHierarchyQueryBuilder
     {
         static readonly Regex k_Regex = new Regex(@"\b(?<token>[cC]:)\s*(?<componentType>(\S)*)", RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.ExplicitCapture);
-
-        static readonly TypeCache k_TypeCache = new TypeCache();
         readonly StringBuilder m_UnmatchedInputBuilder;
 
         public EntityHierarchyQueryBuilder()
         {
             m_UnmatchedInputBuilder = new StringBuilder();
         }
-
-        public void Initialize() => k_TypeCache.Initialize();
 
         public Result BuildQuery(string input)
         {
@@ -47,7 +41,7 @@ namespace Unity.Entities.Editor
                     if (matchGroup.Value.Length == 0)
                         continue;
 
-                    var results = k_TypeCache.GetMatchingTypes(matchGroup.Value);
+                    var results = ComponentTypeCache.GetExactMatchingTypes(matchGroup.Value);
                     var resultFound = false;
                     foreach (var result in results)
                     {
@@ -80,69 +74,6 @@ namespace Unity.Entities.Editor
 
             public static Result Valid(EntityQueryDesc queryDesc, string filter)
                 => new Result { IsValid = true, QueryDesc = queryDesc, Filter = filter, ErrorComponentType = string.Empty };
-        }
-
-        public class TypeCache
-        {
-            readonly SortedSet<IndexedType> m_ComponentTypes = new SortedSet<IndexedType>();
-            bool m_IsInitialized;
-
-            public void Initialize()
-            {
-                if (m_IsInitialized)
-                    return;
-
-                m_ComponentTypes.Clear();
-                foreach (var typeInfo in TypeManager.GetAllTypes())
-                {
-                    if (typeInfo.Type == null)
-                        continue;
-
-                    m_ComponentTypes.Add(new IndexedType(typeInfo.Type.Name.ToLowerInvariant().GetHashCode(), typeInfo.Type));
-                    m_ComponentTypes.Add(new IndexedType(typeInfo.Type.FullName.ToLowerInvariant().GetHashCode(), typeInfo.Type));
-                }
-
-                m_IsInitialized = true;
-            }
-
-            public struct IndexedType : IEquatable<IndexedType>, IComparable<IndexedType>
-            {
-                readonly int m_Hash;
-                public readonly Type Type;
-
-                public IndexedType(int hash, Type type)
-                {
-                    m_Hash = hash;
-                    Type = type;
-                }
-
-                public static implicit operator IndexedType(int i)
-                    => new IndexedType(i, null);
-
-                public bool Equals(IndexedType other)
-                    => m_Hash == other.m_Hash && Type == other.Type;
-
-                public override bool Equals(object obj)
-                    => obj is IndexedType other && Equals(other);
-
-                public override int GetHashCode() => m_Hash;
-
-                public int CompareTo(IndexedType other)
-                {
-                    var comparison = m_Hash.CompareTo(other.m_Hash);
-                    return comparison != 0 ? comparison : string.Compare(Type?.AssemblyQualifiedName ?? string.Empty, other.Type?.AssemblyQualifiedName ?? string.Empty, StringComparison.Ordinal);
-                }
-            }
-
-            public IEnumerable<Type> GetMatchingTypes(string str)
-            {
-                var typeHash = str.ToLowerInvariant().GetHashCode();
-                var indexedTypes = m_ComponentTypes.GetViewBetween(typeHash, typeHash + 1);
-                foreach (var indexedType in indexedTypes)
-                {
-                    yield return indexedType.Type;
-                }
-            }
         }
     }
 }

@@ -1,5 +1,3 @@
-using UnityEngine.UIElements;
-
 namespace Unity.Entities.Editor
 {
     static class ListViewExtensions

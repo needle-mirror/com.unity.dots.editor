@@ -1,6 +1,6 @@
+using NUnit.Framework;
 using System;
 using System.Runtime.InteropServices;
-using NUnit.Framework;
 using Unity.Collections;
 
 namespace Unity.Entities.Editor.Tests
@@ -226,9 +226,9 @@ namespace Unity.Entities.Editor.Tests
                     GCHandle.Alloc(new EcsTestSharedComp { value = 2 })
                 },
                 new NativeList<Entity>(1, Allocator.Temp) { new Entity { Index = 1 } },
-                new NativeList<int>(1, Allocator.Temp){ 0 },
+                new NativeList<int>(1, Allocator.Temp) { 0 },
                 new NativeList<Entity>(1, Allocator.Temp) { new Entity { Index = 2 } },
-                new NativeList<int>(1, Allocator.Temp){ 1 }))
+                new NativeList<int>(1, Allocator.Temp) { 1 }))
             {
                 Assert.That(result.GetAddedEntities<EcsTestSharedComp>(0), Is.EqualTo((new Entity { Index = 1 }, new EcsTestSharedComp { value = 1 })));
                 Assert.That(result.GetRemovedEntities<EcsTestSharedComp>(0), Is.EqualTo((new Entity { Index = 2 }, new EcsTestSharedComp { value = 2 })));

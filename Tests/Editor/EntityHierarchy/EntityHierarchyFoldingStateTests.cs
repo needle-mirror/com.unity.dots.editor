@@ -1,14 +1,14 @@
-using System;
 using NUnit.Framework;
+using System;
 
 namespace Unity.Entities.Editor.Tests
 {
-    class EntityHierarchyStateTests
+    class EntityHierarchyFoldingStateTests
     {
         [Test]
         public void ShouldPersistState()
         {
-            var state = new EntityHierarchyState(Guid.NewGuid().ToString("N"));
+            var state = new EntityHierarchyFoldingState(Guid.NewGuid().ToString("N"));
 
             var subSceneA = EntityHierarchyNodeId.FromSubScene(1);
             var subSceneB = EntityHierarchyNodeId.FromSubScene(2);
@@ -25,7 +25,7 @@ namespace Unity.Entities.Editor.Tests
         [Test]
         public void ShouldIgnoreEverythingExceptSceneAndSubScenes()
         {
-            var state = new EntityHierarchyState(Guid.NewGuid().ToString("N"));
+            var state = new EntityHierarchyFoldingState(Guid.NewGuid().ToString("N"));
 
             state.OnFoldingStateChanged(EntityHierarchyNodeId.Root, true);
             state.OnFoldingStateChanged(EntityHierarchyNodeId.FromEntity(new Entity { Index = 1, Version = 1 }), true);

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Unity.Assertions;
 using Unity.Serialization.Editor;
@@ -11,8 +12,6 @@ namespace Unity.Entities.Editor
 {
     abstract class DOTSEditorWindow : EditorWindow
     {
-        static readonly string k_NoWorldMessageContent = L10n.Tr("No World available");
-
         readonly WorldsChangeDetector m_WorldsChangeDetector = new WorldsChangeDetector();
 
         ToolbarMenu m_WorldSelector;
@@ -25,6 +24,8 @@ namespace Unity.Entities.Editor
 
         [SerializeField]
         string m_EditorWindowInstanceKey;
+
+        protected static string NoWorldMessageContent { get; } = L10n.Tr("No World available");
 
         protected string EditorWindowInstanceKey
         {
@@ -98,15 +99,6 @@ namespace Unity.Entities.Editor
             m_PreviousShowAdvancedWorldsValue = UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds;
 
             return m_WorldSelector;
-        }
-
-        protected VisualElement CreateNoWorldMessage()
-        {
-            var noWorld = new VisualElement { style = { flexGrow = 1 } };
-            Resources.Templates.NoWorldMessageCommon.Clone(noWorld);
-            noWorld.Q<Label>(className: UssClasses.DotsEditorCommon.NoWorldMessageContent).text = k_NoWorldMessageContent;
-
-            return noWorld;
         }
 
         protected void AddSearchFieldContainer(VisualElement parent, string ussClass)
@@ -283,8 +275,7 @@ namespace Unity.Entities.Editor
 
         protected void AddStringToSearchField(string toAdd)
         {
-            if (!string.IsNullOrWhiteSpace(SearchFilter)
-                && SearchFilter.IndexOf(toAdd, StringComparison.OrdinalIgnoreCase) >= 0)
+            if (SearchUtility.SplitSearchStringBySpace(SearchFilter).Any(singleString => singleString.Equals(toAdd, StringComparison.OrdinalIgnoreCase)))
                 return;
 
             SearchFilter += string.IsNullOrWhiteSpace(SearchFilter)
@@ -296,10 +287,21 @@ namespace Unity.Entities.Editor
 
         protected void RemoveStringFromSearchField(string toRemove)
         {
-            if (string.IsNullOrWhiteSpace(SearchFilter))
+            if (string.IsNullOrWhiteSpace(SearchFilter)
+                || SearchFilter.IndexOf(toRemove, StringComparison.OrdinalIgnoreCase) == -1)
                 return;
 
-            SearchFilter = Regex.Replace(SearchFilter, toRemove, string.Empty, RegexOptions.IgnoreCase).Trim();
+            var tempResult = string.Empty;
+            foreach (var singleString in SearchUtility.SplitSearchStringBySpace(SearchFilter))
+            {
+                if (singleString.Equals(toRemove, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                tempResult += singleString + " ";
+            }
+
+            SearchFilter = tempResult.Trim();
+
             SetSearchFieldVisibility(true);
         }
 

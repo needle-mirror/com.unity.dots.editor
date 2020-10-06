@@ -17,13 +17,13 @@ namespace Unity.Entities.Editor.Inspectors
         public override VisualElement Build()
         {
             var root = new VisualElement();
-            var id = new TextField(k_OriginatingIdName) {value = Target.OriginatingId.ToString()};
+            var id = new TextField(k_OriginatingIdName) { value = Target.OriginatingId.ToString() };
             id.RegisterCallback<ChangeEvent<string>, TextField>(NoOp, id);
             root.Add(id);
-            var namespaceId = new TextField(k_NamespaceIdName) {value = Target.NamespaceId.ToString()};
+            var namespaceId = new TextField(k_NamespaceIdName) { value = Target.NamespaceId.ToString() };
             namespaceId.RegisterCallback<ChangeEvent<string>, TextField>(NoOp, namespaceId);
             root.Add(namespaceId);
-            var serialId = new TextField(k_SerialName) {value = Target.Serial.ToString()};
+            var serialId = new TextField(k_SerialName) { value = Target.Serial.ToString() };
             serialId.RegisterCallback<ChangeEvent<string>, TextField>(NoOp, serialId);
             root.Add(serialId);
             return root;

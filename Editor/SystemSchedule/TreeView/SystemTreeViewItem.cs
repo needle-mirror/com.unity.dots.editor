@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Editor.Bridge;
 using Unity.Scenes;
-using UnityEngine;
 
 namespace Unity.Entities.Editor
 {
@@ -179,7 +178,7 @@ namespace Unity.Entities.Editor
             {
                 case ComponentSystemBaseNode baseNode:
                 {
-                   return FilterBaseSystem(baseNode.System, searchFilter, systemDependencyList);
+                    return FilterBaseSystem(baseNode.System, searchFilter, systemDependencyList);
                 }
 
                 case ComponentGroupNode groupNode:
@@ -199,7 +198,7 @@ namespace Unity.Entities.Editor
             return false;
         }
 
-       static bool FilterBaseSystem(ComponentSystemBase system, SystemScheduleSearchBuilder.ParseResult searchFilter, List<Type> systemDependencyList)
+        static bool FilterBaseSystem(ComponentSystemBase system, SystemScheduleSearchBuilder.ParseResult searchFilter, List<Type> systemDependencyList)
         {
             if (null == system)
                 return false;
@@ -232,7 +231,7 @@ namespace Unity.Entities.Editor
             return true;
         }
 
-       public void Reset()
+        public void Reset()
         {
             World = null;
             Graph = null;

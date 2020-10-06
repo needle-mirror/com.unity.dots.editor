@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
@@ -60,8 +59,7 @@ namespace Unity.Entities.Editor
 
                 m_Query = null;
 
-                UpdateQueryResults();
-                UpdateDependencyToggle();
+                UpdateContent();
             }
         }
 
@@ -110,7 +108,7 @@ namespace Unity.Entities.Editor
         void UpdateSystemIconName()
         {
             var currentIconStyle = GetDetailSystemClass(Target.System);
-            if (string.Compare(currentIconStyle, m_LastIconStyle) != 0)
+            if (!string.Equals(currentIconStyle, m_LastIconStyle))
             {
                 m_SystemIcon.RemoveFromClassList(m_LastIconStyle);
                 m_SystemIcon.AddToClassList(GetDetailSystemClass(Target.System));
@@ -146,7 +144,7 @@ namespace Unity.Entities.Editor
 
             var schedulingToggle = this.Q<ToolbarToggle>(className: UssClasses.SystemScheduleWindow.Detail.SchedulingToggle);
             schedulingToggle.text = k_ShowDependencies;
-            schedulingToggle.value = m_SearchFilter.DependencySystemNames.Any(system => string.Compare(system, Target.System.GetType().Name, StringComparison.OrdinalIgnoreCase) == 0);
+            schedulingToggle.value = m_SearchFilter.DependencySystemNames.Any(system => string.Equals(system, Target.System.GetType().Name, StringComparison.OrdinalIgnoreCase));
         }
 
         void OnSchedulingToggleStateChanged(ChangeEvent<bool> evt)
@@ -160,7 +158,7 @@ namespace Unity.Entities.Editor
             }
             else
             {
-                if (m_SearchFilter.Input.IndexOf(Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName, StringComparison.OrdinalIgnoreCase) >=0 )
+                if (m_SearchFilter.Input.IndexOf(Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName, StringComparison.OrdinalIgnoreCase) >= 0)
                     searchString = Constants.SystemSchedule.k_SystemDependencyToken + " " + systemTypeName;
 
                 OnRemoveFilter?.Invoke(searchString);
@@ -213,7 +211,7 @@ namespace Unity.Entities.Editor
                         var componentTypeNameToggle = componentTypeNameToggleContainer.ComponentTypeNameToggle;
 
                         componentTypeNameToggle.text = componentTypeName;
-                        componentTypeNameToggle.value = m_SearchFilter.ComponentNames.Any(comp => string.Compare(comp, componentTypeName, StringComparison.OrdinalIgnoreCase) == 0);
+                        componentTypeNameToggle.value = m_SearchFilter.ComponentNames.Any(comp => string.Equals(comp, componentTypeName, StringComparison.OrdinalIgnoreCase));
 
                         componentTypeNameToggle.RegisterValueChangedCallback(evt =>
                         {
@@ -225,7 +223,7 @@ namespace Unity.Entities.Editor
 
                 // Entity match label
                 var matchCountContainer = eachRowContainer.Q(className: UssClasses.SystemScheduleWindow.Detail.EntityMatchCountContainer);
-                var matchCountLabel = new EntityMatchCountVisualElement { Query = query, CurrentWorld = Target.System.World};
+                var matchCountLabel = new EntityMatchCountVisualElement { Query = query, CurrentWorld = Target.System.World };
                 matchCountContainer.Add(matchCountLabel);
 
                 // Show more to unfold the results or less to fold.

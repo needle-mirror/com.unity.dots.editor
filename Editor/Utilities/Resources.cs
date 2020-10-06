@@ -33,12 +33,11 @@ namespace Unity.Entities.Editor
             public static readonly UITemplate SystemScheduleDetailContent = new UITemplate("SystemSchedule/system-schedule-detail-content");
             public static readonly UITemplate SystemScheduleDetailQuery = new UITemplate("SystemSchedule/system-schedule-detail-query");
             public static readonly UITemplate DotsEditorCommon = new UITemplate("Common/dots-editor-common");
-            public static readonly UITemplate NoWorldMessageCommon = new UITemplate("Common/common-no-world-message");
+            public static readonly UITemplate CenteredMessageElement = new UITemplate("Common/centered-message-element");
             public static readonly UITemplate Settings = new UITemplate("Settings/settings");
             public static readonly UITemplate CustomQueryResults = new UITemplate("Common/custom-query-results");
             public static readonly UITemplate EntityHierarchyToolbar = new UITemplate("EntityHierarchy/entity-hierarchy-toolbar");
             public static readonly UITemplate EntityHierarchyEnableLiveLinkMessage = new UITemplate("EntityHierarchy/entity-hierarchy-enable-live-link-message");
-            public static readonly UITemplate SearchEmptyMessage = new UITemplate("EntityHierarchy/entity-hierarchy-search-empty-message");
             public static readonly UITemplate EntityHierarchyItem = new UITemplate("EntityHierarchy/entity-hierarchy-item");
 
             public static class Inspector

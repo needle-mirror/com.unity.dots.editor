@@ -9,23 +9,23 @@ namespace Unity.Entities.Editor.Tests
 {
     class TestHierarchyHelperTests
     {
-        DummyStrategy m_Strategy;
+        DummyState m_State;
         TestHierarchyHelper m_Helper;
 
         [SetUp]
         public void Setup()
         {
-            m_Strategy = new DummyStrategy();
-            m_Helper = new TestHierarchyHelper(m_Strategy);
+            m_State = new DummyState();
+            m_Helper = new TestHierarchyHelper(m_State);
         }
 
         [Test]
         public void TestHierarchy_AssertSimpleHierarchy()
         {
-            m_Strategy.SetHierarchy(TestHierarchy.CreateRoot().Build());
+            m_State.SetHierarchy(TestHierarchy.CreateRoot().Build());
             Assert.DoesNotThrow(() => m_Helper.AssertHierarchy(TestHierarchy.CreateRoot().Build()));
 
-            m_Strategy.SetHierarchy(TestHierarchy.CreateRoot()
+            m_State.SetHierarchy(TestHierarchy.CreateRoot()
                                         .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0))
                                         .Build());
             Assert.Throws<AssertionException>(() => m_Helper.AssertHierarchy(TestHierarchy
@@ -49,17 +49,17 @@ namespace Unity.Entities.Editor.Tests
             Assert.That(expectedHierarchy.Children, Is.EquivalentTo(actualHierarchy.Children));
             Assert.That(expectedHierarchy.Children.SequenceEqual(actualHierarchy.Children), Is.False);
 
-            m_Strategy.SetHierarchy(actualHierarchy.Build());
+            m_State.SetHierarchy(actualHierarchy.Build());
             Assert.DoesNotThrow(() => m_Helper.AssertHierarchy(expectedHierarchy.Build()));
         }
 
         [Test]
         public void TestHierarchy_AssertSimpleHierarchyByKind()
         {
-            m_Strategy.SetHierarchy(TestHierarchy.CreateRoot().Build());
+            m_State.SetHierarchy(TestHierarchy.CreateRoot().Build());
             Assert.DoesNotThrow(() => m_Helper.AssertHierarchyByKind(TestHierarchy.CreateRoot().Build()));
 
-            m_Strategy.SetHierarchy(TestHierarchy.CreateRoot()
+            m_State.SetHierarchy(TestHierarchy.CreateRoot()
                                                  .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0))
                                                  .Build());
 
@@ -69,7 +69,7 @@ namespace Unity.Entities.Editor.Tests
                                                                     .AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2, 0))
                                                                     .Build()));
 
-            m_Strategy.SetHierarchy(TestHierarchy.CreateRoot()
+            m_State.SetHierarchy(TestHierarchy.CreateRoot()
                                                  .AddChild(new EntityHierarchyNodeId(NodeKind.SubScene, 1, 0))
                                                  .Build());
 
@@ -150,7 +150,7 @@ namespace Unity.Entities.Editor.Tests
                                    new EntityHierarchyNodeId(NodeKind.Entity, entityId++, 0));
             }
 
-            m_Strategy.SetHierarchy(hierarchyA1.Build());
+            m_State.SetHierarchy(hierarchyA1.Build());
             Assert.DoesNotThrow(() => m_Helper.AssertHierarchyByKind(hierarchyA2.Build()));
             Assert.Throws<AssertionException>(() => m_Helper.AssertHierarchyByKind(hierarchyB.Build()));
         }
@@ -161,7 +161,7 @@ namespace Unity.Entities.Editor.Tests
             var actualHierarchy = TestHierarchy.CreateRoot();
             actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 1, 0));
             actualHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2, 0));
-            m_Strategy.SetHierarchy(actualHierarchy.Build());
+            m_State.SetHierarchy(actualHierarchy.Build());
 
             var testHierarchy = TestHierarchy.CreateRoot();
             testHierarchy.AddChild(new EntityHierarchyNodeId(NodeKind.Entity, 2, 0));
@@ -180,7 +180,7 @@ namespace Unity.Entities.Editor.Tests
             Assert.That(testHierarchyString, Is.EqualTo(strategyHierarchyString));
         }
 
-        class DummyStrategy : IEntityHierarchyGroupingStrategy
+        class DummyState : IEntityHierarchyState
         {
             Dictionary<EntityHierarchyNodeId, EntityHierarchyNodeId> m_Parents = new Dictionary<EntityHierarchyNodeId, EntityHierarchyNodeId>();
             Dictionary<EntityHierarchyNodeId, List<EntityHierarchyNodeId>> m_Children = new Dictionary<EntityHierarchyNodeId, List<EntityHierarchyNodeId>>();
@@ -213,14 +213,7 @@ namespace Unity.Entities.Editor.Tests
                 }
             }
 
-            public void Dispose() {}
-            public World World { get; }
-            public ComponentType[] ComponentsToWatch { get; }
-            public void BeginApply(IEntityHierarchyGroupingContext context) {}
-            public void ApplyEntityChanges(NativeArray<Entity> newEntities, NativeArray<Entity> removedEntities, IEntityHierarchyGroupingContext context) {}
-            public void ApplyComponentDataChanges(ComponentType componentType, in ComponentDataDiffer.ComponentChanges componentChanges, IEntityHierarchyGroupingContext context) {}
-            public void ApplySharedComponentDataChanges(ComponentType componentType, in SharedComponentDataDiffer.ComponentChanges componentChanges,  IEntityHierarchyGroupingContext context) {}
-            public bool EndApply(IEntityHierarchyGroupingContext context) => false;
+            public void Dispose() { }
 
             public bool HasChildren(in EntityHierarchyNodeId nodeId)
                 => m_Children.TryGetValue(nodeId, out var children) && children.Count > 0;
@@ -231,20 +224,29 @@ namespace Unity.Entities.Editor.Tests
             public bool Exists(in EntityHierarchyNodeId nodeId)
                 => m_Parents.ContainsKey(nodeId) || m_Children.ContainsKey(nodeId);
 
-            public Entity GetUnderlyingEntity(in EntityHierarchyNodeId nodeId)
-            {
-                throw new NotImplementedException();
-            }
+            public uint GetNodeVersion(in EntityHierarchyNodeId nodeId) => throw new NotImplementedException();
 
-            public uint GetNodeVersion(in EntityHierarchyNodeId nodeId)
-            {
-                throw new NotImplementedException();
-            }
+            public string GetNodeName(in EntityHierarchyNodeId nodeId) => throw new NotImplementedException();
 
-            public string GetNodeName(in EntityHierarchyNodeId nodeId)
-            {
-                throw new NotImplementedException();
-            }
+            public void GetNodesBeingAdded(List<EntityHierarchyNodeId> nodesBeingAdded) => throw new NotImplementedException();
+            public void GetNodesBeingRemoved(List<EntityHierarchyNodeId> nodesBeingRemoved) => throw new NotImplementedException();
+            public void GetNodesBeingMoved(List<EntityHierarchyNodeId> nodesBeingMoved) => throw new NotImplementedException();
+
+            public bool TryGetFutureParent(in EntityHierarchyNodeId node, out EntityHierarchyNodeId nextParent) => throw new NotImplementedException();
+
+            public void RegisterAddEntityOperation(Entity entity, out EntityHierarchyNodeId generatedNode) => throw new NotImplementedException();
+
+            public void RegisterAddSceneOperation(int sceneId, out EntityHierarchyNodeId generatedNode) => throw new NotImplementedException();
+
+            public void RegisterAddSubSceneOperation(int subSceneId, out EntityHierarchyNodeId generatedNode) => throw new NotImplementedException();
+
+            public void RegisterAddCustomNodeOperation(FixedString64 name, out EntityHierarchyNodeId generatedNode) => throw new NotImplementedException();
+
+            public void RegisterRemoveOperation(in EntityHierarchyNodeId node) => throw new NotImplementedException();
+
+            public void RegisterMoveOperation(in EntityHierarchyNodeId toNode, in EntityHierarchyNodeId node) => throw new NotImplementedException();
+
+            public bool FlushOperations(IEntityHierarchyGroupingContext context) => throw new NotImplementedException();
         }
     }
 }

@@ -95,8 +95,9 @@
 
 .system-schedule-detail__content-component-access-icon
 {
-    width: 16px;
+    width: 20px;
     height: 16px;
+    -unity-background-scale-mode: scale-to-fit;
     border-radius: 4px 0px 0px 4px;
 }
 

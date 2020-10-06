@@ -4,7 +4,7 @@ namespace Unity.Entities.Editor
     {
         static readonly ObjectPool<T> s_Pool = new ObjectPool<T>(NoOp, OnRelease);
 
-        static void NoOp(T item) {}
+        static void NoOp(T item) { }
 
         static void OnRelease(T item) => item.Reset();
 

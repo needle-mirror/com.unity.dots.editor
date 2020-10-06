@@ -29,7 +29,7 @@ namespace Unity.Entities.Editor
 
         public EntityHierarchyNodeId NodeId { get; private set; }
 
-        public IEntityHierarchyGroupingStrategy Strategy => m_EntityHierarchy.Strategy;
+        public IEntityHierarchyState HierarchyState => m_EntityHierarchy.State;
 
         public World World => m_EntityHierarchy.World;
 
@@ -46,7 +46,7 @@ namespace Unity.Entities.Editor
             }
         }
 
-        public string CachedName => m_CachedName ?? (m_CachedName = Strategy.GetNodeName(NodeId));
+        public string CachedName => m_CachedName ?? (m_CachedName = HierarchyState.GetNodeName(NodeId));
 
         public string GetCachedLowerCaseName() => m_CachedLowerCaseName ?? (m_CachedLowerCaseName = CachedName.ToLowerInvariant());
 
@@ -56,7 +56,7 @@ namespace Unity.Entities.Editor
 
         IEnumerable<ITreeViewItem> ITreeViewItem.children => Children;
 
-        public bool hasChildren => Strategy.HasChildren(NodeId);
+        public bool hasChildren => HierarchyState.HasChildren(NodeId);
 
         void ITreeViewItem.AddChild(ITreeViewItem _) => throw new NotSupportedException(k_ChildrenListModificationExceptionMessage);
 
@@ -86,7 +86,7 @@ namespace Unity.Entities.Editor
 
         void PopulateChildren()
         {
-            using (var childNodes = Strategy.GetChildren(NodeId, Allocator.TempJob))
+            using (var childNodes = HierarchyState.GetChildren(NodeId, Allocator.TempJob))
             {
                 foreach (var node in childNodes)
                 {

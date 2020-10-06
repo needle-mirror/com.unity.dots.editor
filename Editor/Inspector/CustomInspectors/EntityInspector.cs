@@ -17,7 +17,7 @@ namespace Unity.Entities.Editor.Inspectors
 
         public override VisualElement Build()
         {
-            m_Field = new EntityField(DisplayName) {value = Target, World = GetWorld()};
+            m_Field = new EntityField(DisplayName) { value = Target, World = GetWorld() };
             return m_Field;
         }
 

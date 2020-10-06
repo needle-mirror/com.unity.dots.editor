@@ -23,8 +23,8 @@ namespace Unity.Entities.Editor
             if (@event == null)
                 return;
 
-            k_AddHandler = (Action<Action>) @event.AddMethod.CreateDelegate(typeof(Action<Action>));
-            k_RemoveHandler = (Action<Action>) @event.RemoveMethod.CreateDelegate(typeof(Action<Action>));
+            k_AddHandler = (Action<Action>)@event.AddMethod.CreateDelegate(typeof(Action<Action>));
+            k_RemoveHandler = (Action<Action>)@event.RemoveMethod.CreateDelegate(typeof(Action<Action>));
             k_GetLiveLinkEnabledInEditMode = (Func<bool>)property.GetMethod.CreateDelegate(typeof(Func<bool>));
             k_SetLiveLinkEnabledInEditMode = (Action<bool>)property.SetMethod.CreateDelegate(typeof(Action<bool>));
         }

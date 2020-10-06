@@ -53,7 +53,7 @@ namespace Unity.Entities.Editor
             protected override void AddItem<TContainer, TValue>(Property<TContainer, TValue> property, ref TValue value)
             {
                 var v = value;
-                m_Menu.AddItem(new GUIContent( $"{k_CopyPrefix}{property.Name}"), false,
+                m_Menu.AddItem(new GUIContent($"{k_CopyPrefix}{property.Name}"), false,
                     () => { EditorGUIUtility.systemCopyBuffer = JsonSerialization.ToJson(v); });
             }
         }

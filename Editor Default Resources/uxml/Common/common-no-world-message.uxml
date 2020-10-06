@@ -1,7 +1,0 @@
-<UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
-    <ui:VisualElement class="common-no-world-message__container">
-        <ui:VisualElement class="common-no-world-message__content">
-            <ui:Label class="common-no-world-message__message" />
-        </ui:VisualElement>
-    </ui:VisualElement>
-</UXML>

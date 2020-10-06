@@ -27,10 +27,11 @@ namespace Unity.Entities.Editor
             public const string CustomToolbarToggleOnlyLabel = CustomToolbarToggle + "__label-without-icon";
             public const string CustomToolbarToggleIcon = CustomToolbarToggle + "__icon";
 
-            const string k_NoWorldMessage = "common-no-world-message";
-            public const string NoWorldMessageContent = k_NoWorldMessage + "__message";
-
             public const string CustomLabelUnderline = "label-with-underline";
+
+            const string CenteredMessageElementBase = "centered-message-element";
+            public const string CenteredMessageElementTitle = CenteredMessageElementBase + "__title";
+            public const string CenteredMessageElementMessage = CenteredMessageElementBase + "__message";
         }
 
         public static class SystemScheduleWindow
@@ -132,14 +133,6 @@ namespace Unity.Entities.Editor
                 public const string PingGameObjectButton = k_Base + "__ping-gameobject-button";
 
                 public const string VisibleOnHover = k_Base + "__visible-on-hover";
-            }
-
-            public static class SearchEmptyMessage
-            {
-                const string k_Base = k_EntityHierarchyBase + "-search-empty-message";
-
-                public const string Title = k_Base + "__title";
-                public const string Message = k_Base + "__message";
             }
         }
 

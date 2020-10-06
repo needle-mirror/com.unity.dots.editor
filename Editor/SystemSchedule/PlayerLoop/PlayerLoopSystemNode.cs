@@ -16,7 +16,7 @@ namespace Unity.Entities.Editor
         public override bool Enabled
         {
             get => true;
-            set {}
+            set { }
         }
 
         public override bool EnabledInHierarchy => Enabled && (Parent?.EnabledInHierarchy ?? true);

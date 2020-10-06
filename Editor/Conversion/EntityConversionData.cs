@@ -17,12 +17,12 @@ namespace Unity.Entities.Editor
         {
         }
 
-        public static bool operator==(EntityConversionData lhs, EntityConversionData rhs)
+        public static bool operator ==(EntityConversionData lhs, EntityConversionData rhs)
         {
             return lhs.Equals(rhs);
         }
 
-        public static bool operator!=(EntityConversionData lhs, EntityConversionData rhs)
+        public static bool operator !=(EntityConversionData lhs, EntityConversionData rhs)
         {
             return !(lhs == rhs);
         }

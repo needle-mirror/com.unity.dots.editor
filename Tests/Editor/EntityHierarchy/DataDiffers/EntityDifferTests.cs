@@ -31,7 +31,7 @@ namespace Unity.Entities.Editor.Tests
         [Test]
         public void EntityDiffer_Simple()
         {
-            var(created, destroyed) = GetEntityQueryMatchDiff(m_World.EntityManager.UniversalQuery);
+            var (created, destroyed) = GetEntityQueryMatchDiff(m_World.EntityManager.UniversalQuery);
 
             Assert.That(created, Is.Empty);
             Assert.That(destroyed, Is.Empty);
@@ -67,7 +67,7 @@ namespace Unity.Entities.Editor.Tests
 
                 using (var query = m_World.EntityManager.CreateEntityQuery(typeof(EcsTestData)))
                 {
-                    var(created, _) = GetEntityQueryMatchDiff(query);
+                    var (created, _) = GetEntityQueryMatchDiff(query);
                     Assert.That(created, Is.EquivalentTo(entities.ToArray()));
                 }
             }
@@ -80,7 +80,7 @@ namespace Unity.Entities.Editor.Tests
 
             using (var query = m_World.EntityManager.CreateEntityQuery(typeof(EcsTestData)))
             {
-                var(created, destroyed) = GetEntityQueryMatchDiff(query);
+                var (created, destroyed) = GetEntityQueryMatchDiff(query);
 
                 Assert.That(created, Is.EquivalentTo(new[] { entityA }));
                 Assert.That(destroyed, Is.Empty);
@@ -104,7 +104,7 @@ namespace Unity.Entities.Editor.Tests
 
             using (var query = m_World.EntityManager.CreateEntityQuery(typeof(EcsTestData)))
             {
-                var(created, destroyed) = GetEntityQueryMatchDiff(query);
+                var (created, destroyed) = GetEntityQueryMatchDiff(query);
 
                 Assert.That(created, Is.EquivalentTo(new[] { entityA }));
                 Assert.That(destroyed, Is.Empty);
@@ -112,7 +112,7 @@ namespace Unity.Entities.Editor.Tests
 
             using (var query = m_World.EntityManager.CreateEntityQuery(typeof(EcsTestData2)))
             {
-                var(created, destroyed) = GetEntityQueryMatchDiff(query);
+                var (created, destroyed) = GetEntityQueryMatchDiff(query);
 
                 Assert.That(created, Is.EquivalentTo(new[] { entityB }));
                 Assert.That(destroyed, Is.EquivalentTo(new[] { entityA }));
@@ -122,7 +122,7 @@ namespace Unity.Entities.Editor.Tests
 
             using (var query = m_World.EntityManager.CreateEntityQuery(typeof(EcsTestData2)))
             {
-                var(created, destroyed) = GetEntityQueryMatchDiff(query);
+                var (created, destroyed) = GetEntityQueryMatchDiff(query);
 
                 Assert.That(created, Is.Empty);
                 Assert.That(destroyed, Is.EquivalentTo(new[] { entityB }));
@@ -136,7 +136,7 @@ namespace Unity.Entities.Editor.Tests
             var entityB = m_World.EntityManager.CreateEntity(typeof(EcsTestData2));
             using (var query = m_World.EntityManager.CreateEntityQuery(typeof(EcsTestData)))
             {
-                var(created, destroyed) = GetEntityQueryMatchDiff(query);
+                var (created, destroyed) = GetEntityQueryMatchDiff(query);
 
                 Assert.That(created, Is.EquivalentTo(new[] { entityA }));
                 Assert.That(destroyed, Is.Empty);
@@ -148,7 +148,7 @@ namespace Unity.Entities.Editor.Tests
 
             using (var query = m_World.EntityManager.CreateEntityQuery(typeof(EcsTestData2)))
             {
-                var(created, destroyed) = GetEntityQueryMatchDiff(query);
+                var (created, destroyed) = GetEntityQueryMatchDiff(query);
                 Assert.That(created, Is.EquivalentTo(new[] { entityB, entityB2 }));
                 Assert.That(destroyed, Is.EquivalentTo(new[] { entityA }));
             }
@@ -162,7 +162,7 @@ namespace Unity.Entities.Editor.Tests
             var entityC = m_World.EntityManager.CreateEntity(typeof(EcsTestData));
             using (var query = m_World.EntityManager.CreateEntityQuery(typeof(EcsTestData)))
             {
-                var(created, destroyed) = GetEntityQueryMatchDiff(query);
+                var (created, destroyed) = GetEntityQueryMatchDiff(query);
 
                 Assert.That(created, Is.EquivalentTo(new[] { entityA, entityB, entityC }));
                 Assert.That(destroyed, Is.Empty);

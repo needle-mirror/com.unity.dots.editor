@@ -16,32 +16,33 @@ namespace Unity.Entities.Editor
         enum ViewMode { Uninitialized, Full, Search }
 
         static readonly string k_ComponentTypeNotFoundTitle = L10n.Tr("Type not found");
-        static readonly string k_ComponentTypeNotFoundContent = L10n.Tr("No component type found matching \"{0}\"");
-        static readonly string k_NoEntitiesFoundContent = L10n.Tr("No entities found");
+        static readonly string k_ComponentTypeNotFoundContent = L10n.Tr("\"{0}\" is not a component type");
+        static readonly string k_NoEntitiesFoundTitle = L10n.Tr("No entity matches your search");
         static readonly Regex k_ExtractionPattern = new Regex(@"\""(.+)\""|(\S+)", RegexOptions.Compiled | RegexOptions.Singleline);
 
         readonly List<ITreeViewItem> m_TreeViewRootItems = new List<ITreeViewItem>(128);
         readonly List<int> m_TreeViewItemsToExpand = new List<int>(128);
         readonly List<EntityHierarchyItem> m_ListViewFilteredItems = new List<EntityHierarchyItem>(1024);
         readonly List<string> m_Filters = new List<string>(8);
-        readonly EntityHierarchyState m_EntityHierarchyState;
+        readonly EntityHierarchyFoldingState m_EntityHierarchyFoldingState;
         readonly VisualElement m_ViewContainer;
         readonly TreeView m_TreeView;
         readonly ListView m_ListView;
-        readonly VisualElement m_SearchEmptyMessage;
+        readonly CenteredMessageElement m_SearchEmptyMessage;
         readonly IHierarchySearcher m_Searcher;
         readonly EntitySelectionProxy m_SelectionProxy;
 
         ViewMode m_ViewMode = ViewMode.Uninitialized;
         IEntityHierarchy m_Hierarchy;
+        EntityHierarchyQueryBuilder.Result m_QueryBuilderResult;
         string m_Filter;
         bool m_SearcherCacheNeedsRebuild = true;
         bool m_StructureChanged;
         uint m_RootVersion;
 
-        public EntityHierarchy(EntityHierarchyState entityHierarchyState)
+        public EntityHierarchy(EntityHierarchyFoldingState entityHierarchyFoldingState)
         {
-            m_EntityHierarchyState = entityHierarchyState;
+            m_EntityHierarchyFoldingState = entityHierarchyFoldingState;
 
             style.flexGrow = 1.0f;
             m_ViewContainer = new VisualElement();
@@ -62,7 +63,7 @@ namespace Unity.Entities.Editor
             {
                 var entityHierarchyItem = (EntityHierarchyItem)item;
                 if (entityHierarchyItem.NodeId.Kind == NodeKind.Scene || entityHierarchyItem.NodeId.Kind == NodeKind.SubScene)
-                    m_EntityHierarchyState.OnFoldingStateChanged(entityHierarchyItem.NodeId, isExpanding);
+                    m_EntityHierarchyFoldingState.OnFoldingStateChanged(entityHierarchyItem.NodeId, isExpanding);
             };
 
             m_ListView = new ListView(m_ListViewFilteredItems, Constants.ListView.ItemHeight, OnMakeItem, OnBindListItem)
@@ -72,15 +73,14 @@ namespace Unity.Entities.Editor
             };
             m_ListView.RegisterCallback<PointerDownEvent>(evt =>
             {
-                if (evt.button == (int) MouseButton.LeftMouse)
+                if (evt.button == (int)MouseButton.LeftMouse)
                     Selection.activeObject = null;
             });
 
             m_ListView.style.flexGrow = 1.0f;
 
-            m_SearchEmptyMessage = new VisualElement { style = { flexGrow = 1 } };
-            Resources.Templates.SearchEmptyMessage.Clone(m_SearchEmptyMessage);
-            m_SearchEmptyMessage.ToggleVisibility(false);
+            m_SearchEmptyMessage = new CenteredMessageElement();
+            m_SearchEmptyMessage.Hide();
             Add(m_SearchEmptyMessage);
 
 #if UNITY_2020_1_OR_NEWER
@@ -130,8 +130,8 @@ namespace Unity.Entities.Editor
         {
             return proxyA != null
                 && proxyB != null
-                && proxyA.EntityManager.World.IsCreated
-                && proxyB.EntityManager.World.IsCreated
+                && proxyA.World != null && proxyA.World.IsCreated
+                && proxyB.World != null && proxyB.World.IsCreated
                 && proxyA.World == proxyB.World
                 && proxyA.Entity == proxyB.Entity;
         }
@@ -142,6 +142,9 @@ namespace Unity.Entities.Editor
                 UnityObject.DestroyImmediate(m_SelectionProxy);
 
             m_Searcher.Dispose();
+
+            // ReSharper disable once DelegateSubtraction
+            Selection.selectionChanged -= GlobalSelectionChanged;
         }
 
         public void Select(int id)
@@ -169,12 +172,14 @@ namespace Unity.Entities.Editor
 
         public void SetFilter(EntityHierarchyQueryBuilder.Result queryBuilderResult)
         {
+            m_QueryBuilderResult = queryBuilderResult;
             m_SearchEmptyMessage.ToggleVisibility(!queryBuilderResult.IsValid);
             m_ViewContainer.ToggleVisibility(queryBuilderResult.IsValid);
 
             if (!queryBuilderResult.IsValid)
             {
-                UpdateSearchEmptyMessage(k_ComponentTypeNotFoundTitle, string.Format(k_ComponentTypeNotFoundContent, queryBuilderResult.ErrorComponentType));
+                m_SearchEmptyMessage.Title = k_ComponentTypeNotFoundTitle;
+                m_SearchEmptyMessage.Message = string.Format(k_ComponentTypeNotFoundContent, queryBuilderResult.ErrorComponentType);
                 return;
             }
 
@@ -228,10 +233,10 @@ namespace Unity.Entities.Editor
 
         public void OnUpdate()
         {
-            if (m_Hierarchy?.Strategy == null)
+            if (m_Hierarchy?.GroupingStrategy == null)
                 return;
 
-            var rootVersion = m_Hierarchy.Strategy.GetNodeVersion(EntityHierarchyNodeId.Root);
+            var rootVersion = m_Hierarchy.State.GetNodeVersion(EntityHierarchyNodeId.Root);
             if (!m_StructureChanged && rootVersion == m_RootVersion)
                 return;
 
@@ -252,10 +257,10 @@ namespace Unity.Entities.Editor
 
             EntityHierarchyPool.ReturnAllVisualElements(this);
 
-            if (m_Hierarchy?.Strategy == null)
+            if (m_Hierarchy?.GroupingStrategy == null)
                 return;
 
-            using (var rootNodes = m_Hierarchy.Strategy.GetChildren(EntityHierarchyNodeId.Root, Allocator.TempJob))
+            using (var rootNodes = m_Hierarchy.State.GetChildren(EntityHierarchyNodeId.Root, Allocator.TempJob))
             {
                 foreach (var node in rootNodes)
                     m_TreeViewRootItems.Add(EntityHierarchyPool.GetTreeViewItem(null, node, m_Hierarchy));
@@ -268,7 +273,7 @@ namespace Unity.Entities.Editor
             foreach (var treeViewRootItem in m_TreeViewRootItems)
             {
                 var hierarchyItem = (EntityHierarchyItem)treeViewRootItem;
-                if (hierarchyItem.NodeId.Kind != NodeKind.Scene || m_EntityHierarchyState.GetFoldingState(hierarchyItem.NodeId) == false)
+                if (hierarchyItem.NodeId.Kind != NodeKind.Scene || m_EntityHierarchyFoldingState.GetFoldingState(hierarchyItem.NodeId) == false)
                     continue;
 
                 m_TreeViewItemsToExpand.Add(hierarchyItem.id);
@@ -278,7 +283,7 @@ namespace Unity.Entities.Editor
 
                 foreach (var childItem in hierarchyItem.Children)
                 {
-                    if (childItem.NodeId.Kind != NodeKind.SubScene || m_EntityHierarchyState.GetFoldingState(childItem.NodeId) == false)
+                    if (childItem.NodeId.Kind != NodeKind.SubScene || m_EntityHierarchyFoldingState.GetFoldingState(childItem.NodeId) == false)
                         continue;
 
                     m_TreeViewItemsToExpand.Add(childItem.id);
@@ -360,23 +365,22 @@ namespace Unity.Entities.Editor
             m_ListViewFilteredItems.Clear();
             m_Searcher.Search(m_Filters, m_ListViewFilteredItems);
 
-            if (m_ListViewFilteredItems.Count == 0)
-                UpdateSearchEmptyMessage(string.Empty, k_NoEntitiesFoundContent);
+            if (m_ListViewFilteredItems.Count == 0 && m_QueryBuilderResult.IsValid)
+            {
+                m_SearchEmptyMessage.Title = k_NoEntitiesFoundTitle;
+                m_SearchEmptyMessage.Message = string.Empty;
+            }
 
-            m_ViewContainer.ToggleVisibility(m_ListViewFilteredItems.Count > 0);
-            m_SearchEmptyMessage.ToggleVisibility(m_ListViewFilteredItems.Count == 0);
+            if (!m_QueryBuilderResult.IsValid)
+            {
+                m_SearchEmptyMessage.Title = k_ComponentTypeNotFoundTitle;
+                m_SearchEmptyMessage.Message = string.Format(k_ComponentTypeNotFoundContent, m_QueryBuilderResult.ErrorComponentType);
+            }
+
+            m_ViewContainer.ToggleVisibility(m_ListViewFilteredItems.Count > 0 && m_QueryBuilderResult.IsValid);
+            m_SearchEmptyMessage.ToggleVisibility(m_ListViewFilteredItems.Count == 0 || !m_QueryBuilderResult.IsValid);
 
             m_ListView.Refresh();
-        }
-
-        void UpdateSearchEmptyMessage(string title, string message)
-        {
-            var titleLabel = m_SearchEmptyMessage.Q<Label>(className: UssClasses.EntityHierarchyWindow.SearchEmptyMessage.Title);
-            var messageLabel = m_SearchEmptyMessage.Q<Label>(className: UssClasses.EntityHierarchyWindow.SearchEmptyMessage.Message);
-            titleLabel.ToggleVisibility(!string.IsNullOrEmpty(title));
-            messageLabel.ToggleVisibility(!string.IsNullOrEmpty(message));
-            titleLabel.text = title;
-            messageLabel.text = message;
         }
 
         void UpdateSearchFilters()
@@ -439,8 +443,8 @@ namespace Unity.Entities.Editor
 
             if (selectedItem.NodeId.Kind == NodeKind.Entity)
             {
-                var entity = selectedItem.Strategy.GetUnderlyingEntity(selectedItem.NodeId);
-                if (selectedItem.Strategy.GetUnderlyingEntity(selectedItem.NodeId) != Entity.Null)
+                var entity = selectedItem.NodeId.ToEntity();
+                if (entity != Entity.Null)
                 {
                     m_SelectionProxy.SetEntity(m_Hierarchy.World, entity);
                     Selection.activeObject = m_SelectionProxy;
@@ -458,7 +462,7 @@ namespace Unity.Entities.Editor
                 return;
 
             var nodeId = EntityHierarchyNodeId.FromEntity(entity);
-            if (!m_Hierarchy.Strategy.Exists(nodeId))
+            if (!m_Hierarchy.State.Exists(nodeId))
                 return;
 
             Select(nodeId.GetHashCode());

@@ -1,13 +1,13 @@
 using NUnit.Framework;
-using UnityEditor;
-using UnityEditor.SceneManagement;
-using UnityEngine;
-using UnityEngine.SceneManagement;
 using System.IO;
 using System.Linq;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Scenes.Editor;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Unity.Entities.Editor.Tests
 {

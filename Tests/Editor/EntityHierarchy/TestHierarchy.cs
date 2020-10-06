@@ -57,16 +57,16 @@ namespace Unity.Entities.Editor.Tests
 
             public bool Equals(EntityHierarchyNodeId other) => other.Equals(NodeId);
 
-            public void WriteTree(StringBuilder errorMessage, int indent)
+            public void WriteTree(StringBuilder errorMessage, int indent, bool kindOnly = false)
             {
                 errorMessage.Append(' ', indent);
                 errorMessage.Append("- ");
-                errorMessage.AppendLine(NodeId.ToString());
+                errorMessage.AppendLine(kindOnly ? NodeId.Kind.ToString() : NodeId.ToString());
 
                 indent++;
                 foreach (var child in Children.OrderBy(x => x.NodeId))
                 {
-                    child.WriteTree(errorMessage, indent);
+                    child.WriteTree(errorMessage, indent, kindOnly);
                 }
             }
 
@@ -77,7 +77,7 @@ namespace Unity.Entities.Editor.Tests
                 => NodeId.ToString();
         }
 
-        public void WriteTree(StringBuilder errorMessage, int indent)
-            => Root.WriteTree(errorMessage, indent);
+        public void WriteTree(StringBuilder errorMessage, int indent, bool kindOnly = false)
+            => Root.WriteTree(errorMessage, indent, kindOnly);
     }
 }

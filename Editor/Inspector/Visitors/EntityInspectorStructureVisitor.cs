@@ -19,7 +19,7 @@ namespace Unity.Entities.Editor
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return this == (EntityInspectorComponentOrder) obj;
+            return this == (EntityInspectorComponentOrder)obj;
         }
 
         public override int GetHashCode()

@@ -1,13 +1,13 @@
 #pragma warning disable 649
+using NUnit.Framework;
 using System.Collections.Generic;
 using System.Linq;
-using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Unity.Entities.Editor.tests
+namespace Unity.Entities.Editor.Tests
 {
     using EntityInspectorTypes;
 
@@ -54,20 +54,20 @@ namespace Unity.Entities.Editor.tests
         public void OneTimeSetUp()
         {
             m_World = new World("Entity Inspector tests");
-            m_PreviousBackend = InspectorUtility.Settings.InternalBackend;
+            m_PreviousBackend = InspectorUtility.Settings.Backend;
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
             m_World.Dispose();
-            InspectorUtility.Settings.InternalBackend = m_PreviousBackend;
+            InspectorUtility.Settings.Backend = m_PreviousBackend;
         }
 
         [SetUp]
         public void SetUp()
         {
-            InspectorUtility.Settings.InternalBackend = InspectorSettings.InspectorBackend.Normal;
+            InspectorUtility.Settings.Backend = InspectorSettings.InspectorBackend.Normal;
 
             m_Entity = m_World.EntityManager.CreateEntity();
 
@@ -90,7 +90,7 @@ namespace Unity.Entities.Editor.tests
         public void CustomEditor_WhenSettingIsSet_CanBeOverriden(InspectorSettings.InspectorBackend mode,
             bool shouldBeUsed)
         {
-            InspectorUtility.Settings.InternalBackend = mode;
+            InspectorUtility.Settings.Backend = mode;
             var editor = UnityEditor.Editor.CreateEditor(m_Proxy);
             try
             {
@@ -178,7 +178,7 @@ namespace Unity.Entities.Editor.tests
         public void Inspector_WhenComponentValueIsUpdated_UpdatesProperly()
         {
             Assert.That(m_Editor, Is.TypeOf<EntityEditor>());
-            var entityEditor = (EntityEditor) m_Editor;
+            var entityEditor = (EntityEditor)m_Editor;
             m_World.EntityManager.AddComponent<StructComponent>(m_Entity);
             var root = m_Editor.CreateInspectorGUI();
             // Needed to get the events fired up.
@@ -191,7 +191,7 @@ namespace Unity.Entities.Editor.tests
                 var field = element.Q<FloatField>();
                 Assert.That(field.value, Is.EqualTo(0.0f));
 
-                m_World.EntityManager.SetComponentData(m_Entity, new StructComponent {Value = 15.0f});
+                m_World.EntityManager.SetComponentData(m_Entity, new StructComponent { Value = 15.0f });
                 root.ForceUpdateBindings();
                 Assert.That(field.value, Is.EqualTo(15.0f));
 

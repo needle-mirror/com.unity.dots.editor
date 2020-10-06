@@ -10,7 +10,7 @@ namespace Unity.Entities.Editor
         {
             Resources.Templates.Inspector.TagComponentElement.Clone(this);
             this.Q<Label>().text = DisplayName;
-            this.Q<VisualElement>(className:UssClasses.Inspector.Component.Icon).AddToClassList(UssClasses.Inspector.ComponentTypes.Tag);
+            this.Q<VisualElement>(className: UssClasses.Inspector.Component.Icon).AddToClassList(UssClasses.Inspector.ComponentTypes.Tag);
         }
 
         protected override void OnComponentChanged(PropertyElement element, PropertyPath path)

@@ -55,7 +55,7 @@ namespace Unity.Entities.Editor
             if (!this.TryGetComponentData(out EntityGuid guid))
                 return null;
 
-            return (GameObject) EditorUtility.InstanceIDToObject(guid.OriginatingId);
+            return (GameObject)EditorUtility.InstanceIDToObject(guid.OriginatingId);
         }
 
         static bool IsWorldReadOnly(World world)

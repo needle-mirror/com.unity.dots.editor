@@ -29,7 +29,6 @@ namespace Unity.Entities.Editor
                 {
                     var hashCode = NameWithWorld.GetHashCode();
                     hashCode = (hashCode * 397) ^ (Parent?.Name.GetHashCode() ?? 0);
-                    hashCode = (hashCode * 397) ^ Value.GetHashCode();
                     return hashCode;
                 }
             }

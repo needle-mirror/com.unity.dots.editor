@@ -92,7 +92,7 @@ namespace Unity.Entities.Editor
                     ComponentSize = m_ComponentSize,
                     Chunks = chunks,
                     ShadowChunksBySequenceNumber = m_PreviousChunksBySequenceNumber,
-                    GatheredChanges = (ChangesCollector*) m_GatheredChanges.GetUnsafeList()->Ptr
+                    GatheredChanges = (ChangesCollector*)m_GatheredChanges.GetUnsafeList()->Ptr
                 }.Schedule(chunks.Length, 1, chunksJobHandle);
 
                 var allocateNewShadowChunksJobHandle = new AllocateNewShadowChunksJob
@@ -101,7 +101,7 @@ namespace Unity.Entities.Editor
                     ComponentSize = m_ComponentSize,
                     Chunks = chunks,
                     ShadowChunksBySequenceNumber = m_PreviousChunksBySequenceNumber,
-                    AllocatedShadowChunks = (ShadowChunk*) m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr
+                    AllocatedShadowChunks = (ShadowChunk*)m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr
                 }.Schedule(chunks.Length, 1, chunksJobHandle);
 
                 var copyJobHandle = new CopyComponentDataJob
@@ -110,7 +110,7 @@ namespace Unity.Entities.Editor
                     ComponentSize = m_ComponentSize,
                     Chunks = chunks,
                     ShadowChunksBySequenceNumber = m_PreviousChunksBySequenceNumber,
-                    AllocatedShadowChunks = (ShadowChunk*) m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr,
+                    AllocatedShadowChunks = (ShadowChunk*)m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr,
                     RemovedChunkComponentDataBuffer = m_RemovedChunkBuffer,
                     RemovedChunkEntities = m_RemovedChunkEntities
                 }.Schedule(JobHandle.CombineDependencies(changesJobHandle, allocateNewShadowChunksJobHandle));
@@ -460,7 +460,7 @@ namespace Unity.Entities.Editor
                 m_Result = result;
             }
 
-            public int AddedComponentsCount =>  m_Result.Value.AddedComponents.IsCreated ? m_Result.Value.AddedComponents.Length : 0;
+            public int AddedComponentsCount => m_Result.Value.AddedComponents.IsCreated ? m_Result.Value.AddedComponents.Length : 0;
             public int RemovedComponentsCount => m_Result.Value.RemovedComponents.IsCreated ? m_Result.Value.RemovedComponents.Length : 0;
 
             public (NativeArray<Entity> entities, NativeArray<T> componentData) GetAddedComponents<T>(Allocator allocator) where T : struct

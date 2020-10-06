@@ -5,9 +5,9 @@ using Unity.Collections;
 using Unity.Editor.Bridge;
 using Unity.Editor.Legacy;
 using Unity.Mathematics;
+using Unity.Serialization.Editor;
 using UnityEditor;
 using UnityEngine;
-using Unity.Serialization.Editor;
 using Object = UnityEngine.Object;
 
 namespace Unity.Entities.Editor

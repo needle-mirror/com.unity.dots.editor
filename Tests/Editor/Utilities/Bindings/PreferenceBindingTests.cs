@@ -43,7 +43,7 @@ namespace Unity.Entities.Editor.Tests
         [Test]
         public void Binding_WithPreferenceSetting_UpdatesCorrectly()
         {
-            var binding = (IBinding) new ShowAdvancedWorldBinding();
+            var binding = (IBinding)new ShowAdvancedWorldBinding();
             binding.Update();
 
             UserSettings<AdvancedSettings>.GetOrCreate(Constants.Settings.Advanced).ShowAdvancedWorlds = true;
@@ -56,7 +56,7 @@ namespace Unity.Entities.Editor.Tests
         [Test]
         public void AggregatedBindings_WithPreferenceSetting_UpdatesCorrectly()
         {
-            var binding = (IBinding) new AggregateBinding(
+            var binding = (IBinding)new AggregateBinding(
                 new ShowAdvancedWorldBinding(),
                 new ShowAdvancedWorldBinding(),
                 new ShowAdvancedWorldBinding(),

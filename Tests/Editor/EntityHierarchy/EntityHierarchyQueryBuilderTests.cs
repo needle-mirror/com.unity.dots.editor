@@ -1,13 +1,11 @@
+using NUnit.Framework;
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using NUnit.Framework;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.PerformanceTesting;
-using UnityEngine;
 
 namespace Unity.Entities.Editor.Tests
 {
@@ -19,7 +17,6 @@ namespace Unity.Entities.Editor.Tests
         public void Setup()
         {
             m_Builder = new EntityHierarchyQueryBuilder();
-            m_Builder.Initialize();
         }
 
         public static IEnumerable ParseQueryCaseSource()
@@ -150,51 +147,6 @@ namespace Unity.Entities.Editor.Tests
             {
                 w.Dispose();
             }
-
-        }
-
-        [Test]
-        public void QueryBuilderTypeCache_IndexTypesAndAllowDuplicateNames()
-        {
-            var type1 = typeof(Unity.Tests.NamespaceA.TestComponent);
-            var type2 = typeof(Unity.Tests.NamespaceB.TestComponent);
-            var type3 = typeof(global::TestComponent);
-
-            Assert.That(TypeManager.GetAllTypes().SingleOrDefault(t => t.Type == type1), Is.Not.Null, $"Type {type1} must be present in {nameof(TypeManager)}");
-            Assert.That(TypeManager.GetAllTypes().SingleOrDefault(t => t.Type == type2), Is.Not.Null, $"Type {type2} must be present in {nameof(TypeManager)}");
-            Assert.That(TypeManager.GetAllTypes().SingleOrDefault(t => t.Type == type3), Is.Not.Null, $"Type {type3} must be present in {nameof(TypeManager)}");
-
-            var typeCache = new EntityHierarchyQueryBuilder.TypeCache();
-            typeCache.Initialize();
-
-            var rotationTypes = typeCache.GetMatchingTypes("testcomponent").ToArray();
-            Assert.That(rotationTypes, Is.EquivalentTo(new[] { type1, type2, type3 }));
-
-            var type = typeCache.GetMatchingTypes(type1.FullName);
-            Assert.That(type, Is.EquivalentTo(new[] { type1 }));
-
-            type = typeCache.GetMatchingTypes(type2.FullName);
-            Assert.That(type, Is.EquivalentTo(new[] { type2 }));
-
-            // Equivalent to searching for "testcomponent" directly.
-            // Will match all types named "TestComponent" regardless of the namespace
-            type = typeCache.GetMatchingTypes(type3.FullName);
-            Assert.That(type, Is.EquivalentTo(new[] { type1, type2, type3 }));
         }
     }
-}
-
-namespace Unity.Tests.NamespaceA
-{
-    struct TestComponent : IComponentData { }
-}
-
-namespace Unity.Tests.NamespaceB
-{
-    struct TestComponent : IComponentData { }
-}
-
-// Global component type for query builder tests
-struct TestComponent : IComponentData
-{
 }

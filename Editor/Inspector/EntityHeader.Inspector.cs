@@ -26,7 +26,7 @@ namespace Unity.Entities.Editor
             originatingGO.RegisterCallback<ChangeEvent<Object>, ObjectField>(ForceTargetGameObject, originatingGO);
 
             // Hide the button that allows to display the object selector window.
-            originatingGO.Q(className:UssClasses.UIToolkit.ObjectField.ObjectSelector).Hide();
+            originatingGO.Q(className: UssClasses.UIToolkit.ObjectField.ObjectSelector).Hide();
 
             var context = GetContext<EntityInspectorContext>();
 

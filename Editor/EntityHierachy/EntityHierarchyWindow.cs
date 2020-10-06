@@ -1,20 +1,11 @@
-using System;
 using Unity.Profiling;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
 {
-    interface IEntityHierarchy
-    {
-        IEntityHierarchyGroupingStrategy Strategy { get; }
-
-        EntityQueryDesc QueryDesc { get; }
-
-        World World { get; }
-    }
-
     class EntityHierarchyWindow : DOTSEditorWindow, IEntityHierarchy
     {
         static readonly ProfilerMarker k_OnUpdateMarker = new ProfilerMarker($"{nameof(EntityHierarchyWindow)}.{nameof(OnUpdate)}");
@@ -30,12 +21,13 @@ namespace Unity.Entities.Editor
         VisualElement m_EnableLiveLinkMessage;
         VisualElement m_Header;
         VisualElement m_Root;
-        VisualElement m_NoWorld;
+        CenteredMessageElement m_NoWorld;
 
         [MenuItem(Constants.MenuItems.EntityHierarchyWindow, false, Constants.MenuItems.WindowPriority)]
         static void OpenWindow() => GetWindow<EntityHierarchyWindow>().Show();
 
-        public IEntityHierarchyGroupingStrategy Strategy { get; private set; }
+        public IEntityHierarchyState State { get; private set; }
+        public IEntityHierarchyGroupingStrategy GroupingStrategy { get; private set; }
 
         public EntityQueryDesc QueryDesc { get; private set; }
 
@@ -49,7 +41,7 @@ namespace Unity.Entities.Editor
             m_Root = new VisualElement { style = { flexGrow = 1 } };
             rootVisualElement.Add(m_Root);
 
-            m_NoWorld = CreateNoWorldMessage();
+            m_NoWorld = new CenteredMessageElement() { Message = NoWorldMessageContent };
             rootVisualElement.Add(m_NoWorld);
             m_NoWorld.Hide();
 
@@ -57,10 +49,8 @@ namespace Unity.Entities.Editor
             Resources.Templates.DotsEditorCommon.AddStyles(m_Root);
             m_Root.AddToClassList(UssClasses.Resources.EntityHierarchy);
 
-            m_EntityHierarchyQueryBuilder.Initialize();
-
             CreateToolbar();
-            m_EntityHierarchy = new EntityHierarchy(new EntityHierarchyState(EditorWindowInstanceKey));
+            m_EntityHierarchy = new EntityHierarchy(new EntityHierarchyFoldingState(EditorWindowInstanceKey));
             m_Root.Add(m_EntityHierarchy);
             CreateEnableLiveLinkMessage();
 
@@ -84,11 +74,10 @@ namespace Unity.Entities.Editor
             LiveLinkConfigHelper.LiveLinkEnabledChanged -= UpdateEnableLiveLinkMessage;
             EditorApplication.playModeStateChanged -= UpdateEnableLiveLinkMessage;
             m_EntityHierarchy.Dispose();
-            if (Strategy != null)
-            {
-                m_EntityHierarchyDiffer?.Dispose();
-                Strategy.Dispose();
-            }
+
+            State?.Dispose();
+            GroupingStrategy?.Dispose();
+            m_EntityHierarchyDiffer?.Dispose();
         }
 
         void UpdateEnableLiveLinkMessage()
@@ -111,6 +100,7 @@ namespace Unity.Entities.Editor
 
             AddSearchIcon(rightSide, UssClasses.DotsEditorCommon.SearchIcon);
             AddSearchFieldContainer(m_Header, UssClasses.DotsEditorCommon.SearchFieldContainer);
+            m_Header.Q<ToolbarSearchField>().EnableAutoComplete(ComponentTypeAutoComplete.Instance);
 
             m_Root.Add(m_Header);
         }
@@ -130,17 +120,22 @@ namespace Unity.Entities.Editor
             if (world == World)
                 return;
 
-            if (Strategy != null)
-            {
-                m_EntityHierarchyDiffer?.Dispose();
-                Strategy.Dispose();
-                Strategy = null;
-            }
+            State?.Dispose();
+            GroupingStrategy?.Dispose();
+            m_EntityHierarchyDiffer?.Dispose();
+
+            State = null;
+            GroupingStrategy = null;
+            m_EntityHierarchyDiffer = null;
 
             World = world;
             if (World != null)
             {
-                Strategy = new EntityHierarchyDefaultGroupingStrategy(world);
+                // TODO: How do we instantiate the correct State/Strategy combination?
+                // TODO: Should we even allow the State to be overridable by users?
+                State = new EntityHierarchyState(world);
+                GroupingStrategy = new EntityHierarchyDefaultGroupingStrategy(world, State);
+
                 m_EntityHierarchyDiffer = new EntityHierarchyDiffer(this, 16);
                 m_EntityHierarchy.Refresh(this);
             }

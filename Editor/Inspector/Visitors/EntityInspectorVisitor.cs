@@ -40,7 +40,7 @@ namespace Unity.Entities.Editor
             if (!(property is IComponentProperty componentProperty) || componentProperty.Type != ComponentPropertyType.Buffer)
                 return;
 
-            var buffer = new InspectedBuffer<TList, TElement> {Value = value};
+            var buffer = new InspectedBuffer<TList, TElement> { Value = value };
             var element = new BufferElement<TList, TElement>(componentProperty, m_Context, ref buffer);
             m_ComponentRoot.Add(element);
         }

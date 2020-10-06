@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using NUnit.Framework;
+using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Transforms;
 
@@ -9,6 +9,7 @@ namespace Unity.Entities.Editor.Tests
     {
         NativeList<Entity> m_NewEntities;
         NativeList<Entity> m_RemovedEntities;
+        EntityHierarchyState m_HierarchyState;
         IEntityHierarchyGroupingStrategy m_Strategy;
         EntityDiffer m_EntityDiffer;
         ComponentDataDiffer m_ComponentDiffer;
@@ -21,8 +22,9 @@ namespace Unity.Entities.Editor.Tests
             m_NewEntities = new NativeList<Entity>(Allocator.TempJob);
             m_RemovedEntities = new NativeList<Entity>(Allocator.TempJob);
 
-            m_Strategy = new EntityHierarchyDefaultGroupingStrategy(World);
-            m_AssertHelper = new TestHierarchyHelper(m_Strategy);
+            m_HierarchyState = new EntityHierarchyState(World);
+            m_Strategy = new EntityHierarchyDefaultGroupingStrategy(World, m_HierarchyState);
+            m_AssertHelper = new TestHierarchyHelper(m_HierarchyState);
 
             m_EntityDiffer = new EntityDiffer(World);
             m_ComponentDiffer = new ComponentDataDiffer(m_Strategy.ComponentsToWatch[0]);
@@ -32,11 +34,20 @@ namespace Unity.Entities.Editor.Tests
         {
             m_NewEntities.Dispose();
             m_RemovedEntities.Dispose();
+            m_HierarchyState.Dispose();
             m_Strategy.Dispose();
             m_EntityDiffer.Dispose();
             m_ComponentDiffer.Dispose();
 
             base.Teardown();
+        }
+
+        [Test]
+        public unsafe void EntityHierarchyState_RootMustExistEvenOnEmptyWorld()
+        {
+            Assert.That(World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->CountEntities(), Is.EqualTo(0));
+            Assert.That(m_HierarchyState.Exists(EntityHierarchyNodeId.Root));
+            Assert.DoesNotThrow(() => m_HierarchyState.GetNodeVersion(EntityHierarchyNodeId.Root));
         }
 
         [Test]

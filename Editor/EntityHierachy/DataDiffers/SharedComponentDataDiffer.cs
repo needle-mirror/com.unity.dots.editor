@@ -103,7 +103,7 @@ namespace Unity.Entities.Editor
                     TypeIndex = m_TypeIndex,
                     Chunks = chunks,
                     ShadowChunksBySequenceNumber = m_ShadowChunks,
-                    GatheredChanges = (ChangesCollector*) m_GatheredChanges.GetUnsafeList()->Ptr
+                    GatheredChanges = (ChangesCollector*)m_GatheredChanges.GetUnsafeList()->Ptr
                 }.Schedule(chunks.Length, 1, chunksJobHandle);
 
                 var allocateNewShadowChunksJobHandle = new AllocateNewShadowChunksJob
@@ -111,7 +111,7 @@ namespace Unity.Entities.Editor
                     TypeIndex = m_TypeIndex,
                     Chunks = chunks,
                     ShadowChunksBySequenceNumber = m_ShadowChunks,
-                    AllocatedShadowChunks = (ShadowChunk*) m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr
+                    AllocatedShadowChunks = (ShadowChunk*)m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr
                 }.Schedule(chunks.Length, 1, chunksJobHandle);
 
                 var copyJobHandle = new CopyStateToShadowChunksJob
@@ -119,7 +119,7 @@ namespace Unity.Entities.Editor
                     TypeIndex = m_TypeIndex,
                     Chunks = chunks,
                     ShadowChunksBySequenceNumber = m_ShadowChunks,
-                    AllocatedShadowChunks = (ShadowChunk*) m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr,
+                    AllocatedShadowChunks = (ShadowChunk*)m_AllocatedShadowChunksForTheFrame.GetUnsafeList()->Ptr,
                     RemovedChunks = m_RemovedShadowChunks
                 }.Schedule(JobHandle.CombineDependencies(changesJobHandle, allocateNewShadowChunksJobHandle));
 

@@ -14,7 +14,7 @@ namespace Unity.Entities.Editor
             Resources.Templates.Inspector.ComponentHeader.Clone(parent);
             var foldout = parent.Q<Foldout>(className: UssClasses.Inspector.Component.Header);
             foldout.text = displayName;
-            foldout.Q<Label>(className:UssClasses.UIToolkit.Toggle.Text).AddToClassList(UssClasses.Inspector.Component.Name);
+            foldout.Q<Label>(className: UssClasses.UIToolkit.Toggle.Text).AddToClassList(UssClasses.Inspector.Component.Name);
 
             var icon = new BindableElement();
             icon.AddToClassList(UssClasses.Inspector.Component.Icon);
@@ -27,7 +27,7 @@ namespace Unity.Entities.Editor
             categoryLabel.AddToClassList(UssClasses.Inspector.Component.Category);
             input.Add(categoryLabel);
             categoryLabel.binding = new BooleanVisibilityPreferenceBinding
-                {Target = categoryLabel, PreferencePath = new PropertyPath(nameof(InspectorSettings.DisplayComponentType))};
+            { Target = categoryLabel, PreferencePath = new PropertyPath(nameof(InspectorSettings.DisplayComponentType)) };
             categoryLabel.binding.Update();
             var menu = new VisualElement();
             menu.AddToClassList(UssClasses.Inspector.Component.Menu);

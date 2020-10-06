@@ -53,6 +53,11 @@ namespace Unity.Entities.Editor
                     RenderSceneNode(m_Item.NodeId.Kind == NodeKind.SubScene);
                     break;
                 }
+                case NodeKind.Custom:
+                {
+                    RenderCustomNode();
+                    break;
+                }
                 case NodeKind.Root:
                 case NodeKind.None:
                 {
@@ -95,7 +100,7 @@ namespace Unity.Entities.Editor
             // TODO: Re-enable once we have connectivity between DOTS Editor Tools
             // m_SystemButton.AddToClassList(UssClasses.EntityHierarchyWindow.Item.VisibleOnHover);
 
-            if (TryGetSourceGameObjectId(m_Item.Strategy.GetUnderlyingEntity(m_Item.NodeId), m_Item.World, out var originatingId))
+            if (TryGetSourceGameObjectId(m_Item.NodeId.ToEntity(), m_Item.World, out var originatingId))
             {
                 m_OriginatingId = originatingId;
                 m_PingGameObject.AddToClassList(UssClasses.EntityHierarchyWindow.Item.VisibleOnHover);
@@ -124,6 +129,12 @@ namespace Unity.Entities.Editor
                 this.AddManipulator(m_ContextMenuManipulator);
                 RegisterCallback<ContextualMenuPopulateEvent>(OnSceneContextMenu);
             }
+        }
+
+        void RenderCustomNode()
+        {
+            // TODO: Eventually, add a generic icon and a style that are overridable
+            m_NameLabel.text = m_Item.CachedName;
         }
 
         void RenderInvalidNode(EntityHierarchyNodeId nodeId)

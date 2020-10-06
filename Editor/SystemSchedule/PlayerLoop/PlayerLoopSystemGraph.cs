@@ -45,6 +45,11 @@ namespace Unity.Entities.Editor
             if (!force && !shouldRun)
                 return;
 
+            foreach (var recorder in Current.RecordersBySystem.Values)
+            {
+                recorder.Update();
+            }
+
             var graph = new PlayerLoopSystemGraph();
             ParsePlayerLoopSystem(PlayerLoop.GetCurrentPlayerLoop(), graph);
             if (!DidChange(Current, graph))

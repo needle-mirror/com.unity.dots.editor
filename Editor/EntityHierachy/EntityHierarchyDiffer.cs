@@ -44,15 +44,15 @@ namespace Unity.Entities.Editor
             m_Cooldown = new Cooldown(TimeSpan.FromMilliseconds(cooldownDurationInMs));
             m_SceneMapper = new SceneMapper();
 
-            foreach (var componentType in hierarchy.Strategy.ComponentsToWatch)
+            foreach (var componentType in hierarchy.GroupingStrategy.ComponentsToWatch)
             {
                 if (!ComponentDataDiffer.CanWatch(componentType) && !SharedComponentDataDiffer.CanWatch(componentType))
-                    throw new NotSupportedException($" The component {componentType} requested by strategy of type {hierarchy.Strategy.GetType()} cannot be watched. No suitable differ available.");
+                    throw new NotSupportedException($" The component {componentType} requested by strategy of type {hierarchy.GroupingStrategy.GetType()} cannot be watched. No suitable differ available.");
             }
 
             m_Hierarchy = hierarchy;
             m_EntityDiffer = new EntityDiffer(hierarchy.World);
-            foreach (var componentToWatch in hierarchy.Strategy.ComponentsToWatch)
+            foreach (var componentToWatch in hierarchy.GroupingStrategy.ComponentsToWatch)
             {
                 var typeInfo = TypeManager.GetTypeInfo(componentToWatch.TypeIndex);
 
@@ -107,18 +107,39 @@ namespace Unity.Entities.Editor
                 var handle = GetDiffSinceLastFrameAsync();
 
                 var sceneManagerDirty = m_SceneMapper.SceneManagerDirty;
-                m_SceneMapper.Update();
-
-                using (k_TryUpdateCompleteJobs.Auto())
+                try
                 {
-                    handle.Complete();
-                }
+                    try
+                    {
+                        m_SceneMapper.Update(); // throws
+                    }
+                    finally
+                    {
+                        using (k_TryUpdateCompleteJobs.Auto())
+                        {
+                            handle.Complete();
+                        }
+                    }
 
-                var strategyStateChanged = ApplyDiffResultsToStrategy();
-                structuralChangeDetected = sceneManagerDirty || strategyStateChanged;
+                    var strategyStateChanged = ApplyDiffResultsToStrategy();
+                    structuralChangeDetected = sceneManagerDirty || strategyStateChanged;
+                }
+                finally
+                {
+                    DisposeDifferResults();
+                }
 
                 return true;
             }
+        }
+
+        void DisposeDifferResults()
+        {
+            foreach (var r in m_ComponentDataDifferResults)
+                r.Dispose();
+
+            foreach (var r in m_SharedComponentDataDifferResults)
+                r.Dispose();
         }
 
         JobHandle GetDiffSinceLastFrameAsync()
@@ -196,7 +217,7 @@ namespace Unity.Entities.Editor
 
             using (k_ApplyDiffResultsToStrategy.Auto())
             {
-                var strategy = m_Hierarchy.Strategy;
+                var strategy = m_Hierarchy.GroupingStrategy;
                 strategy.BeginApply(this);
                 strategy.ApplyEntityChanges(m_NewEntities, m_RemovedEntities, this);
 
@@ -204,14 +225,12 @@ namespace Unity.Entities.Editor
                 {
                     var componentType = m_ComponentDataDiffers[i].WatchedComponentType;
                     strategy.ApplyComponentDataChanges(componentType, m_ComponentDataDifferResults[i], this);
-                    m_ComponentDataDifferResults[i].Dispose();
                 }
 
                 for (var i = 0; i < m_SharedComponentDataDifferResults.Length; i++)
                 {
                     var componentType = m_SharedComponentDataDiffers[i].WatchedComponentType;
                     strategy.ApplySharedComponentDataChanges(componentType, m_SharedComponentDataDifferResults[i], this);
-                    m_SharedComponentDataDifferResults[i].Dispose();
                 }
 
                 var strategyStateChanged = strategy.EndApply(this);

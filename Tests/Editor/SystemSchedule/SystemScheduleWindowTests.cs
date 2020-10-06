@@ -1,10 +1,9 @@
-﻿using System;
+﻿using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using NUnit.Framework;
 using UnityEditor;
-using UnityEngine;
 using UnityEngine.LowLevel;
 
 namespace Unity.Entities.Editor.Tests
@@ -188,20 +187,72 @@ namespace Unity.Entities.Editor.Tests
         }
 
         [Test]
-        public void SystemScheduleWindow_SearchBuilder()
+        public void SystemScheduleWindow_SearchBuilder_ParseSearchString()
         {
-            var searchString = "c: Com1 C:Com2 Sd:System1 randomName";
+            var searchString = "c: Com1 C:Com2 randomName Sd:System1";
             var parseResult = SystemScheduleSearchBuilder.ParseSearchString(searchString);
 
-            Assert.That(parseResult.Input, Is.EqualTo(searchString));
-            Assert.That(parseResult.ComponentNames.ElementAt(0), Is.EqualTo("Com1"));
-            Assert.That(parseResult.ComponentNames.ElementAt(1), Is.EqualTo("Com2"));
-            Assert.That(parseResult.DependencySystemNames.ElementAt(0), Is.EqualTo("System1"));
-            Assert.That(parseResult.SystemNames.ElementAt(0), Is.EqualTo("randomName"));
+            Assert.That(parseResult.Input, Is.EqualTo( "c: Com1 C:Com2 randomName Sd:System1" ));
+            Assert.That(parseResult.ComponentNames, Is.EquivalentTo(new[] { "Com1", "Com2" }));
+            Assert.That(parseResult.DependencySystemNames, Is.EquivalentTo(new[] { "System1" }));
+            Assert.That(parseResult.SystemNames, Is.EquivalentTo(new[] { "randomName" }));
+            Assert.That(parseResult.ErrorComponentType, Is.EqualTo( "Com1" ));
+            Assert.That(parseResult.ErrorSdSystemName, Is.EqualTo( "System1" ));
 
             searchString = "c:   com";
             parseResult = SystemScheduleSearchBuilder.ParseSearchString(searchString);
-            Assert.That(parseResult.ComponentNames.ElementAt(0), Is.EqualTo(string.Empty));
+            Assert.That(parseResult.ComponentNames, Is.EquivalentTo(new[] { string.Empty }));
+        }
+
+        [Test]
+        public void SystemScheduleWindow_SearchBuilder_ParseSearchString_EmptyString()
+        {
+            var searchString = string.Empty;
+            var parseResult = SystemScheduleSearchBuilder.ParseSearchString(searchString);
+
+            Assert.That(parseResult.Input, Is.EqualTo(string.Empty));
+            Assert.That(parseResult.ComponentNames, Is.Empty);
+            Assert.That(parseResult.DependencySystemNames, Is.Empty);
+            Assert.That(parseResult.DependencySystemTypes, Is.Empty);
+            Assert.That(parseResult.SystemNames, Is.Empty);
+            Assert.That(parseResult.ErrorComponentType, Is.EqualTo(string.Empty));
+            Assert.That(parseResult.ErrorSdSystemName, Is.EqualTo(string.Empty));
+        }
+
+        [Test]
+        public void SystemScheduleWindow_SearchBuilder_ParseSearchString_WithErrorComponentType()
+        {
+            var searchString = "c: Com1 C:Com2";
+            var parseResult = SystemScheduleSearchBuilder.ParseSearchString(searchString);
+
+            Assert.That(parseResult.Input, Is.EqualTo("c: Com1 C:Com2"));
+            Assert.That(parseResult.ComponentNames, Is.EquivalentTo(new[] { "Com1", "Com2" }));
+            Assert.That(parseResult.DependencySystemNames, Is.Empty);
+            Assert.That(parseResult.DependencySystemTypes, Is.Empty);
+            Assert.That(parseResult.SystemNames, Is.Empty);
+            Assert.That(parseResult.ErrorComponentType, Is.EqualTo("Com1"));
+            Assert.That(parseResult.ErrorSdSystemName, Is.EqualTo(string.Empty));
+        }
+
+        [Test]
+        public void SystemScheduleWindow_SearchBuilder_ParseSearchString_WithErrorSdSystemName()
+        {
+            m_SystemScheduleWindow.m_SystemTreeView.Refresh(m_World);
+            while (m_SystemScheduleWindow.m_SystemTreeView.m_TreeRootItems.Count == 0)
+            {
+                PlayerLoopSystemGraph.ValidateCurrentGraph();
+            }
+
+            var searchString = "sd:SystemScheduleTestSystem1 sd:system2 randomName";
+            var parseResult = SystemScheduleSearchBuilder.ParseSearchString(searchString);
+
+            Assert.That(parseResult.Input, Is.EqualTo("sd:SystemScheduleTestSystem1 sd:system2 randomName"));
+            Assert.That(parseResult.ComponentNames, Is.Empty);
+            Assert.That(parseResult.DependencySystemNames, Is.EquivalentTo(new[] { "SystemScheduleTestSystem1", "system2" }));
+            Assert.That(parseResult.DependencySystemTypes, Is.EquivalentTo(new[] { typeof(SystemScheduleTestSystem1)}));
+            Assert.That(parseResult.SystemNames, Is.Empty);
+            Assert.That(parseResult.ErrorComponentType, Is.Empty);
+            Assert.That(parseResult.ErrorSdSystemName, Is.EqualTo("system2"));
         }
     }
 

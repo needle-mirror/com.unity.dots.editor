@@ -148,10 +148,13 @@ namespace Unity.Entities.Editor
 
                     var setting = wrapper.Setting;
                     var element = new PropertyElement();
+                    element.style.marginLeft = -3;
                     element.SetAttributeFilter(AttributeFilter);
                     element.SetTarget(setting);
                     element.OnChanged += (propertyElement, path) => setting.OnSettingChanged(path);
                     root.Add(element);
+                    element.RegisterCallback<GeometryChangedEvent>(evt =>
+                        StylingUtility.AlignInspectorLabelWidth(element));
                 }
             }
             root.AddToClassList("unity-inspector-element");

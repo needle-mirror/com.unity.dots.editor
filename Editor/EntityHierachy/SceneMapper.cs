@@ -108,14 +108,14 @@ namespace Unity.Entities.Editor
         public void Update()
         {
             var newSceneCountFingerprint = new Hash128(
-                (uint) SceneManager.sceneCount,
-                (uint) EditorSceneManager.loadedSceneCount,
+                (uint)SceneManager.sceneCount,
+                (uint)EditorSceneManager.loadedSceneCount,
 #if UNITY_2020_1_OR_NEWER
-                (uint) EditorSceneManager.loadedRootSceneCount,
+                (uint)EditorSceneManager.loadedRootSceneCount,
 #else
                 0,
 #endif
-                (uint) EditorSceneManager.previewSceneCount);
+                (uint)EditorSceneManager.previewSceneCount);
 
             if (SceneManagerDirty || m_ScenesCountFingerprint != newSceneCountFingerprint)
             {
@@ -144,25 +144,29 @@ namespace Unity.Entities.Editor
 
                     var sceneHash = new Hash128(AssetDatabase.AssetPathToGUID(scene.path));
 
-                    // scene.GetHashCode returns m_Handle which can be considered a scene instance id.
-                    sceneToHandleMap.Dictionary.Add(sceneHash, scene.GetHashCode());
+                    // A scene handle is equivalent to an instance id for a scene.
+                    sceneToHandleMap.Dictionary.Add(sceneHash, scene.handle);
 
                     using (var rootGameObjects = PooledList<GameObject>.Make())
+                    using (var subSceneComponents = PooledList<SubScene>.Make())
                     {
                         scene.GetRootGameObjects(rootGameObjects);
                         foreach (var go in rootGameObjects.List)
                         {
-                            foreach (var subSceneComponent in go.GetComponentsInChildren<SubScene>())
+                            go.GetComponentsInChildren(subSceneComponents.List);
+                            foreach (var subSceneComponent in subSceneComponents.List)
                             {
                                 if (subSceneComponent.SceneAsset != null)
                                 {
                                     // There could be more than one scene referencing the same subscene, but it is not legal and already throws. Just ignore it here.
                                     if (!m_SubsceneOwnershipMap.ContainsKey(subSceneComponent.SceneGUID))
+                                    {
                                         m_SubsceneOwnershipMap.Add(subSceneComponent.SceneGUID, sceneHash);
-
-                                    subSceneToInstanceIdMap.Dictionary.Add(subSceneComponent.SceneGUID, go.GetInstanceID());
+                                        subSceneToInstanceIdMap.Dictionary.Add(subSceneComponent.SceneGUID, go.GetInstanceID());
+                                    }
                                 }
                             }
+                            subSceneComponents.List.Clear();
                         }
                     }
                 }

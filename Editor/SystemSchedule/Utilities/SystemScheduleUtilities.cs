@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 
 namespace Unity.Entities.Editor
 {
@@ -12,7 +11,7 @@ namespace Unity.Entities.Editor
         /// <param name="systemType">The given <see cref="ComponentSystemBase"/>.</param>
         /// </summary>
         public static IEnumerable<Type> GetSystemAttributes<TAttribute>(Type systemType)
-            where TAttribute: System.Attribute
+            where TAttribute : System.Attribute
         {
             var attrArray = TypeManager.GetSystemAttributes(systemType, typeof(TAttribute)).OfType<TAttribute>();
             foreach (var attr in attrArray)

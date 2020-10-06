@@ -1,6 +1,6 @@
+using NUnit.Framework;
 using System.Linq;
 using System.Numerics;
-using NUnit.Framework;
 using Unity.Serialization.Json;
 using UnityEditor;
 using UnityEngine.UIElements;

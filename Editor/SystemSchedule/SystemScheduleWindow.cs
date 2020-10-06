@@ -1,8 +1,8 @@
+using Unity.Serialization.Editor;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
-using Unity.Serialization.Editor;
 
 namespace Unity.Entities.Editor
 {
@@ -13,11 +13,10 @@ namespace Unity.Entities.Editor
         static readonly Vector2 k_MinWindowSize = new Vector2(200, 200);
 
         VisualElement m_Root;
-        VisualElement m_NoWorld;
+        CenteredMessageElement m_NoWorld;
         internal SystemScheduleTreeView m_SystemTreeView;
         VisualElement m_WorldSelector;
         VisualElement m_EmptySelectorWhenShowingFullPlayerLoop;
-        int m_LastTimedFrame;
 
         /// <summary>
         /// Helper container to store session state data.
@@ -53,7 +52,7 @@ namespace Unity.Entities.Editor
             m_Root = new VisualElement { style = { flexGrow = 1 } };
             rootVisualElement.Add(m_Root);
 
-            m_NoWorld = CreateNoWorldMessage();
+            m_NoWorld = new CenteredMessageElement() { Message = NoWorldMessageContent };
             rootVisualElement.Add(m_NoWorld);
             m_NoWorld.Hide();
 
@@ -70,6 +69,9 @@ namespace Unity.Entities.Editor
 
             if (World.All.Count > 0)
                 BuildAll();
+
+            if (!string.IsNullOrEmpty(SearchFilter))
+                OnFilterChanged(SearchFilter);
 
             PlayerLoopSystemGraph.OnGraphChanged += BuildAll;
             SystemDetailsVisualElement.OnAddFilter += OnAddFilter;
@@ -161,7 +163,7 @@ namespace Unity.Entities.Editor
         {
             m_SystemTreeView = new SystemScheduleTreeView(EditorWindowInstanceKey)
             {
-                style = { flexGrow = 1},
+                style = { flexGrow = 1 },
                 SearchFilter = SystemScheduleSearchBuilder.ParseSearchString(SearchFilter)
             };
             root.Add(m_SystemTreeView);
@@ -172,20 +174,7 @@ namespace Unity.Entities.Editor
             m_SystemTreeView.Refresh(m_State.ShowFullPlayerLoop ? null : SelectedWorld);
         }
 
-        protected override void OnUpdate()
-        {
-            if (Time.frameCount == m_LastTimedFrame)
-                return;
-
-            var data = PlayerLoopSystemGraph.Current;
-            foreach (var recorder in data.RecordersBySystem.Values)
-            {
-                recorder.Update();
-            }
-
-            m_LastTimedFrame = Time.frameCount;
-        }
-
+        protected override void OnUpdate() { }
 
         protected override void OnWorldSelected(World world)
         {

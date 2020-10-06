@@ -1,6 +1,5 @@
 using NUnit.Framework;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 
 namespace Unity.Entities.Editor.Tests
 {

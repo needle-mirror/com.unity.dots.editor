@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using UnityEngine.UIElements;
 
-namespace Unity.Entities.Editor.tests
+namespace Unity.Entities.Editor.Tests
 {
     [TestFixture]
     class EntityFieldTests
@@ -55,7 +55,7 @@ namespace Unity.Entities.Editor.tests
         [Test]
         public void EntityField_WithInvalidEntity_ShowInvalidEntity()
         {
-            var invalidEntity = new Entity {Index = 234, Version = 123};
+            var invalidEntity = new Entity { Index = 234, Version = 123 };
             m_Field.value = invalidEntity;
             Assert.That(m_EntityLabel.text, Is.EqualTo($"Entity {{{invalidEntity.Index}:{invalidEntity.Version}}}"));
             m_Field.World = m_World;

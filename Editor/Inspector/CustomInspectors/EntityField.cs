@@ -8,8 +8,33 @@ namespace Unity.Entities.Editor.Inspectors
     /// <summary>
     ///   <para>Provides an Element displaying an <see cref="Entity"/>.</para>
     /// </summary>
-    class EntityField : BaseField<Entity>, IBinding
+    class EntityField : BaseField<Entity>
     {
+        class EntityBinding : IBinding
+        {
+            readonly EntityField m_Field;
+
+            public EntityBinding(EntityField field)
+            {
+                m_Field = field;
+            }
+
+            void IBinding.PreUpdate()
+            {
+                // Nothing to do.
+            }
+
+            void IBinding.Update()
+            {
+                m_Field.SetEntityName();
+            }
+
+            void IBinding.Release()
+            {
+                // Nothing to do.
+            }
+        }
+
         readonly VisualElement m_InputRoot;
         readonly Label m_EntityName;
 
@@ -52,8 +77,8 @@ namespace Unity.Entities.Editor.Inspectors
             Resources.Templates.Inspector.InspectorStyle.AddStyles(this);
             Resources.Templates.Inspector.EntityField.Clone(m_InputRoot);
             m_EntityName = m_InputRoot.Q<Label>(className: "unity-entity-field__name");
+            m_EntityName.binding = new EntityBinding(this);
             m_InputRoot.RegisterCallback<ClickEvent, Func<World>>(OnClicked, GetWorld);
-            binding = this;
         }
 
         /// <inheritdoc/>
@@ -123,21 +148,6 @@ namespace Unity.Entities.Editor.Inspectors
             var proxy = ScriptableObject.CreateInstance<EntitySelectionProxy>();
             proxy.SetEntity(world, value);
             Selection.activeObject = proxy;
-        }
-
-        void IBinding.PreUpdate()
-        {
-            // Nothing to do.
-        }
-
-        void IBinding.Update()
-        {
-            SetEntityName();
-        }
-
-        void IBinding.Release()
-        {
-            // Nothing to do.
         }
     }
 }

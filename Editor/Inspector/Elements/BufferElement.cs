@@ -11,7 +11,7 @@ namespace Unity.Entities.Editor
     {
         readonly PropertyElement m_Content;
 
-        public BufferElement(IComponentProperty property, EntityInspectorContext context, ref InspectedBuffer<TList, TElement> value) :base(property, context)
+        public BufferElement(IComponentProperty property, EntityInspectorContext context, ref InspectedBuffer<TList, TElement> value) : base(property, context)
         {
             m_Content = CreateContent(property, ref value);
         }

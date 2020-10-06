@@ -1,4 +1,5 @@
 using System;
+using Unity.Collections;
 
 namespace Unity.Entities.Editor
 {
@@ -20,17 +21,36 @@ namespace Unity.Entities.Editor
         public static EntityHierarchyNodeId FromSubScene(int subsSceneId)
             => new EntityHierarchyNodeId(NodeKind.SubScene, subsSceneId, 0);
 
+        public static EntityHierarchyNodeId FromName(FixedString64 name)
+            => new EntityHierarchyNodeId(NodeKind.Custom, name.GetHashCode(), 0);
+
         public static readonly EntityHierarchyNodeId Root = new EntityHierarchyNodeId(NodeKind.Root, 0, 0);
 
-        public bool Equals(EntityHierarchyNodeId other)
+        public Entity ToEntity()
         {
-            return Kind == other.Kind && Id == other.Id && Version == other.Version;
+            if (Kind != NodeKind.Entity)
+                throw new InvalidOperationException($"Cannot convert node of kind {Kind} to {nameof(Entity)}");
+
+            return new Entity {Index = Id, Version = Version};
         }
 
-        public override bool Equals(object obj)
+        public bool TryConvertToEntity(out Entity entity)
         {
-            return obj is EntityHierarchyNodeId other && Equals(other);
+            if (Kind != NodeKind.Entity)
+            {
+                entity = Entity.Null;
+                return false;
+            }
+
+            entity = new Entity {Index = Id, Version = Version};
+            return true;
         }
+
+        public bool Equals(EntityHierarchyNodeId other)
+            => Kind == other.Kind && Id == other.Id && Version == other.Version;
+
+        public override bool Equals(object obj)
+            => obj is EntityHierarchyNodeId other && Equals(other);
 
         public int CompareTo(EntityHierarchyNodeId other)
         {
@@ -68,5 +88,6 @@ namespace Unity.Entities.Editor
         Entity = 2,
         Scene = 3,
         SubScene = 4,
+        Custom = byte.MaxValue
     }
 }

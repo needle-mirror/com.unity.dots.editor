@@ -1,8 +1,0 @@
-<UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
-    <ui:VisualElement class="entity-hierarchy-search-empty-message__container">
-        <ui:VisualElement class="entity-hierarchy-search-empty-message__content">
-            <ui:Label text="Search error" class="entity-hierarchy-search-empty-message__title"/>
-            <ui:Label class="entity-hierarchy-search-empty-message__message"/>
-        </ui:VisualElement>
-    </ui:VisualElement>
-</UXML>

@@ -8,7 +8,7 @@ namespace Unity.Entities.Editor
         List<EntityHierarchyItem> m_CachedItems = new List<EntityHierarchyItem>(1024);
         IEnumerable<EntityHierarchyItem> m_RootItems;
 
-        public bool IsDirty { get; private set;  }
+        public bool IsDirty { get; private set; }
 
         public void Dispose()
         {

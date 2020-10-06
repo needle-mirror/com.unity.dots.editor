@@ -42,7 +42,7 @@ namespace Unity.Entities.Editor.Inspectors
         static QuaternionInspector()
         {
             TypeConversion.Register<quaternion, Vector4>(v => v.value);
-            TypeConversion.Register<Vector4, quaternion>(v => new quaternion {value = v});
+            TypeConversion.Register<Vector4, quaternion>(v => new quaternion { value = v });
         }
     }
 }
