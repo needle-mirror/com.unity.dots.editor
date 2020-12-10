@@ -56,7 +56,7 @@ namespace Unity.Entities.Editor
                 if (input.Length - pos > 0)
                     m_UnmatchedInputBuilder.Append(input.Substring(pos));
 
-                return Result.Valid(new EntityQueryDesc { Any = componentTypes.Set.ToArray() }, m_UnmatchedInputBuilder.ToString());
+                return Result.Valid(new EntityQueryDesc { Any = componentTypes.Set.ToArray(), Options = EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabled }, m_UnmatchedInputBuilder.ToString());
             }
         }
 

@@ -1,6 +1,4 @@
 using System;
-using UnityEditor;
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor.Inspectors
@@ -136,7 +134,9 @@ namespace Unity.Entities.Editor.Inspectors
             }
 
             var entityName = entityManager.GetName(entity);
-            return $"{entityName} {{{entity.Index}:{entity.Version}}}";
+            return string.IsNullOrEmpty(entityName)
+                ? $"Entity {{{entity.Index}:{entity.Version}}}"
+                : $"{entityName} {{{entity.Index}:{entity.Version}}}";
         }
 
         void OnClicked(ClickEvent evt, Func<World> worldFunc)
@@ -145,9 +145,7 @@ namespace Unity.Entities.Editor.Inspectors
             if (null == world || evt.clickCount <= 1)
                 return;
 
-            var proxy = ScriptableObject.CreateInstance<EntitySelectionProxy>();
-            proxy.SetEntity(world, value);
-            Selection.activeObject = proxy;
+            EntitySelectionProxy.SelectEntity(world, value);
         }
     }
 }

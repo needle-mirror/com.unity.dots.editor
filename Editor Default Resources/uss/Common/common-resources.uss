@@ -14,6 +14,7 @@
     --writeonly-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/Write Only/Write Only.png");
     --scripts-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/Scripts/Scripts.png");
     --system-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/System/System.png");
+    --unmanaged-system-icon--selected: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/selected/UnmanagedSystem/UnmanagedSystem.png");
 }
 
 .entity-hierarchy__resources

@@ -18,7 +18,8 @@
         "GUID:8a2eafa29b15f444eb6d74f94a930e1d",
         "GUID:ce7eee763f6e12b47a5ca268e565edb8",
         "GUID:e78ca1c4f9cf59b4c988dfe82dea3e7f",
-        "GUID:a5baed0c9693541a5bd947d336ec7659"
+        "GUID:a5baed0c9693541a5bd947d336ec7659",
+        "GUID:388060bf34f9a6a40bafbac77240e259"
     ],
     "includePlatforms": [
         "Editor"
@@ -29,6 +30,12 @@
     "precompiledReferences": [],
     "autoReferenced": false,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.quicksearch",
+            "expression": "2.1.0-preview.4",
+            "define": "QUICKSEARCH_AVAILABLE"
+        }
+    ],
     "noEngineReferences": false
 }

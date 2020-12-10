@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.12.0] - 2020-12-10
+### Changed
+* Updated package `com.unity.entities` to `0.17.0-preview.39`
+* Updated package `com.unity.properties` to `1.6.0-preview`
+* Updated package `com.unity.properties.ui` to `1.6.1-preview`
+* Updated package `com.unity.serialization` to `1.6.1-preview`
+* Updated package `com.unity.burst` to `1.4.1`
+* Updated package `com.unity.jobs` to `0.8.0-preview.23`
+* Minimum Unity version required is now `2020.1.9f1`
+* Systems Window: Query with no component will now show "All Entities" instead of an empty row
+* Systems Window: Will now show full name for nested systems
+
+### Fixed
+* Entities Window: Selecting entities now respects the locked state of the inspector
+* Entities Window: Selecting entities is now fully undoable
+* Entities Window: Fixed performance issue forcing the UI to refresh when no actual change needed to be rendered
+* Entities Window: Included Disabled and Prefab entities in results when filtering by component types
+* Entities Window: Fixed an issue with items incorrectly shown as selected
+* Entities Window: Fixed losing selected entity when using the window scrollbar
+* Entities Window: Fixed scrolling issue when switching from the search view to the tree view
+* Systems Window: Fixed an issue with expanded tree view state not maintained when entering play mode
+* Fixed memory leaks in Entities and Systems windows
+* Entity Inspector: Fixed an issue preventing navigation through items when inspecting dynamic buffers.
+* Entity Inspector: Fixed entities not displaying any names before `EntityManager.SetName(...)` is called
+* Conversion Preview: Fixed a memory leak
+
+### Added
+* Systems Window: Added support for unmanaged systems
+* Systems Window: Added autocompletion for component type when filtering systems with `c:...`
+* Systems Window: Will now show search results in a flat list instead of hierarchy style
+
 ## [0.11.0] - 2020-10-06
 ### Added
 * Added a new backend for inspecting an `Entity`. It is used by default when installing the `com.unity.dots.editor` package, but it can be turned on and off through the `DOTS Editor` preferences menu.
@@ -8,12 +39,11 @@
 ### Changed
 * Systems window: Now shows a message when no system match the requested search
 * Systems Window: Now shows an error message when failing to resolve a component type name when typing `c:mycomponent`
-* Updated package `com.unity.entities` to `0.16.0-preview.21`
-* Updated package `com.unity.jobs` to `0.7.0-preview.17`
+* Updated package `com.unity.entities` to `0.16.0-preview.18`
+* Updated package `com.unity.jobs` to `0.7.0-preview.15`
 * Updated package `com.unity.properties` to `1.5.0-preview`
 * Updated package `com.unity.properties.ui` to `1.5.0-preview`
 * Updated package `com.unity.serialization` to `1.5.0-preview`
-* Updated package `com.unity.burst` to `1.3.7`
 
 ### Fixed
 * Entities Window: Fixed an issue where the search filter would not be applied after changing the selected world
@@ -23,7 +53,7 @@
 * Systems Window: Fixed an issue where the details section contents keep changing while searching
 * Systems Window: Fixed an issue where searching returns the wrong results
 * Systems Window: Fixed an issue where the details section can sometimes hide the selected system
-* Systems Window: Fixed an issue where deselecting a component would remove the substring from the entire search string 
+* Systems Window: Fixed an issue where deselecting a component would remove the substring from the entire search string
 
 ## [0.10.0] - 2020-08-14
 ### Changed

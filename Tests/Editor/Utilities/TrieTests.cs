@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -110,7 +110,7 @@ namespace Unity.Entities.Editor.Tests
                 }
             }
 
-            var step = allTypes.Count / 10;
+            var step = allTypes.Count / 5;
             for (var length = step; length < allTypes.Count; length += step)
             {
                 Measure.Method(() =>
@@ -118,8 +118,8 @@ namespace Unity.Entities.Editor.Tests
                     var t = new Trie(allTypes.Take(length));
                 })
                 .SampleGroup($"Indexing {length} / {allTypes.Count}")
-                .WarmupCount(5)
-                .MeasurementCount(50)
+                .WarmupCount(1)
+                .MeasurementCount(5)
                 .Run();
             }
         }

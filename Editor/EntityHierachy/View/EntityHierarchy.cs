@@ -1,44 +1,45 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Unity.Collections;
 using Unity.Editor.Bridge;
+using Unity.Properties.UI;
 using UnityEditor;
-using UnityEngine;
 using UnityEngine.UIElements;
+using ListView = Unity.Editor.Bridge.ListView;
 using UnityObject = UnityEngine.Object;
 
 namespace Unity.Entities.Editor
 {
     class EntityHierarchy : VisualElement, IDisposable
     {
-        enum ViewMode { Uninitialized, Full, Search }
+        enum ViewMode { Uninitialized, Full, Search, Message }
 
-        static readonly string k_ComponentTypeNotFoundTitle = L10n.Tr("Type not found");
-        static readonly string k_ComponentTypeNotFoundContent = L10n.Tr("\"{0}\" is not a component type");
-        static readonly string k_NoEntitiesFoundTitle = L10n.Tr("No entity matches your search");
-        static readonly Regex k_ExtractionPattern = new Regex(@"\""(.+)\""|(\S+)", RegexOptions.Compiled | RegexOptions.Singleline);
+        internal static readonly string ComponentTypeNotFoundTitle = L10n.Tr("Type not found");
+        internal static readonly string ComponentTypeNotFoundContent = L10n.Tr("\"{0}\" is not a component type");
+        internal static readonly string NoEntitiesFoundTitle = L10n.Tr("No entity matches your search");
+
+        readonly int[] m_CachedSingleSelectionBuffer = new int[1];
 
         readonly List<ITreeViewItem> m_TreeViewRootItems = new List<ITreeViewItem>(128);
         readonly List<int> m_TreeViewItemsToExpand = new List<int>(128);
         readonly List<EntityHierarchyItem> m_ListViewFilteredItems = new List<EntityHierarchyItem>(1024);
-        readonly List<string> m_Filters = new List<string>(8);
         readonly EntityHierarchyFoldingState m_EntityHierarchyFoldingState;
         readonly VisualElement m_ViewContainer;
         readonly TreeView m_TreeView;
         readonly ListView m_ListView;
+        readonly HierarchyItemsCache m_ItemsCache;
         readonly CenteredMessageElement m_SearchEmptyMessage;
-        readonly IHierarchySearcher m_Searcher;
-        readonly EntitySelectionProxy m_SelectionProxy;
 
-        ViewMode m_ViewMode = ViewMode.Uninitialized;
+        ViewMode m_CurrentViewMode;
         IEntityHierarchy m_Hierarchy;
         EntityHierarchyQueryBuilder.Result m_QueryBuilderResult;
-        string m_Filter;
         bool m_SearcherCacheNeedsRebuild = true;
         bool m_StructureChanged;
         uint m_RootVersion;
+        bool m_QueryChanged;
+        ISearchQuery<EntityHierarchyItem> m_CurrentQuery;
+        EntityHierarchyNodeId m_SelectedItem;
 
         public EntityHierarchy(EntityHierarchyFoldingState entityHierarchyFoldingState)
         {
@@ -47,130 +48,64 @@ namespace Unity.Entities.Editor
             style.flexGrow = 1.0f;
             m_ViewContainer = new VisualElement();
             m_ViewContainer.style.flexGrow = 1.0f;
-            m_TreeView = new TreeView(m_TreeViewRootItems, Constants.ListView.ItemHeight, OnMakeItem, OnBindItem)
-            {
-                selectionType = SelectionType.Single,
-                name = Constants.EntityHierarchy.FullViewName
-            };
-            m_TreeView.style.flexGrow = 1.0f;
-            m_TreeView.onSelectionChange += OnSelectionChanged;
-            m_TreeView.Q<ListView>().RegisterCallback<PointerDownEvent>(evt =>
+            m_ViewContainer.RegisterCallback<PointerDownEvent>(evt =>
             {
                 if (evt.button == (int)MouseButton.LeftMouse)
                     Selection.activeObject = null;
             });
+            m_TreeView = new TreeView(m_TreeViewRootItems, Constants.ListView.ItemHeight, MakeTreeViewItem, ReleaseTreeViewItem, BindTreeViewItem)
+            {
+                selectionType = SelectionType.Single,
+                name = Constants.EntityHierarchy.FullViewName,
+                style = { flexGrow = 1 },
+            };
+            m_TreeView.onSelectionChange += OnLocalSelectionChanged;
             m_TreeView.ItemExpandedStateChanging += (item, isExpanding) =>
             {
                 var entityHierarchyItem = (EntityHierarchyItem)item;
                 if (entityHierarchyItem.NodeId.Kind == NodeKind.Scene || entityHierarchyItem.NodeId.Kind == NodeKind.SubScene)
                     m_EntityHierarchyFoldingState.OnFoldingStateChanged(entityHierarchyItem.NodeId, isExpanding);
             };
+            m_TreeView.Hide();
+            m_ViewContainer.Add(m_TreeView);
 
-            m_ListView = new ListView(m_ListViewFilteredItems, Constants.ListView.ItemHeight, OnMakeItem, OnBindListItem)
+            m_ListView = new ListView(m_ListViewFilteredItems, Constants.ListView.ItemHeight, MakeListViewItem, ReleaseListViewItem, BindListViewItem)
             {
                 selectionType = SelectionType.Single,
-                name = Constants.EntityHierarchy.SearchViewName
+                name = Constants.EntityHierarchy.SearchViewName,
+                style = { flexGrow = 1 }
             };
-            m_ListView.RegisterCallback<PointerDownEvent>(evt =>
-            {
-                if (evt.button == (int)MouseButton.LeftMouse)
-                    Selection.activeObject = null;
-            });
 
-            m_ListView.style.flexGrow = 1.0f;
+            m_ListView.Hide();
+            m_ViewContainer.Add(m_ListView);
 
             m_SearchEmptyMessage = new CenteredMessageElement();
             m_SearchEmptyMessage.Hide();
             Add(m_SearchEmptyMessage);
 
 #if UNITY_2020_1_OR_NEWER
-            m_ListView.onSelectionChange += OnSelectionChanged;
+            m_ListView.onSelectionChange += OnLocalSelectionChanged;
 #else
             m_ListView.onSelectionChanged += OnSelectionChanged;
 #endif
 
-            m_SelectionProxy = ScriptableObject.CreateInstance<EntitySelectionProxy>();
-            m_SelectionProxy.hideFlags = HideFlags.HideAndDontSave;
-            m_SelectionProxy.EntityControlSelectButton += OnSelectionChangedByInspector;
+            m_ItemsCache = new HierarchyItemsCache();
 
-            m_Searcher = new DefaultHierarchySearcher();
-
-            SwitchViewMode(ViewMode.Full);
+            m_CurrentViewMode = ViewMode.Full;
 
             Add(m_ViewContainer);
-            Selection.selectionChanged += GlobalSelectionChanged;
-        }
-
-        VisualElement CurrentView
-        {
-            get
-            {
-                switch (m_ViewMode)
-                {
-                    case ViewMode.Full:
-                        return m_TreeView;
-                    case ViewMode.Search:
-                        return m_ListView;
-                    default:
-                        return null;
-                }
-            }
-        }
-
-        void GlobalSelectionChanged()
-        {
-            if (Selection.activeObject == m_SelectionProxy || ProxiesTargetSameEntity(Selection.activeObject as EntitySelectionProxy, m_SelectionProxy))
-                return;
-
-            m_ListView.ClearSelection();
-            m_TreeView.ClearSelection();
-        }
-
-        static bool ProxiesTargetSameEntity(EntitySelectionProxy proxyA, EntitySelectionProxy proxyB)
-        {
-            return proxyA != null
-                && proxyB != null
-                && proxyA.World != null && proxyA.World.IsCreated
-                && proxyB.World != null && proxyB.World.IsCreated
-                && proxyA.World == proxyB.World
-                && proxyA.Entity == proxyB.Entity;
+            Selection.selectionChanged += OnGlobalSelectionChanged;
         }
 
         public void Dispose()
         {
-            if (m_SelectionProxy != null)
-                UnityObject.DestroyImmediate(m_SelectionProxy);
-
-            m_Searcher.Dispose();
-
             // ReSharper disable once DelegateSubtraction
-            Selection.selectionChanged -= GlobalSelectionChanged;
+            Selection.selectionChanged -= OnGlobalSelectionChanged;
+
+            Clear();
         }
 
-        public void Select(int id)
-        {
-            switch (m_ViewMode)
-            {
-                case ViewMode.Full:
-                {
-                    m_TreeView.Select(id);
-                    break;
-                }
-                case ViewMode.Search:
-                {
-                    var index = m_ListViewFilteredItems.FindIndex(item => item.NodeId.GetHashCode() == id);
-                    if (index != -1)
-                    {
-                        m_ListView.ScrollToItem(index);
-                        m_ListView.selectedIndex = index;
-                    }
-
-                    break;
-                }
-            }
-        }
-
-        public void SetFilter(EntityHierarchyQueryBuilder.Result queryBuilderResult)
+        public void SetFilter(ISearchQuery<EntityHierarchyItem> searchQuery, EntityHierarchyQueryBuilder.Result queryBuilderResult)
         {
             m_QueryBuilderResult = queryBuilderResult;
             m_SearchEmptyMessage.ToggleVisibility(!queryBuilderResult.IsValid);
@@ -178,31 +113,17 @@ namespace Unity.Entities.Editor
 
             if (!queryBuilderResult.IsValid)
             {
-                m_SearchEmptyMessage.Title = k_ComponentTypeNotFoundTitle;
-                m_SearchEmptyMessage.Message = string.Format(k_ComponentTypeNotFoundContent, queryBuilderResult.ErrorComponentType);
+                m_SearchEmptyMessage.Title = ComponentTypeNotFoundTitle;
+                m_SearchEmptyMessage.Message = string.Format(ComponentTypeNotFoundContent, queryBuilderResult.ErrorComponentType);
+                m_CurrentViewMode = ViewMode.Message;
                 return;
             }
 
-            var filter = string.IsNullOrWhiteSpace(queryBuilderResult.Filter) || string.IsNullOrEmpty(queryBuilderResult.Filter)
-                ? null // Ensures that white space or string.Empty are not considered different than the default value for m_Filter
-                : queryBuilderResult.Filter.ToLowerInvariant();
+            m_CurrentQuery = searchQuery;
+            m_QueryChanged = true;
+            var showFilterView = queryBuilderResult.QueryDesc != null || m_CurrentQuery != null && !string.IsNullOrWhiteSpace(m_CurrentQuery.SearchString) && m_CurrentQuery.Tokens.Count != 0;
 
-            m_Filter = filter;
-            UpdateSearchFilters();
-            var showFilterView = queryBuilderResult.QueryDesc != null || m_Filters.Count != 0;
-            if (showFilterView && m_ViewMode != ViewMode.Search)
-            {
-                SwitchViewMode(ViewMode.Search);
-                return;
-            }
-
-            if (!showFilterView && m_ViewMode == ViewMode.Search)
-            {
-                SwitchViewMode(ViewMode.Full);
-                return;
-            }
-
-            RefreshView();
+            m_CurrentViewMode = showFilterView ? ViewMode.Search : ViewMode.Full;
         }
 
         public void Refresh(IEntityHierarchy entityHierarchy)
@@ -217,7 +138,7 @@ namespace Unity.Entities.Editor
 
         public new void Clear()
         {
-            m_TreeViewRootItems.Clear();
+            ClearTreeViewRootItems();
             m_ListViewFilteredItems.Clear();
             m_ListView.Refresh();
             m_TreeView.Refresh();
@@ -237,25 +158,38 @@ namespace Unity.Entities.Editor
                 return;
 
             var rootVersion = m_Hierarchy.State.GetNodeVersion(EntityHierarchyNodeId.Root);
-            if (!m_StructureChanged && rootVersion == m_RootVersion)
-                return;
+            if (m_StructureChanged || rootVersion != m_RootVersion)
+            {
+                m_QueryChanged = false;
+                m_StructureChanged = false;
+                m_RootVersion = rootVersion;
 
-            m_StructureChanged = false;
-            m_RootVersion = rootVersion;
+                RecreateRootItems();
+                RecreateItemsToExpand();
+                RefreshView();
+            }
+            else if (m_QueryChanged)
+            {
+                m_QueryChanged = false;
+                RefreshView();
+            }
+        }
 
-            RecreateRootItems();
-            RecreateItemsToExpand();
-            RefreshView();
+        void ClearTreeViewRootItems()
+        {
+            foreach (var child in m_TreeViewRootItems)
+                ((EntityHierarchyItem)child).Release();
+
+            m_TreeViewRootItems.Clear();
         }
 
         void RecreateRootItems()
         {
-            foreach (var child in m_TreeViewRootItems)
-                ((IPoolable)child).ReturnToPool();
+            ClearTreeViewRootItems();
 
-            m_TreeViewRootItems.Clear();
-
-            EntityHierarchyPool.ReturnAllVisualElements(this);
+            // We need to refresh the treeview since we changed its source collection
+            // otherwise it could keep references to pooled objects that have been reset.
+            m_TreeView.Refresh();
 
             if (m_Hierarchy?.GroupingStrategy == null)
                 return;
@@ -263,7 +197,7 @@ namespace Unity.Entities.Editor
             using (var rootNodes = m_Hierarchy.State.GetChildren(EntityHierarchyNodeId.Root, Allocator.TempJob))
             {
                 foreach (var node in rootNodes)
-                    m_TreeViewRootItems.Add(EntityHierarchyPool.GetTreeViewItem(null, node, m_Hierarchy));
+                    m_TreeViewRootItems.Add(EntityHierarchyItem.Acquire(null, node, m_Hierarchy));
             }
         }
 
@@ -291,163 +225,174 @@ namespace Unity.Entities.Editor
             }
         }
 
-        void SwitchViewMode(ViewMode viewMode)
-        {
-            if (m_ViewMode == viewMode)
-                return;
-
-            var previousSelection = default(EntityHierarchyItem);
-
-            if (CurrentView != null)
-                m_ViewContainer.Remove(CurrentView);
-
-            switch (viewMode)
-            {
-                case ViewMode.Full:
-                {
-                    if (m_ListView.selectedItem is EntityHierarchyItem item)
-                        previousSelection = item;
-
-                    m_TreeView.ClearSelection();
-                    m_ViewContainer.Add(m_TreeView);
-                    break;
-                }
-                case ViewMode.Search:
-                {
-                    if (m_TreeView.selectedItem is EntityHierarchyItem item)
-                        previousSelection = item;
-
-                    m_ListView.ClearSelection();
-                    m_ViewContainer.Add(m_ListView);
-                    break;
-                }
-                default:
-                    throw new ArgumentException($"Cannot switch view mode to: {viewMode}");
-            }
-
-            m_ViewMode = viewMode;
-
-            RefreshView();
-
-            if (previousSelection != default)
-                Select(previousSelection.id);
-        }
-
         void RefreshView()
         {
-            switch (m_ViewMode)
+            // This is split in two because RefreshSearchView
+            // can change the current view mode if no result is found.
+            // We need to refresh the data before deciding what to show
+            if (m_CurrentViewMode == ViewMode.Full)
+            {
+                m_TreeView.PrepareItemsToExpand(m_TreeViewItemsToExpand);
+                m_TreeView.Refresh();
+            }
+            else if (m_CurrentViewMode == ViewMode.Search)
+                RefreshSearchView();
+
+            switch (m_CurrentViewMode)
+            {
+                case ViewMode.Full:
+                    TrySelect(m_SelectedItem);
+
+                    m_SearchEmptyMessage.Hide();
+                    m_ListView.Hide();
+                    m_TreeView.Show();
+                    m_ViewContainer.Show();
+                    break;
+                case ViewMode.Search:
+                    TrySelect(m_SelectedItem);
+
+                    m_SearchEmptyMessage.Hide();
+                    m_TreeView.Hide();
+                    m_ListView.Show();
+                    m_ViewContainer.Show();
+                    break;
+                case ViewMode.Message:
+                    m_SearchEmptyMessage.Show();
+                    m_TreeView.Hide();
+                    m_ListView.Hide();
+                    m_ViewContainer.Hide();
+                    break;
+            }
+        }
+
+        bool TrySelect(EntityHierarchyNodeId id)
+        {
+            if (id == default || !m_Hierarchy.State.Exists(id))
+            {
+                if (m_SelectedItem != default)
+                    Deselect();
+
+                return false;
+            }
+
+            Select(id);
+            return true;
+        }
+
+        void Select(EntityHierarchyNodeId id)
+        {
+            m_SelectedItem = id;
+            switch (m_CurrentViewMode)
             {
                 case ViewMode.Full:
                 {
-                    m_TreeView.PrepareItemsToExpand(m_TreeViewItemsToExpand);
-                    m_TreeView.Refresh();
+                    m_TreeView.Select(id.GetHashCode(), false);
                     break;
                 }
                 case ViewMode.Search:
                 {
-                    RefreshSearchView();
+                    var index = m_ListViewFilteredItems.FindIndex(item => item.NodeId == id);
+                    if (index != -1)
+                    {
+                        m_ListView.ScrollToItem(index);
+                        m_CachedSingleSelectionBuffer[0] = index;
+                        m_ListView.SetSelectionWithoutNotify(m_CachedSingleSelectionBuffer);
+                    }
+
                     break;
                 }
             }
+        }
+
+        void Deselect()
+        {
+            m_SelectedItem = default;
+            m_TreeView.ClearSelection();
+            m_ListView.ClearSelection();
         }
 
         void RefreshSearchView()
         {
             if (m_SearcherCacheNeedsRebuild)
             {
-                m_Searcher.UpdateRoots(m_TreeViewRootItems.OfType<EntityHierarchyItem>());
-                if (m_Searcher.IsDirty)
-                    m_Searcher.Rebuild();
-
+                m_ItemsCache.Rebuild(m_TreeViewRootItems.OfType<EntityHierarchyItem>());
                 m_SearcherCacheNeedsRebuild = false;
             }
 
             m_ListViewFilteredItems.Clear();
-            m_Searcher.Search(m_Filters, m_ListViewFilteredItems);
+            var filteredData = m_CurrentQuery?.Apply(m_ItemsCache.Items) ?? m_ItemsCache.Items;
+            EntityHierarchyItem lastSubsceneItem = null;
+            foreach (var item in filteredData)
+            {
+                if (item.NodeId.Kind != NodeKind.Entity)
+                    continue;
+
+                if (item.parent != null && IsParentedBySubScene(item, out var closestSubScene) && closestSubScene != lastSubsceneItem)
+                {
+                    lastSubsceneItem = closestSubScene;
+                    m_ListViewFilteredItems.Add(lastSubsceneItem);
+                }
+
+                m_ListViewFilteredItems.Add(item);
+            }
 
             if (m_ListViewFilteredItems.Count == 0 && m_QueryBuilderResult.IsValid)
             {
-                m_SearchEmptyMessage.Title = k_NoEntitiesFoundTitle;
+                m_SearchEmptyMessage.Title = NoEntitiesFoundTitle;
                 m_SearchEmptyMessage.Message = string.Empty;
+                m_CurrentViewMode = ViewMode.Message;
             }
-
-            if (!m_QueryBuilderResult.IsValid)
-            {
-                m_SearchEmptyMessage.Title = k_ComponentTypeNotFoundTitle;
-                m_SearchEmptyMessage.Message = string.Format(k_ComponentTypeNotFoundContent, m_QueryBuilderResult.ErrorComponentType);
-            }
-
-            m_ViewContainer.ToggleVisibility(m_ListViewFilteredItems.Count > 0 && m_QueryBuilderResult.IsValid);
-            m_SearchEmptyMessage.ToggleVisibility(m_ListViewFilteredItems.Count == 0 || !m_QueryBuilderResult.IsValid);
 
             m_ListView.Refresh();
-        }
 
-        void UpdateSearchFilters()
-        {
-            m_Filters.Clear();
-
-            if (string.IsNullOrEmpty(m_Filter))
-                return;
-
-            // Extract individual filters from search string
-            var matches = k_ExtractionPattern.Matches(m_Filter);
-            for (int i = 0; i < matches.Count; ++i)
+            bool IsParentedBySubScene(EntityHierarchyItem item, out EntityHierarchyItem subSceneItem)
             {
-                var match = matches[i];
-                m_Filters.Add(match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value);
-            }
+                subSceneItem = null;
 
-            if (m_Filters.Count <= 1)
-                return;
-
-            // Sort filters by length (longest first)
-            // We are doing this because filters are additive and therefore longer filters are less likely to match making it faster to discard candidates
-            m_Filters.Sort(
-                (lhs, rhs) =>
+                var current = item;
+                while (true)
                 {
-                    if (lhs.Length == rhs.Length)
-                        return 0;
-                    return lhs.Length < rhs.Length ? 1 : -1;
-                });
+                    if (current.parent == null)
+                        return false;
 
-            // Factor out repeats by removing short strings contained in longer strings
-            // e.g.: [GameObject, Object, a, z] -> [GameObject, z]
-            for (int i = m_Filters.Count - 1; i >= 0; --i)
-            {
-                var testString = m_Filters[i];
-                var match = false;
-                for (int j = 0; !match && j < i; ++j)
-                {
-                    match |= m_Filters[j].IndexOf(testString, StringComparison.Ordinal) != -1;
-                }
-
-                if (match)
-                {
-                    // Swap with last and remove
-                    m_Filters[i] = m_Filters[m_Filters.Count - 1];
-                    m_Filters.RemoveAt(m_Filters.Count - 1);
+                    var currentParent = (EntityHierarchyItem) current.parent;
+                    switch (currentParent.NodeId.Kind)
+                    {
+                        case NodeKind.Root:
+                        case NodeKind.Scene:
+                            return false;
+                        case  NodeKind.Entity:
+                            current = currentParent;
+                            continue;
+                        case NodeKind.SubScene:
+                            subSceneItem = currentParent;
+                            return true;
+                        default:
+                            throw new NotSupportedException($"{nameof(currentParent.NodeId.Kind)} is not supported in this context");
+                    }
                 }
             }
         }
 
-        void OnSelectionChanged(IEnumerable<object> selection)
+        void OnLocalSelectionChanged(IEnumerable<object> selection)
         {
             if (selection.FirstOrDefault() is EntityHierarchyItem selectedItem)
-                OnSelectionChanged(selectedItem);
+                OnLocalSelectionChanged(selectedItem);
         }
 
-        void OnSelectionChanged(EntityHierarchyItem selectedItem)
+        void OnLocalSelectionChanged(EntityHierarchyItem selectedItem)
         {
-            // TODO: Support undo/redo (see: Hierarchy window)
-
+            m_SelectedItem = selectedItem.NodeId;
             if (selectedItem.NodeId.Kind == NodeKind.Entity)
             {
                 var entity = selectedItem.NodeId.ToEntity();
                 if (entity != Entity.Null)
                 {
-                    m_SelectionProxy.SetEntity(m_Hierarchy.World, entity);
-                    Selection.activeObject = m_SelectionProxy;
+                    var undoGroup = Undo.GetCurrentGroup();
+                    EntitySelectionProxy.SelectEntity(m_Hierarchy.World, entity);
+
+                    // Collapsing the selection of the entity into the selection of the ListView / TreeView item
+                    Undo.CollapseUndoOperations(undoGroup);
                 }
             }
             else
@@ -456,22 +401,31 @@ namespace Unity.Entities.Editor
             }
         }
 
-        void OnSelectionChangedByInspector(World world, Entity entity)
+        void OnGlobalSelectionChanged()
         {
-            if (world != m_Hierarchy.World)
-                return;
-
-            var nodeId = EntityHierarchyNodeId.FromEntity(entity);
-            if (!m_Hierarchy.State.Exists(nodeId))
-                return;
-
-            Select(nodeId.GetHashCode());
+            if (Selection.activeObject is EntitySelectionProxy selectedProxy && selectedProxy.World == m_Hierarchy.World)
+                TrySelect(EntityHierarchyNodeId.FromEntity(selectedProxy.Entity));
+            else
+                Deselect();
         }
 
-        VisualElement OnMakeItem() => EntityHierarchyPool.GetVisualElement(this);
+        static VisualElement MakeTreeViewItem() => EntityHierarchyItemView.Acquire();
 
-        void OnBindItem(VisualElement element, ITreeViewItem item) => ((EntityHierarchyItemView)element).SetSource((EntityHierarchyItem)item);
+        static void ReleaseTreeViewItem(VisualElement ve) => ((EntityHierarchyItemView)ve).Release();
 
-        void OnBindListItem(VisualElement element, int itemIndex) => OnBindItem(element, (ITreeViewItem)m_ListView.itemsSource[itemIndex]);
+        static VisualElement MakeListViewItem()
+        {
+            // ListView changes user created VisualElements in a way that no reversible using public API
+            // Wrapping pooled item in a non reusable container prevent us from reusing a pooled item in an eventual checked pseudo state
+            var wrapper = new VisualElement();
+            wrapper.Add(EntityHierarchyItemView.Acquire());
+            return wrapper;
+        }
+
+        static void ReleaseListViewItem(VisualElement ve) => ((EntityHierarchyItemView)(ve[0])).Release();
+
+        static void BindTreeViewItem(VisualElement element, ITreeViewItem item) => ((EntityHierarchyItemView)element).SetSource((EntityHierarchyItem)item);
+
+        void BindListViewItem(VisualElement element, int itemIndex) => BindTreeViewItem(element[0], (ITreeViewItem)m_ListView.itemsSource[itemIndex]);
     }
 }

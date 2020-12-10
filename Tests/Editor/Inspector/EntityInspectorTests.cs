@@ -21,6 +21,11 @@ namespace Unity.Entities.Editor.Tests
             }
         }
 
+        struct BufferComponent : IBufferElementData
+        {
+            public float Value;
+        }
+
         struct TagComponent : IComponentData
         {
         }
@@ -71,8 +76,7 @@ namespace Unity.Entities.Editor.Tests
 
             m_Entity = m_World.EntityManager.CreateEntity();
 
-            m_Proxy = ScriptableObject.CreateInstance<EntitySelectionProxy>();
-            m_Proxy.SetEntity(m_World, m_Entity);
+            m_Proxy = EntitySelectionProxy.CreateInstance(m_World, m_Entity);
             m_Editor = UnityEditor.Editor.CreateEditor(m_Proxy);
         }
 
@@ -213,6 +217,31 @@ namespace Unity.Entities.Editor.Tests
             {
                 window.Close();
             }
+        }
+
+        [Test]
+        public void Entity_WithBuffers_CanNavigateThroughItems()
+        {
+            Assert.That(m_Editor, Is.TypeOf<EntityEditor>());
+
+            var buffer = m_World.EntityManager.AddBuffer<BufferComponent>(m_Entity);
+            for (var i = 0; i < 10; ++i)
+                buffer.Add(new BufferComponent {Value = i});
+
+            var root = m_Editor.CreateInspectorGUI();
+            var query = root.Query<ComponentElementBase>();
+            var list = query.ToList();
+            Assert.That(list.Count, Is.EqualTo(1));
+            Assert.That(root.Q(className: "unity-properties__list-element__size").enabledInHierarchy, Is.False);
+            Assert.That(root.Q("properties-list-content").enabledInHierarchy, Is.False);
+            Assert.That(root.Q(className: "unity-properties__list-element__add-item-button").enabledInHierarchy, Is.False);
+
+            Assert.That(root.Q(className: "unity-properties__pagination-element__pagination-size").enabledInHierarchy, Is.True);
+            // When inspecting a buffer, on the first page, the previous button is disabled, but the parent will be enabled.
+            Assert.That(root.Q(className: "unity-properties__pagination-element__previous-page-button").enabledInHierarchy, Is.False);
+            Assert.That(root.Q(className: "unity-properties__pagination-element__previous-page-button").parent.enabledInHierarchy, Is.True);
+            Assert.That(root.Q(className: "unity-properties__pagination-element__elements-range").enabledInHierarchy, Is.True);
+            Assert.That(root.Q(className: "unity-properties__pagination-element__next-page-button").enabledInHierarchy, Is.True);
         }
     }
 }

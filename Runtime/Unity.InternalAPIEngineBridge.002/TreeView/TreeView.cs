@@ -55,12 +55,17 @@ namespace Unity.Editor.Bridge
                 if (m_MakeItem == value)
                     return;
                 m_MakeItem = value;
-                ListViewRefresh();
+                m_ListView.Refresh();
             }
         }
 
+        Action<VisualElement> m_ReleaseItem;
+
         public event Action<IEnumerable<ITreeViewItem>> onItemsChosen;
         public event Action<IEnumerable<ITreeViewItem>> onSelectionChange;
+
+        // Avoids recreating a collection each time we want to select a single item (see: Select(int, bool))
+        readonly int[] m_CachedSingleSelectionBuffer = new int[1];
 
         List<ITreeViewItem> m_SelectedItems;
         public ITreeViewItem selectedItem => m_SelectedItems == null || m_SelectedItems.Count == 0 ? null : m_SelectedItems.First();
@@ -93,7 +98,7 @@ namespace Unity.Editor.Bridge
             set
             {
                 m_BindItem = value;
-                ListViewRefresh();
+                m_ListView.Refresh();
             }
         }
 
@@ -183,6 +188,7 @@ namespace Unity.Editor.Bridge
             hierarchy.Add(m_ListView);
 
             m_ListView.makeItem = MakeTreeItem;
+            m_ListView.releaseItem = ReleaseTreeItem;
             m_ListView.bindItem = BindTreeItem;
             m_ListView.getItemId = GetItemId;
 
@@ -205,10 +211,12 @@ namespace Unity.Editor.Bridge
             IList<ITreeViewItem> items,
             int itemHeight,
             Func<VisualElement> makeItem,
+            Action<VisualElement> releaseItem,
             Action<VisualElement, ITreeViewItem> bindItem) : this()
         {
             m_ListView.itemHeight = itemHeight;
             m_MakeItem = makeItem;
+            m_ReleaseItem = releaseItem;
             m_BindItem = bindItem;
             m_RootItems = items;
 
@@ -218,7 +226,7 @@ namespace Unity.Editor.Bridge
         public void Refresh()
         {
             RegenerateWrappers();
-            ListViewRefresh();
+            m_ListView.Refresh();
         }
 
         internal override void OnViewDataReady()
@@ -313,14 +321,14 @@ namespace Unity.Editor.Bridge
                 return;
 
             var selectedIndexes = ids.Select(id => GetItemIndex(id, true)).ToList();
-            ListViewRefresh();
+            m_ListView.Refresh();
             m_ListView.SetSelectionInternal(selectedIndexes, sendNotification);
         }
 
         public void AddToSelection(int id)
         {
             var index = GetItemIndex(id, true);
-            ListViewRefresh();
+            m_ListView.Refresh();
             m_ListView.AddToSelection(index);
         }
 
@@ -374,12 +382,14 @@ namespace Unity.Editor.Bridge
 #endif
         }
 
-        public void Select(int id)
+        public void Select(int id, bool sendNotification)
         {
             var index = GetItemIndex(id, true);
             Refresh();
             m_ListView.ScrollToItem(index);
-            m_ListView.selectedIndex = index;
+
+            m_CachedSingleSelectionBuffer[0] = index;
+            m_ListView.SetSelectionInternal(m_CachedSingleSelectionBuffer, sendNotification);
         }
 
         public void ScrollTo(VisualElement visualElement)
@@ -469,11 +479,6 @@ namespace Unity.Editor.Bridge
                     return item;
 
             return null;
-        }
-
-        void ListViewRefresh()
-        {
-            m_ListView.Refresh();
         }
 
         void OnItemsChosen(IEnumerable<object> chosenItems)
@@ -598,6 +603,11 @@ namespace Unity.Editor.Bridge
             return itemContainer;
         }
 
+        void ReleaseTreeItem(VisualElement ve)
+        {
+            m_ReleaseItem(ve.Q(s_ItemContentContainerName)[0]);
+        }
+
         void UnbindTreeItem(VisualElement element, int index)
         {
             if (unbindItem == null)
@@ -668,7 +678,7 @@ namespace Unity.Editor.Bridge
 
             m_ItemWrappers.RemoveRange(index + 1, recursiveChildCount);
 
-            ListViewRefresh();
+            m_ListView.Refresh();
 
             SaveViewData();
         }
@@ -686,7 +696,7 @@ namespace Unity.Editor.Bridge
 
             m_ExpandedItemIds.Add(m_ItemWrappers[index].item.id);
 
-            ListViewRefresh();
+            m_ListView.Refresh();
 
             SaveViewData();
         }

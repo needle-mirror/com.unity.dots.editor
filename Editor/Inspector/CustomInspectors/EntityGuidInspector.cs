@@ -11,7 +11,6 @@ namespace Unity.Entities.Editor.Inspectors
         static readonly string k_OriginatingIdName =
             ObjectNames.NicifyVariableName(nameof(EntityGuid.OriginatingId));
 
-        static readonly string k_NamespaceIdName = ObjectNames.NicifyVariableName(nameof(EntityGuid.NamespaceId));
         static readonly string k_SerialName = ObjectNames.NicifyVariableName(nameof(EntityGuid.Serial));
 
         public override VisualElement Build()
@@ -20,9 +19,6 @@ namespace Unity.Entities.Editor.Inspectors
             var id = new TextField(k_OriginatingIdName) { value = Target.OriginatingId.ToString() };
             id.RegisterCallback<ChangeEvent<string>, TextField>(NoOp, id);
             root.Add(id);
-            var namespaceId = new TextField(k_NamespaceIdName) { value = Target.NamespaceId.ToString() };
-            namespaceId.RegisterCallback<ChangeEvent<string>, TextField>(NoOp, namespaceId);
-            root.Add(namespaceId);
             var serialId = new TextField(k_SerialName) { value = Target.Serial.ToString() };
             serialId.RegisterCallback<ChangeEvent<string>, TextField>(NoOp, serialId);
             root.Add(serialId);

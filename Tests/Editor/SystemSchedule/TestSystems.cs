@@ -1,6 +1,7 @@
 ﻿namespace Unity.Entities.Editor.Tests
 {
     [DisableAutoCreation]
+    [UpdateInGroup(typeof(SystemScheduleTestGroup))]
     [UpdateBefore(typeof(SystemScheduleTestSystem2))]
     class SystemScheduleTestSystem1 : ComponentSystem
     {
@@ -21,8 +22,17 @@
     }
 
     [DisableAutoCreation]
+    [UpdateInGroup(typeof(SystemScheduleTestGroup))]
     [UpdateAfter(typeof(SystemScheduleTestSystem1))]
     class SystemScheduleTestSystem2 : ComponentSystem
+    {
+        protected override void OnUpdate()
+        {
+        }
+    }
+
+    [DisableAutoCreation]
+    class SystemScheduleTestGroup : ComponentSystemGroup
     {
         protected override void OnUpdate()
         {

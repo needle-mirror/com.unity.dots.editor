@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Unity.Collections.LowLevel.Unsafe;
 using UnityEditor;
 using UnityEngine.LowLevel;
 using UnityEngine.Profiling;
@@ -101,14 +103,14 @@ namespace Unity.Entities.Editor
         {
             public World World;
             public ComponentSystemGroup Group;
-            public ComponentSystemBase System;
+            public SystemHandle SystemHandle;
         }
 
         public readonly List<IPlayerLoopNode> Roots = new List<IPlayerLoopNode>();
 
         public readonly Dictionary<RecorderKey, AverageRecorder> RecordersBySystem = new Dictionary<RecorderKey, AverageRecorder>();
 
-        public readonly List<ComponentSystemBase> AllSystems = new List<ComponentSystemBase>();
+        public readonly List<SystemHandle> AllSystems = new List<SystemHandle>();
 
         public void Reset()
         {
@@ -158,48 +160,59 @@ namespace Unity.Entities.Editor
             }
         }
 
-        static void Parse(ComponentSystemBase system, PlayerLoopSystemGraph graph, IPlayerLoopNode parent = null)
+        static void Parse(SystemHandle systemHandle, PlayerLoopSystemGraph graph, IPlayerLoopNode parent = null)
         {
             IPlayerLoopNode node;
 
-            graph.AllSystems.Add(system);
+            graph.AllSystems.Add(systemHandle);
 
-            switch (system)
+            if (systemHandle.Managed != null && systemHandle.Managed is ComponentSystemGroup group)
             {
-                case ComponentSystemGroup group:
-                    var groupNode = Pool<ComponentGroupNode>.GetPooled();
-                    groupNode.Value = group;
-                    node = groupNode;
-                    foreach (var s in group.Systems)
-                    {
-                        Parse(s, graph, node);
-                    }
-                    break;
+                var groupNode = Pool<ComponentGroupNode>.GetPooled();
+                groupNode.Value = group;
+                node = groupNode;
 
-                default:
-                    var systemNode = Pool<ComponentSystemBaseNode>.GetPooled();
-                    systemNode.Value = system;
-                    node = systemNode;
-
-                    var recorder = Recorder.Get($"{system.World?.Name ?? "none"} {system.GetType().FullName}");
-                    var recorderKey = new RecorderKey
+                ref var updateSystemList = ref group.m_MasterUpdateList;
+                for (int i = 0, count = updateSystemList.length; i < count; ++i)
+                {
+                    var updateIndex = updateSystemList[i];
+                    if (updateIndex.IsManaged)
                     {
-                        World = system.World,
-                        Group = (ComponentSystemGroup)((ComponentGroupNode)parent).System,
-                        System = system
-                    };
-
-                    if (!graph.RecordersBySystem.ContainsKey(recorderKey))
-                    {
-                        graph.RecordersBySystem.Add(recorderKey, new AverageRecorder(recorder));
+                        var child = group.Systems[updateIndex.Index];
+                        Parse(child, graph, node);
                     }
                     else
                     {
-                        UnityEngine.Debug.LogError("System added twice: " + system);
+                        var child = group.UnmanagedSystems[updateIndex.Index];
+                        Parse(new SystemHandle(child, group.World), graph, node);
                     }
+                }
+            }
+            else
+            {
+                var systemNode = Pool<SystemHandleNode>.GetPooled();
+                systemNode.Value = systemHandle;
 
-                    recorder.enabled = true;
-                    break;
+                node = systemNode;
+
+                var recorder = Recorder.Get($"{systemHandle.World?.Name ?? "none"} {systemHandle.GetSystemType()?.FullName}");
+                var recorderKey = new RecorderKey
+                {
+                    World = systemHandle.World,
+                    Group = (ComponentSystemGroup)((ComponentGroupNode)parent).SystemHandle.Managed,
+                    SystemHandle = systemHandle
+                };
+
+                if (!graph.RecordersBySystem.ContainsKey(recorderKey))
+                {
+                    graph.RecordersBySystem.Add(recorderKey, new AverageRecorder(recorder));
+                }
+                else
+                {
+                    UnityEngine.Debug.LogError("System added twice: " + systemHandle);
+                }
+
+                recorder.enabled = true;
             }
 
             AddToGraph(graph, node, parent);

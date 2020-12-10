@@ -22,7 +22,7 @@
 .system-schedule-detail__content-scheduling-toggle:checked
 {
     color: #ffffff;
-    background-color: #0094ff;
+    background-color: var(--selected-background-color);
 }
 
 .system-schedule-detail__content-scheduling-toggle:checked:hover

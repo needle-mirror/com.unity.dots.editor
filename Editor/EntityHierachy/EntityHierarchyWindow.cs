@@ -1,16 +1,19 @@
 using Unity.Profiling;
+using Unity.Properties;
+using Unity.Properties.UI;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
 {
-    class EntityHierarchyWindow : DOTSEditorWindow, IEntityHierarchy
+    class EntityHierarchyWindow : DOTSEditorWindow, IEntityHierarchy, IHasCustomMenu
     {
         static readonly ProfilerMarker k_OnUpdateMarker = new ProfilerMarker($"{nameof(EntityHierarchyWindow)}.{nameof(OnUpdate)}");
 
         static readonly string k_WindowName = L10n.Tr("Entities");
+        static readonly string k_FilterComponentType = L10n.Tr("Component type");
+        static readonly string k_FilterComponentTypeTooltip = L10n.Tr("Filter entities that have the specified component type");
 
         static readonly Vector2 k_MinWindowSize = new Vector2(200, 200); // Matches SceneHierarchy's min size
 
@@ -21,6 +24,7 @@ namespace Unity.Entities.Editor
         VisualElement m_EnableLiveLinkMessage;
         VisualElement m_Header;
         VisualElement m_Root;
+        SearchElement m_SearchElement;
         CenteredMessageElement m_NoWorld;
 
         [MenuItem(Constants.MenuItems.EntityHierarchyWindow, false, Constants.MenuItems.WindowPriority)]
@@ -32,6 +36,9 @@ namespace Unity.Entities.Editor
         public EntityQueryDesc QueryDesc { get; private set; }
 
         public World World { get; private set; }
+
+        // Internal for tests
+        internal bool DisableDifferCooldownPeriod { get; set; }
 
         void OnEnable()
         {
@@ -56,8 +63,7 @@ namespace Unity.Entities.Editor
 
             m_EntityHierarchy.Refresh(this);
 
-            if (!string.IsNullOrEmpty(SearchFilter))
-                OnFilterChanged(SearchFilter);
+            m_SearchElement.Search(SearchFilter);
 
             LiveLinkConfigHelper.LiveLinkEnabledChanged += UpdateEnableLiveLinkMessage;
             EditorApplication.playModeStateChanged += UpdateEnableLiveLinkMessage;
@@ -99,8 +105,17 @@ namespace Unity.Entities.Editor
             leftSide.Add(CreateWorldSelector());
 
             AddSearchIcon(rightSide, UssClasses.DotsEditorCommon.SearchIcon);
-            AddSearchFieldContainer(m_Header, UssClasses.DotsEditorCommon.SearchFieldContainer);
-            m_Header.Q<ToolbarSearchField>().EnableAutoComplete(ComponentTypeAutoComplete.Instance);
+            m_SearchElement = AddSearchElement<EntityHierarchyItem>(m_Header, UssClasses.DotsEditorCommon.SearchFieldContainer);
+            m_SearchElement.RegisterSearchQueryHandler<EntityHierarchyItem>(query =>
+            {
+                var result = m_EntityHierarchyQueryBuilder.BuildQuery(query.SearchString);
+                QueryDesc = result.QueryDesc;
+
+                m_EntityHierarchy.SetFilter(query, result);
+            });
+            m_SearchElement.AddSearchFilterPopupItem("c", k_FilterComponentType, k_FilterComponentTypeTooltip);
+            m_SearchElement.AddSearchDataProperty(new PropertyPath(nameof(EntityHierarchyItem.m_CachedLowerCaseName)));
+            m_SearchElement.EnableAutoComplete(ComponentTypeAutoComplete.Instance);
 
             m_Root.Add(m_Header);
         }
@@ -136,20 +151,13 @@ namespace Unity.Entities.Editor
                 State = new EntityHierarchyState(world);
                 GroupingStrategy = new EntityHierarchyDefaultGroupingStrategy(world, State);
 
-                m_EntityHierarchyDiffer = new EntityHierarchyDiffer(this, 16);
+                m_EntityHierarchyDiffer = new EntityHierarchyDiffer(this, DisableDifferCooldownPeriod ? 0 : 16);
                 m_EntityHierarchy.Refresh(this);
             }
             else
             {
                 m_EntityHierarchy.Clear();
             }
-        }
-
-        protected override void OnFilterChanged(string filter)
-        {
-            var result = m_EntityHierarchyQueryBuilder.BuildQuery(filter);
-            QueryDesc = result.QueryDesc;
-            m_EntityHierarchy.SetFilter(result);
         }
 
         protected override void OnUpdate()
@@ -163,6 +171,24 @@ namespace Unity.Entities.Editor
                     m_EntityHierarchy.UpdateStructure();
 
                 m_EntityHierarchy.OnUpdate();
+            }
+        }
+
+        public void AddItemsToMenu(GenericMenu menu)
+            => TelemetryWindow.AddCustomMenu(new EntityWindowTelemetryData(), menu);
+
+        class EntityWindowTelemetryData : ITelemetry
+        {
+            string ITelemetry.Name { get; } = "Entities Window Telemetry";
+
+            [CreateProperty] public int EntityHierarchyItemActiveInstanceCount => EntityHierarchyItem.Pool.ActiveInstanceCount;
+            [CreateProperty] public int EntityHierarchyItemPoolSize => EntityHierarchyItem.Pool.PoolSize;
+            [CreateProperty] public int EntityHierarchyItemViewActiveInstanceCount => EntityHierarchyItemView.Pool.ActiveInstanceCount;
+            [CreateProperty] public int EntityHierarchyItemViewPoolSize => EntityHierarchyItemView.Pool.PoolSize;
+
+            class Inspector : Inspector<EntityWindowTelemetryData>
+            {
+                public override VisualElement Build() => Resources.Templates.EntityWindowTelemetry.Clone();
             }
         }
     }

@@ -54,11 +54,16 @@ namespace Unity.Entities.Editor
 
             if (container.IsReadOnly)
             {
-                foldout.contentContainer.SetEnabled(false);
+                SetReadonly(foldout);
                 foldout.RegisterCallback<ClickEvent, EntityInspectorContext>(OnClicked, Context, TrickleDown.TrickleDown);
             }
 
             return content;
+        }
+
+        protected virtual void SetReadonly(VisualElement root)
+        {
+            root.contentContainer.SetEnabled(false);
         }
 
         protected abstract void OnComponentChanged(PropertyElement element, PropertyPath path);
@@ -68,74 +73,57 @@ namespace Unity.Entities.Editor
         static void OnClicked(ClickEvent evt, EntityInspectorContext context)
         {
             var element = (VisualElement)evt.target;
-            using (var pooled = Pooling.GetList<Foldout>())
-            {
-                var list = pooled.List;
-                element.Query<Foldout>().ToList(list);
-                foreach (var foldout in list)
-                {
-                    if (element == foldout)
-                        continue;
-                    if (!foldout.Q<Toggle>().worldBound.Contains(evt.position))
-                        continue;
+            OnClicked(evt, context, element);
+        }
 
+        static void OnClicked(ClickEvent evt, EntityInspectorContext context, VisualElement current)
+        {
+            switch (current)
+            {
+                case Foldout foldout:
+                    if (!foldout.Q<Toggle>().worldBound.Contains(evt.position))
+                        break;
                     foldout.value = !foldout.value;
                     break;
-                }
-            }
-
-            using (var pooled = Pooling.GetList<ObjectField>())
-            {
-                var list = pooled.List;
-                element.Query<ObjectField>().ToList(list);
-                foreach (var field in list)
-                {
-                    var display = field.Q(className: UssClasses.UIToolkit.ObjectField.Display);
+                case ObjectField objectField:
+                    var display = objectField.Q(className: UssClasses.UIToolkit.ObjectField.Display);
                     if (null == display)
-                        continue;
+                        break;
                     if (!display.worldBound.Contains(evt.position))
-                        continue;
+                        break;
 
                     if (evt.clickCount == 1)
-                        EditorGUIUtility.PingObject(field.value);
+                        EditorGUIUtility.PingObject(objectField.value);
                     else
                     {
-                        var value = field.value;
+                        var value = objectField.value;
                         if (null != value && value)
                             Selection.activeObject = value;
                     }
-
                     break;
-                }
-            }
-
-            using (var pooled = Pooling.GetList<EntityField>())
-            {
-                var list = pooled.List;
-                element.Query<EntityField>().ToList(list);
-                foreach (var field in list)
-                {
-                    var input = field.Q(className: "unity-entity-field__input");
+                case EntityField entityField:
+                    var input = entityField.Q(className: "unity-entity-field__input");
                     if (null == input)
-                        continue;
+                        break;
                     if (!input.worldBound.Contains(evt.position))
-                        continue;
+                        break;
 
                     if (evt.clickCount > 1)
                     {
                         var world = context.World;
                         if (null == world || !world.IsCreated)
-                            continue;
-                        if (!context.EntityManager.Exists(field.value))
-                            continue;
+                            break;
+                        if (!context.EntityManager.Exists(entityField.value))
+                            break;
 
-                        var proxy = ScriptableObject.CreateInstance<EntitySelectionProxy>();
-                        proxy.SetEntity(context.World, field.value);
-                        Selection.activeObject = proxy;
+                        EntitySelectionProxy.SelectEntity(context.World, entityField.value);
                     }
-
                     break;
-                }
+            }
+
+            for (var i = 0; i < current.childCount; ++i)
+            {
+                OnClicked(evt, context, current[i]);
             }
         }
 

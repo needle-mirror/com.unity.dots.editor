@@ -60,6 +60,7 @@ namespace Unity.Entities.Editor
                 public const string SystemIcon = Icon + "--system";
                 public const string SystemGroupIcon = Icon + "--system-group";
                 public const string CommandBufferIcon = Icon + "--command-buffer";
+                public const string UnmanagedSystemIcon = Icon + "--unmanaged-system";
 
                 public const string SystemNameNormal = Base + "__name-label-normal";
                 public const string SystemNameBold = Base + "__name-label-bold";
@@ -73,6 +74,7 @@ namespace Unity.Entities.Editor
 
                 public const string Content = Base + "__content";
                 public const string SystemIcon = Icon + "--system";
+                public const string UnmanagedSystemIcon = Icon + "--unmanaged-system";
                 public const string GroupIcon = Icon + "--group";
                 public const string CommandBufferIcon = Icon + "--command-buffer";
                 public const string ScriptsIcon = Icon + "--scripts";

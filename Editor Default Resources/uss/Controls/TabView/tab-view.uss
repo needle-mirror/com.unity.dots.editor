@@ -1,0 +1,29 @@
+.tab-view{
+    flex-direction: column;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.tab-view__tab-header
+{
+    flex-direction: row;
+    padding-left: 18px;
+    padding-top: 20px;
+    flex-wrap: wrap;
+}
+
+.tab-view__tab-content
+{
+    margin-left: 3px;
+    margin-right: 3px;
+}
+
+.tab-view__tab--active
+{
+    border-bottom-width: 1px;
+}
+
+.tab-view__tab
+{
+    margin-right: 10px;
+}

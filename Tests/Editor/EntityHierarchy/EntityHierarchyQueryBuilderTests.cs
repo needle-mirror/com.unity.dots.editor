@@ -63,6 +63,14 @@ namespace Unity.Entities.Editor.Tests
         }
 
         [Test]
+        public void QueryBuilder_ResultQueryIncludesPrefabsAndDisabledEntities()
+        {
+            var r = m_Builder.BuildQuery($"c:{typeof(EntityGuid).FullName}");
+            Assert.That(r.QueryDesc.Options & EntityQueryOptions.IncludeDisabled, Is.EqualTo(EntityQueryOptions.IncludeDisabled));
+            Assert.That(r.QueryDesc.Options & EntityQueryOptions.IncludePrefab, Is.EqualTo(EntityQueryOptions.IncludePrefab));
+        }
+
+        [Test]
         public void QueryBuilder_ExtractUnmatchedString()
         {
             var r = m_Builder.BuildQuery($"with c:{nameof(EcsTestData2)} some c:{nameof(EcsTestData)} text c:{nameof(EcsTestSharedComp)} in between");

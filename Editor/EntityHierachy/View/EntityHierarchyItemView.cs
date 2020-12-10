@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Unity.Scenes;
 using UnityEditor;
 using UnityEngine;
@@ -6,12 +7,12 @@ using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
 {
-    class EntityHierarchyItemView : VisualElement, IPoolable
+    class EntityHierarchyItemView : VisualElement
     {
         static readonly string k_PingSubSceneInHierarchy = L10n.Tr("Ping sub scene in hierarchy");
         static readonly string k_PingSubSceneInProjectWindow = L10n.Tr("Ping sub scene in project window");
 
-        public VisualElement Owner { get; set; }
+        internal static readonly BasicPool<EntityHierarchyItemView> Pool = new BasicPool<EntityHierarchyItemView>(() => new EntityHierarchyItemView());
 
         readonly VisualElement m_Icon;
         readonly Label m_NameLabel;
@@ -22,7 +23,7 @@ namespace Unity.Entities.Editor
         int? m_OriginatingId;
         IManipulator m_ContextMenuManipulator;
 
-        public EntityHierarchyItemView()
+        EntityHierarchyItemView()
         {
             Resources.Templates.EntityHierarchyItem.Clone(this);
             AddToClassList(UssClasses.DotsEditorCommon.CommonResources);
@@ -33,6 +34,8 @@ namespace Unity.Entities.Editor
             m_SystemButton = this.Q<VisualElement>(className: UssClasses.EntityHierarchyWindow.Item.SystemButton);
             m_PingGameObject = this.Q<VisualElement>(className: UssClasses.EntityHierarchyWindow.Item.PingGameObjectButton);
         }
+
+        public static EntityHierarchyItemView Acquire() => Pool.Acquire();
 
         public void SetSource(EntityHierarchyItem item)
         {
@@ -69,9 +72,8 @@ namespace Unity.Entities.Editor
             }
         }
 
-        void IPoolable.Reset()
+        public void Release()
         {
-            Owner = null;
             if (m_ContextMenuManipulator != null)
             {
                 this.RemoveManipulator(m_ContextMenuManipulator);
@@ -82,14 +84,8 @@ namespace Unity.Entities.Editor
             m_Item = null;
             m_OriginatingId = null;
 
-            // These are overwritten by ListView in a way that conflicts with the TreeView representation
-            // NOTE: Adding those to "ClearDynamicStyles()" messes-up the rendering of the ListView
-            style.top = 0.0f;
-            style.bottom = Constants.ListView.ItemHeight;
-            style.position = Position.Relative;
+            Pool.Release(this);
         }
-
-        void IPoolable.ReturnToPool() => EntityHierarchyPool.ReturnVisualElement(this);
 
         void RenderEntityNode()
         {

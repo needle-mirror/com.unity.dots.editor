@@ -43,10 +43,7 @@ namespace Unity.Entities.Editor
                     return null;
 
                 var proxy = list[0];
-                if (null == proxy.World || !proxy.World.IsCreated)
-                    return null;
-
-                if (!proxy.EntityManager.Exists(proxy.Entity))
+                if (!proxy.Exists)
                     return null;
             }
 
@@ -59,13 +56,27 @@ namespace Unity.Entities.Editor
         {
             s_Editors.Add(this);
             m_Root = new BindableElement() { name = "Entity Inspector", binding = this };
-            EntitySelectionProxy.OnEntitySelectionChanged += OnEntitySelectionChanged;
+            AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
         }
 
         void OnDisable()
         {
             s_Editors.Remove(this);
-            EntitySelectionProxy.OnEntitySelectionChanged -= OnEntitySelectionChanged;
+            AssemblyReloadEvents.beforeAssemblyReload -= OnBeforeAssemblyReload;
+        }
+
+        void OnBeforeAssemblyReload()
+        {
+            // After a domain reload, it's impossible to retrieve the Entity this editor is
+            // referring to. So before the domain is unloaded, we ensure that:
+            // 1. The active selection is not an EntitySelectionProxy, so we don't try to
+            // re-select it once the domain is reloaded.
+            if (Selection.activeObject is EntitySelectionProxy)
+                Selection.activeObject = null;
+
+            // 2. This editor no longer exists, so a locked inspector is not revived with
+            // invalid data once the domain is reloaded.
+            DestroyImmediate(this);
         }
 
         public override bool UseDefaultMargins() => false;
@@ -79,7 +90,7 @@ namespace Unity.Entities.Editor
         {
             Resources.Templates.Inspector.InspectorStyle.AddStyles(m_Root);
             Resources.Templates.DotsEditorCommon.AddStyles(m_Root);
-            OnEntitySelectionChanged(target as EntitySelectionProxy);
+            Initialize(target as EntitySelectionProxy);
             return m_Root;
         }
 
@@ -107,7 +118,7 @@ namespace Unity.Entities.Editor
             // Nothing to do
         }
 
-        void OnEntitySelectionChanged(EntitySelectionProxy proxy)
+        void Initialize(EntitySelectionProxy proxy)
         {
             m_Context.SetContext(proxy);
             m_Root.Clear();

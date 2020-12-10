@@ -6,26 +6,51 @@ using Unity.Scenes;
 
 namespace Unity.Entities.Editor
 {
-    class SystemTreeViewItem : ITreeViewItem, IPoolable
+    class SystemTreeViewItem : ITreeViewItem
     {
+        internal static readonly BasicPool<SystemTreeViewItem> Pool = new BasicPool<SystemTreeViewItem>(() => new SystemTreeViewItem());
+
         readonly List<ITreeViewItem> m_CachedChildren = new List<ITreeViewItem>();
         public IPlayerLoopNode Node;
         public PlayerLoopSystemGraph Graph;
         public World World;
 
-        public ComponentSystemBase System => (Node as IComponentSystemNode)?.System;
+        SystemTreeViewItem() { }
+
+        public static SystemTreeViewItem Acquire(PlayerLoopSystemGraph graph, IPlayerLoopNode node, SystemTreeViewItem parent, World world)
+        {
+            var item = Pool.Acquire();
+
+            item.World = world;
+            item.Graph = graph;
+            item.Node = node;
+            item.parent = parent;
+
+            return item;
+        }
+
+        public SystemHandle SystemHandle
+        {
+            get
+            {
+                if (Node is ISystemHandleNode systemHandleNode)
+                    return systemHandleNode.SystemHandle;
+
+                return null;
+            }
+        }
 
         public bool HasChildren => Node.Children.Count > 0;
 
         public string GetSystemName(World world = null)
         {
             if (world == null ||
-                (Node is IComponentSystemNode componentSystemNode && componentSystemNode.System.World.Name != world.Name))
+                (Node is ISystemHandleNode systemHandleNode && systemHandleNode.SystemHandle.World.Name != world.Name))
             {
                 return Node.NameWithWorld;
             }
 
-            return Node.Name;
+            return Node?.Name;
         }
 
         public bool GetParentState()
@@ -47,44 +72,64 @@ namespace Unity.Entities.Editor
             EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
         }
 
-        public string GetEntityMatches()
+        public unsafe string GetEntityMatches()
         {
             if (HasChildren) // Group system do not need entity matches.
                 return string.Empty;
 
-            if (null == System?.EntityQueries)
+            var ptr = SystemHandle.StatePointer;
+            if (ptr == null)
                 return string.Empty;
 
-            var matchedEntityCount = (!Node.Enabled || !NodeParentsAllEnabled(Node))
-                ? Constants.SystemSchedule.k_Dash
-                : System.EntityQueries.Sum(query => query.CalculateEntityCount()).ToString();
+            var matchedEntityCount = string.Empty;
+            if (!Node.Enabled || !NodeParentsAllEnabled(Node))
+            {
+                matchedEntityCount = Constants.SystemSchedule.k_Dash;
+            }
+            else
+            {
+                var entityQueries = ptr->EntityQueries;
+                var entityCountSum = 0;
+                for (var i = 0; i < entityQueries.length; i++)
+                {
+                    entityCountSum += entityQueries[i].CalculateEntityCount();
+                }
+
+                matchedEntityCount = entityCountSum.ToString();
+            }
 
             return matchedEntityCount;
         }
 
-        float GetAverageRunningTime(ComponentSystemBase system, ComponentSystemBase parentSystem)
+        float GetAverageRunningTime(SystemHandle systemHandle, SystemHandle parentSystemHandle)
         {
-            switch (system)
+            if (systemHandle.Managed != null && systemHandle.Managed is ComponentSystemGroup systemGroup)
             {
-                case ComponentSystemGroup systemGroup:
+                if (systemGroup.Systems != null)
                 {
-                    if (systemGroup.Systems != null)
-                    {
-                        return systemGroup.Systems.Sum(child => GetAverageRunningTime(child, systemGroup));
-                    }
-                }
-                break;
-                case ComponentSystemBase systemBase:
-                {
-                    var recorderKey = new PlayerLoopSystemGraph.RecorderKey
-                    {
-                        World = systemBase.World,
-                        Group = parentSystem as ComponentSystemGroup,
-                        System = systemBase
-                    };
+                    var managedChildSystemsSum = systemGroup.Systems.Sum(child => GetAverageRunningTime(child, systemGroup));
 
-                    return Graph.RecordersBySystem.TryGetValue(recorderKey, out var recorder) ? recorder.ReadMilliseconds() : 0.0f;
+                    // unmanaged system
+                    var unmanagedChildSystems = systemGroup.UnmanagedSystems;
+                    var unmanagedChildSystemSum = 0.0f;
+                    for (var i = 0; i < unmanagedChildSystems.length; i++)
+                    {
+                        unmanagedChildSystemSum += GetAverageRunningTime(new SystemHandle(unmanagedChildSystems[i], systemGroup.World), systemGroup);
+                    }
+
+                    return managedChildSystemsSum + unmanagedChildSystemSum;
                 }
+            }
+            else
+            {
+                var recorderKey = new PlayerLoopSystemGraph.RecorderKey
+                {
+                    World = systemHandle.World,
+                    Group = parentSystemHandle.Managed as ComponentSystemGroup,
+                    SystemHandle = systemHandle
+                };
+
+                return Graph.RecordersBySystem.TryGetValue(recorderKey, out var recorder) ? recorder.ReadMilliseconds() : 0.0f;
             }
 
             return -1;
@@ -101,16 +146,16 @@ namespace Unity.Entities.Editor
             {
                 totalTime = !Node.Enabled || !NodeParentsAllEnabled(Node)
                     ? Constants.SystemSchedule.k_Dash
-                    : Node.Children.OfType<IComponentSystemNode>().Sum(child => GetAverageRunningTime(child.System, System)).ToString("f2");
+                    : Node.Children.OfType<ISystemHandleNode>().Sum(child => GetAverageRunningTime(child.SystemHandle, SystemHandle)).ToString("f2");
             }
             else
             {
-                if (Node.IsRunning && Node is IComponentSystemNode data && Node.Parent is ComponentGroupNode componentGroupNode)
+                if (Node.IsRunning && Node is ISystemHandleNode data && Node.Parent is ComponentGroupNode componentGroupNode)
                 {
-                    var parentSystem = componentGroupNode.System;
+                    var parentSystem = componentGroupNode.SystemHandle;
                     totalTime = !Node.Enabled || !NodeParentsAllEnabled(Node)
                         ? Constants.SystemSchedule.k_Dash
-                        : GetAverageRunningTime(data.System, parentSystem).ToString("f2");
+                        : GetAverageRunningTime(data.SystemHandle, parentSystem).ToString("f2");
                 }
                 else
                 {
@@ -134,9 +179,7 @@ namespace Unity.Entities.Editor
 
         public int id => Node.Hash;
         public ITreeViewItem parent { get; internal set; }
-
         public IEnumerable<ITreeViewItem> children => m_CachedChildren;
-
         bool ITreeViewItem.hasChildren => HasChildren;
 
         public void AddChild(ITreeViewItem child)
@@ -154,7 +197,7 @@ namespace Unity.Entities.Editor
             throw new NotImplementedException();
         }
 
-        public void PopulateChildren(SystemScheduleSearchBuilder.ParseResult searchFilter, List<Type> systemDependencyList = null)
+        public void PopulateChildren()
         {
             m_CachedChildren.Clear();
 
@@ -163,91 +206,25 @@ namespace Unity.Entities.Editor
                 if (!child.ShowForWorld(World))
                     continue;
 
-                // Filter systems by system name, component types, system dependencies.
-                if (!searchFilter.IsEmpty && !FilterSystem(child, searchFilter, systemDependencyList))
-                    continue;
-
-                var item = SystemSchedulePool.GetSystemTreeViewItem(Graph, child, this, World);
+                var item = Acquire(Graph, child, this, World);
                 m_CachedChildren.Add(item);
             }
         }
 
-        static bool FilterSystem(IPlayerLoopNode node, SystemScheduleSearchBuilder.ParseResult searchFilter, List<Type> systemDependencyList)
-        {
-            switch (node)
-            {
-                case ComponentSystemBaseNode baseNode:
-                {
-                    return FilterBaseSystem(baseNode.System, searchFilter, systemDependencyList);
-                }
-
-                case ComponentGroupNode groupNode:
-                {
-                    // Deal with group node dependencies first.
-                    if (FilterBaseSystem(groupNode.System, searchFilter, systemDependencyList))
-                        return true;
-
-                    // Then their children.
-                    if (groupNode.Children.Any(child => FilterSystem(child, searchFilter, systemDependencyList)))
-                        return true;
-
-                    break;
-                }
-            }
-
-            return false;
-        }
-
-        static bool FilterBaseSystem(ComponentSystemBase system, SystemScheduleSearchBuilder.ParseResult searchFilter, List<Type> systemDependencyList)
-        {
-            if (null == system)
-                return false;
-
-            var systemName = system.GetType().Name;
-
-            if (searchFilter.ComponentNames.Any())
-            {
-                foreach (var componentName in searchFilter.ComponentNames)
-                {
-                    if (!EntityQueryUtility.ContainsThisComponentType(system, componentName))
-                        return false;
-                }
-            }
-
-            if (searchFilter.DependencySystemNames.Any() && systemDependencyList != null && !systemDependencyList.Contains(system.GetType()))
-            {
-                return false;
-            }
-
-            if (searchFilter.SystemNames.Any())
-            {
-                foreach (var singleSystemName in searchFilter.SystemNames)
-                {
-                    if (systemName.IndexOf(singleSystemName, StringComparison.OrdinalIgnoreCase) < 0)
-                        return false;
-                }
-            }
-
-            return true;
-        }
-
-        public void Reset()
+        public void Release()
         {
             World = null;
             Graph = null;
             Node = null;
             parent = null;
-            m_CachedChildren.Clear();
-        }
-
-        public void ReturnToPool()
-        {
             foreach (var child in m_CachedChildren.OfType<SystemTreeViewItem>())
             {
-                child.ReturnToPool();
+                child.Release();
             }
 
-            SystemSchedulePool.ReturnToPool(this);
+            m_CachedChildren.Clear();
+
+            Pool.Release(this);
         }
     }
 }

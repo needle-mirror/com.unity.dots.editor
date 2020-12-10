@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Unity.Editor.Bridge;
 using UnityEngine.UIElements;
+using ListView = Unity.Editor.Bridge.ListView;
 
 namespace Unity.Entities.Editor.Tests
 {
@@ -50,7 +51,7 @@ namespace Unity.Entities.Editor.Tests
                 e.Q<Label>(s_LabelSiblingIndexName).text = (i as TreeViewItem<int>).data.ToString();
             };
 
-            m_TreeView = new TreeView(m_RawItemList, 20, makeItem, bindItem);
+            m_TreeView = new TreeView(m_RawItemList, 20, makeItem, ve => { }, bindItem);
             m_ListView = m_TreeView.Q<ListView>();
             m_ScrollView = m_ListView.Q<ScrollView>();
 

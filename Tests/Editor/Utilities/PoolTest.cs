@@ -113,5 +113,55 @@ namespace Unity.Entities.Editor.Tests
                 Assert.That(list, Is.Not.SameAs(pooled.List));
             }
         }
+
+        [Test]
+        public void PoolReset()
+        {
+            var item = Pool<PoolableItem>.GetPooled();
+
+            Assert.That(item.ResetCount, Is.EqualTo(0));
+            Assert.That(item.ReturnedToPoolCount, Is.EqualTo(0));
+
+            item.ReturnToPool();
+
+            Assert.That(item.ResetCount, Is.EqualTo(1));
+            Assert.That(item.ReturnedToPoolCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void BasicPool_AcquireAndRelease()
+        {
+            var pool = new BasicPool<object>(() => new object());
+            Assert.That(pool.PoolSize, Is.EqualTo(0));
+            Assert.That(pool.ActiveInstanceCount, Is.EqualTo(0));
+
+            var obj1 = pool.Acquire();
+            Assert.That(pool.PoolSize, Is.EqualTo(0));
+            Assert.That(pool.ActiveInstanceCount, Is.EqualTo(1));
+
+            pool.Release(obj1);
+            Assert.That(pool.PoolSize, Is.EqualTo(1));
+            Assert.That(pool.ActiveInstanceCount, Is.EqualTo(0));
+
+            var obj2 = pool.Acquire();
+            Assert.That(pool.PoolSize, Is.EqualTo(0));
+            Assert.That(pool.ActiveInstanceCount, Is.EqualTo(1));
+            Assert.That(obj2, Is.EqualTo(obj1));
+        }
+
+        class PoolableItem : IPoolable
+        {
+            public int ResetCount { get; private set; }
+            public int ReturnedToPoolCount{ get; private set; }
+
+
+            public void Reset() => ResetCount++;
+
+            public void ReturnToPool()
+            {
+                ReturnedToPoolCount++;
+                Pool<PoolableItem>.Release(this);
+            }
+        }
     }
 }

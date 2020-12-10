@@ -29,17 +29,23 @@ namespace Unity.Entities.Editor
             var isReadonly = !EditorApplication.isPlaying || IsWorldReadOnly(World);
             // TODO: Remove once we allow to write back the data.
             isReadonly = true;
-            EntityContainer = new EntityContainer(proxy.EntityManager, proxy.Entity, isReadonly);
+            EntityContainer = new EntityContainer(World.EntityManager, proxy.Entity, isReadonly);
         }
 
         internal bool TargetExists()
         {
-            return World.IsCreated && EntityManager.Exists(Entity);
+            return World.IsCreated
+                   && Entity.Index >= 0 && (uint)Entity.Index < (uint)World.EntityManager.EntityCapacity
+                   && World.EntityManager.Exists(Entity);
         }
 
         internal string GetTargetName()
         {
-            return !TargetExists() ? k_InvalidEntityName : EntityManager.GetName(Entity);
+            if (!TargetExists())
+                return k_InvalidEntityName;
+
+            var name = EntityManager.GetName(Entity);
+            return string.IsNullOrEmpty(name) ? $"Entity {{{Entity.Index}:{Entity.Version}}}" : name;
         }
 
         internal void SetTargetName(string name)
@@ -64,6 +70,7 @@ namespace Unity.Entities.Editor
         }
     }
 
+#if !UNITY_DISABLE_MANAGED_COMPONENTS
     static class EntityInspectorContextClassExtensions
     {
         public static bool TryGetComponentData<T>(this EntityInspectorContext context, out T component)
@@ -92,6 +99,7 @@ namespace Unity.Entities.Editor
             return true;
         }
     }
+#endif
 
     static class EntityInspectorContextStructExtensions
     {

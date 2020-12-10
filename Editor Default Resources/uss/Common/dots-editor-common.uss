@@ -32,6 +32,7 @@
 {
 	align-items: flex-start;
 	flex-direction: row;
+	padding: 3px;
 }
 
 .search-field

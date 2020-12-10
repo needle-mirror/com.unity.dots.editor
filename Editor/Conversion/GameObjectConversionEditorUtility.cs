@@ -56,7 +56,7 @@ namespace Unity.Entities.Editor
                 return GameObjectConversionResultStatus.NotConverted;
             }
 
-            if (EditorEntityScenes.IsEntitySubScene(gameObject.scene))
+            if (gameObject.scene.isSubScene)
             {
                 // Any gameObject in a sub-scene will ignore special conversion components and always result in a converted entity.
                 return GameObjectConversionResultStatus.ConvertedBySubScene;

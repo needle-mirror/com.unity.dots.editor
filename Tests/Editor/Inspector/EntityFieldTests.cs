@@ -53,6 +53,19 @@ namespace Unity.Entities.Editor.Tests
         }
 
         [Test]
+        public void EntityField_WithNoName_DisplaysDebugName()
+        {
+            m_Field.World = m_World;
+            var entity = m_World.EntityManager.CreateEntity();
+            m_Field.value = entity;
+            Assert.That(m_EntityLabel.text, Is.EqualTo($"Entity {{{entity.Index}:{entity.Version}}}"));
+            m_World.EntityManager.SetName(entity, "SomeName");
+            m_Field.ForceUpdateBindings();
+            Assert.That(m_EntityLabel.text, Is.EqualTo($"SomeName {{{entity.Index}:{entity.Version}}}"));
+            m_World.EntityManager.DestroyEntity(entity);
+        }
+
+        [Test]
         public void EntityField_WithInvalidEntity_ShowInvalidEntity()
         {
             var invalidEntity = new Entity { Index = 234, Version = 123 };

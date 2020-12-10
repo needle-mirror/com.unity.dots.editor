@@ -9,10 +9,23 @@ namespace Unity.Entities.Editor
 
     class PlayerLoopSystemNode : PlayerLoopNode<PlayerLoopSystem>, IPlayerLoopSystemData
     {
-        public override string Name => UnityEditor.ObjectNames.NicifyVariableName(Value.type.Name);
+        public override string Name
+        {
+            get
+            {
+                var type = Value.type;
+                return type == null ? string.Empty : UnityEditor.ObjectNames.NicifyVariableName(Properties.Editor.TypeUtility.GetTypeDisplayName(type));
+            }
+        }
         public override string NameWithWorld => Name;
-        public override string FullName => Value.type.FullName;
-
+        public override string FullName
+        {
+            get
+            {
+                var type = Value.type;
+                return type == null ? string.Empty : $"{type.Namespace}{(null == type.Namespace ? "" : ".")}{Properties.Editor.TypeUtility.GetTypeDisplayName(type)}";
+            }
+        }
         public override bool Enabled
         {
             get => true;

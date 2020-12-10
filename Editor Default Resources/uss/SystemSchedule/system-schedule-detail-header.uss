@@ -26,6 +26,11 @@
     background-image: var(--system-icon);
 }
 
+.system-schedule-detail__icon--unmanaged-system
+{
+    background-image: var(--unmanaged-system-icon);
+}
+
 .system-schedule-detail__icon--group
 {
     background-image: var(--group-icon);

@@ -10,7 +10,7 @@
 
 .EntityConversionComponentTag:checked {
      color: #ffffff;
-     background-color: #0094ff;
+     background-color: #3a72b0;
 }
 
 .EntityConversionComponentTag:checked:hover {
@@ -45,7 +45,7 @@
 
 .AdditionalEntityToggle:checked {
     color: #ffffff;
-    background-color: #0094ff;
+    background-color: #3a72b0;
 }
 
 .SelectedAdditionalEntityTag:hover {

@@ -1,3 +1,5 @@
+using Unity.Properties;
+using Unity.Properties.UI;
 using Unity.Serialization.Editor;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -6,17 +8,23 @@ using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
 {
-    class SystemScheduleWindow : DOTSEditorWindow
+    class SystemScheduleWindow : DOTSEditorWindow, IHasCustomMenu
     {
         static readonly string k_WindowName = L10n.Tr("Systems");
         static readonly string k_ShowFullPlayerLoopString = L10n.Tr("Show Full Player Loop");
+        static readonly string k_FilterComponentType = L10n.Tr("Component type");
+        static readonly string k_FilterComponentTypeTooltip = L10n.Tr("Filter systems that have the specified component type in queries");
+        static readonly string k_FilterSystemDependencies = L10n.Tr("System dependencies");
+        static readonly string k_FilterSystemDependenciesTooltip = L10n.Tr("Filter systems by their direct dependencies");
+
         static readonly Vector2 k_MinWindowSize = new Vector2(200, 200);
 
         VisualElement m_Root;
         CenteredMessageElement m_NoWorld;
-        internal SystemScheduleTreeView m_SystemTreeView;
+        SystemTreeView m_SystemTreeView;
         VisualElement m_WorldSelector;
         VisualElement m_EmptySelectorWhenShowingFullPlayerLoop;
+        SearchElement m_SearchElement;
 
         /// <summary>
         /// Helper container to store session state data.
@@ -67,13 +75,9 @@ namespace Unity.Entities.Editor
 
             PlayerLoopSystemGraph.Register();
 
-            if (World.All.Count > 0)
-                BuildAll();
+            m_SearchElement.Search(SearchFilter);
 
-            if (!string.IsNullOrEmpty(SearchFilter))
-                OnFilterChanged(SearchFilter);
-
-            PlayerLoopSystemGraph.OnGraphChanged += BuildAll;
+            PlayerLoopSystemGraph.OnGraphChanged += RebuildTreeView;
             SystemDetailsVisualElement.OnAddFilter += OnAddFilter;
             SystemDetailsVisualElement.OnRemoveFilter += OnRemoveFilter;
         }
@@ -86,11 +90,12 @@ namespace Unity.Entities.Editor
 
         void OnDisable()
         {
-            PlayerLoopSystemGraph.OnGraphChanged -= BuildAll;
+            PlayerLoopSystemGraph.OnGraphChanged -= RebuildTreeView;
             SystemDetailsVisualElement.OnAddFilter -= OnAddFilter;
             SystemDetailsVisualElement.OnRemoveFilter -= OnRemoveFilter;
 
             PlayerLoopSystemGraph.Unregister();
+            m_SystemTreeView.Dispose();
         }
 
         void CreateToolBar(VisualElement root)
@@ -108,7 +113,7 @@ namespace Unity.Entities.Editor
             rightSideContainer.AddToClassList(UssClasses.SystemScheduleWindow.ToolbarRightSideContainer);
 
             AddSearchIcon(rightSideContainer, UssClasses.DotsEditorCommon.SearchIcon);
-            AddSearchFieldContainer(root, UssClasses.DotsEditorCommon.SearchFieldContainer);
+            AddSearchElement(root);
 
             var dropdownSettings = CreateDropdownSettings(UssClasses.DotsEditorCommon.SettingsIcon);
             dropdownSettings.menu.AppendAction(k_ShowFullPlayerLoopString, a =>
@@ -118,11 +123,29 @@ namespace Unity.Entities.Editor
                 UpdateWorldSelectorDisplay();
 
                 if (World.All.Count > 0)
-                    BuildAll();
+                    RebuildTreeView();
             }, a => m_State.ShowFullPlayerLoop ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
             UpdateWorldSelectorDisplay();
             rightSideContainer.Add(dropdownSettings);
             toolbar.Add(rightSideContainer);
+        }
+
+        void AddSearchElement(VisualElement root)
+        {
+            m_SearchElement = AddSearchElement<SystemForSearch>(root, UssClasses.DotsEditorCommon.SearchFieldContainer);
+            m_SearchElement.RegisterSearchQueryHandler<SystemForSearch>(query =>
+            {
+                var parseResult = SearchQueryParser.ParseSearchQuery(query);
+                m_SystemTreeView.SetFilter(query, parseResult);
+            });
+
+            m_SearchElement.AddSearchFilterPopupItem(Constants.SystemSchedule.k_ComponentToken.Substring(0, 1), k_FilterComponentType, k_FilterComponentTypeTooltip);
+            m_SearchElement.AddSearchFilterPopupItem(Constants.SystemSchedule.k_SystemDependencyToken.Substring(0, 2), k_FilterSystemDependencies, k_FilterSystemDependenciesTooltip);
+
+            m_SearchElement.AddSearchDataProperty(new PropertyPath(nameof(SystemForSearch.SystemName)));
+            m_SearchElement.AddSearchFilterProperty(Constants.SystemSchedule.k_ComponentToken.Substring(0, 1), new PropertyPath(nameof(SystemForSearch.ComponentNamesInQuery)));
+            m_SearchElement.AddSearchFilterProperty(Constants.SystemSchedule.k_SystemDependencyToken.Substring(0, 2), new PropertyPath(nameof(SystemForSearch.SystemDependency)));
+            m_SearchElement.EnableAutoComplete(ComponentTypeAutoComplete.Instance);
         }
 
         void UpdateWorldSelectorDisplay()
@@ -161,15 +184,14 @@ namespace Unity.Entities.Editor
 
         void CreateTreeView(VisualElement root)
         {
-            m_SystemTreeView = new SystemScheduleTreeView(EditorWindowInstanceKey)
+            m_SystemTreeView = new SystemTreeView(EditorWindowInstanceKey)
             {
-                style = { flexGrow = 1 },
-                SearchFilter = SystemScheduleSearchBuilder.ParseSearchString(SearchFilter)
+                style = { flexGrow = 1 }
             };
             root.Add(m_SystemTreeView);
         }
 
-        void BuildAll()
+        void RebuildTreeView()
         {
             m_SystemTreeView.Refresh(m_State.ShowFullPlayerLoop ? null : SelectedWorld);
         }
@@ -181,7 +203,7 @@ namespace Unity.Entities.Editor
             if (m_State.ShowFullPlayerLoop)
                 return;
 
-            BuildAll();
+            RebuildTreeView();
         }
 
         void OnAddFilter(string toAdd)
@@ -194,10 +216,22 @@ namespace Unity.Entities.Editor
             RemoveStringFromSearchField(toRemove);
         }
 
-        protected override void OnFilterChanged(string filter)
+        public void AddItemsToMenu(GenericMenu menu)
+            => TelemetryWindow.AddCustomMenu(new SystemWindowTelemetryData(), menu);
+
+        class SystemWindowTelemetryData : ITelemetry
         {
-            m_SystemTreeView.SearchFilter = SystemScheduleSearchBuilder.ParseSearchString(filter);
-            BuildAll();
+            string ITelemetry.Name { get; } = "Systems Window Telemetry";
+
+            [CreateProperty] public int SystemTreeViewItemActiveInstanceCount => SystemTreeViewItem.Pool.ActiveInstanceCount;
+            [CreateProperty] public int SystemTreeViewItemPoolSize => SystemTreeViewItem.Pool.PoolSize;
+            [CreateProperty] public int SystemInformationVisualElementActiveInstanceCount => SystemInformationVisualElement.Pool.ActiveInstanceCount;
+            [CreateProperty] public int SystemInformationVisualElementPoolSize => SystemInformationVisualElement.Pool.PoolSize;
+
+            class Inspector : Inspector<SystemWindowTelemetryData>
+            {
+                public override VisualElement Build() => Resources.Templates.SystemWindowTelemetry.Clone();
+            }
         }
     }
 }

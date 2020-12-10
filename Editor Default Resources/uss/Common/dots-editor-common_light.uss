@@ -7,6 +7,7 @@
     --settings-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Settings/Settings.png");
     --search-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/light/Search/Search.png");
     --list-heading-color: #E0E0E0;
+    --selected-background-color: #3A72B0;
 }
 
 /*** Custom Toolbar Toggle ***/
@@ -35,14 +36,13 @@
 
 .toolbar-toggle:checked Label
 {
-     color: #ffffff;
-     background-color: #0094ff;
+    color: #ffffff;
+    background-color: var(--selected-background-color);
 }
 
 .toolbar-toggle:checked:hover Label
 {
     color: #ffffff;
-    background-color: #0094ff;
 }
 
 /*** Custom Label With Underline ***/

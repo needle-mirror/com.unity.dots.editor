@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Collections.LowLevel.Unsafe;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
@@ -14,9 +15,10 @@ namespace Unity.Entities.Editor
         static readonly string k_SchedulingTitle = L10n.Tr("Scheduling");
         static readonly string k_ShowDependencies = L10n.Tr("Show Dependencies");
         static readonly string k_ShowLess = L10n.Tr("Show less");
+        static readonly string k_AllEntities = L10n.Tr("All Entities");
 
-        EntityQuery[] m_Query;
-        SystemScheduleSearchBuilder.ParseResult m_SearchFilter;
+        UnsafeList<EntityQuery> m_Query;
+        SearchQueryParser.ParseResult m_SearchFilter;
         Toolbar m_SystemDetailToolbar;
         VisualElement m_HeaderRightSide;
         VisualElement m_SystemIcon;
@@ -48,7 +50,7 @@ namespace Unity.Entities.Editor
 
         public SystemTreeViewItem LastSelectedItem { get; set; }
 
-        public SystemScheduleSearchBuilder.ParseResult SearchFilter
+        public SearchQueryParser.ParseResult SearchFilter
         {
             set
             {
@@ -56,8 +58,7 @@ namespace Unity.Entities.Editor
                     return;
 
                 m_SearchFilter = value;
-
-                m_Query = null;
+                m_Query.Clear();
 
                 UpdateContent();
             }
@@ -81,21 +82,17 @@ namespace Unity.Entities.Editor
 
         void UpdateContent()
         {
-            if (null == Target)
+            if (null == Target || Target.SystemHandle == null)
                 return;
 
-            if (Target.System != null && Target.System.World == null)
+            if (Target.SystemHandle.Valid && Target.SystemHandle.World == null)
                 return;
 
-            switch (Target.System)
+            if (!Target.SystemHandle.Valid)
             {
-                case null:
-                {
-                    if ((null != Parent) && Parent.Contains(this))
-                        Parent.Remove(this);
-
-                    return;
-                }
+                if (null != Parent && Parent.Contains(this))
+                    Parent.Remove(this);
+                return;
             }
 
             UpdateSystemIconName();
@@ -107,15 +104,15 @@ namespace Unity.Entities.Editor
 
         void UpdateSystemIconName()
         {
-            var currentIconStyle = GetDetailSystemClass(Target.System);
+            var currentIconStyle = GetDetailSystemClass(Target.SystemHandle);
             if (!string.Equals(currentIconStyle, m_LastIconStyle))
             {
                 m_SystemIcon.RemoveFromClassList(m_LastIconStyle);
-                m_SystemIcon.AddToClassList(GetDetailSystemClass(Target.System));
+                m_SystemIcon.AddToClassList(GetDetailSystemClass(Target.SystemHandle));
                 m_LastIconStyle = currentIconStyle;
             }
 
-            var systemName = Target.System.GetType().Name;
+            var systemName = Properties.Editor.TypeUtility.GetTypeDisplayName(Target.SystemHandle.GetSystemType()).Replace(".", "|");
             m_SystemNameLabel.text = systemName;
 
             var scriptFound = SearchForScript(systemName);
@@ -139,17 +136,21 @@ namespace Unity.Entities.Editor
 
         void UpdateDependencyToggle()
         {
-            if (Target?.System == null)
+            if (Target?.SystemHandle == null || !Target.SystemHandle.Valid)
                 return;
 
             var schedulingToggle = this.Q<ToolbarToggle>(className: UssClasses.SystemScheduleWindow.Detail.SchedulingToggle);
             schedulingToggle.text = k_ShowDependencies;
-            schedulingToggle.value = m_SearchFilter.DependencySystemNames.Any(system => string.Equals(system, Target.System.GetType().Name, StringComparison.OrdinalIgnoreCase));
+            schedulingToggle.value = m_SearchFilter.DependencySystemNames.Any(system =>
+                string.Equals(system, Properties.Editor.TypeUtility.GetTypeDisplayName(Target.SystemHandle.GetSystemType()).Replace(".", "|"), StringComparison.OrdinalIgnoreCase));
         }
 
         void OnSchedulingToggleStateChanged(ChangeEvent<bool> evt)
         {
-            var systemTypeName = Target.System.GetType().Name;
+            if (Target?.SystemHandle == null || !Target.SystemHandle.Valid)
+                return;
+
+            var systemTypeName = Properties.Editor.TypeUtility.GetTypeDisplayName(Target.SystemHandle.GetSystemType()).Replace(".", "|");
             var searchString = Constants.SystemSchedule.k_SystemDependencyToken + systemTypeName;
 
             if (evt.newValue)
@@ -165,13 +166,15 @@ namespace Unity.Entities.Editor
             }
         }
 
-        void UpdateQueryResults()
+        unsafe void UpdateQueryResults()
         {
-            if (Target?.System == null)
+            if (Target?.SystemHandle == null || !Target.SystemHandle.Valid)
                 return;
 
-            var currentQueries = Target.System.EntityQueries;
-            if (m_Query == currentQueries)
+            var ptr = Target.SystemHandle.StatePointer;
+
+            var currentQueries = ptr->EntityQueries;
+            if (m_Query.Equals(currentQueries))
                 return;
 
             m_AllQueryResultContainer.Clear();
@@ -181,15 +184,15 @@ namespace Unity.Entities.Editor
             var toAddList = new List<VisualElement>();
 
             // Query result for each row.
-            foreach (var query in m_Query)
+            for (var i = 0; i < m_Query.length; i++)
             {
                 var eachRowContainer = new VisualElement();
                 Resources.Templates.CommonResources.AddStyles(eachRowContainer);
                 Resources.Templates.SystemScheduleDetailQuery.Clone(eachRowContainer);
 
                 // Sort the components by their access mode, readonly, readwrite, etc.
-                using (var queryTypePooledList = query.GetQueryTypes().ToPooledList())
-                using (var readWriteQueryTypePooledList = query.GetReadAndWriteTypes().ToPooledList())
+                using (var queryTypePooledList = m_Query[i].GetQueryTypes().ToPooledList())
+                using (var readWriteQueryTypePooledList = m_Query[i].GetReadAndWriteTypes().ToPooledList())
                 {
                     var queryTypeList = queryTypePooledList.List;
                     var readWriteTypeList = readWriteQueryTypePooledList.List;
@@ -201,29 +204,37 @@ namespace Unity.Entities.Editor
                     queryIcon.AddToClassList(UssClasses.SystemScheduleWindow.Detail.QueryIcon);
 
                     var allComponentContainer = eachRowContainer.Q(className: UssClasses.SystemScheduleWindow.Detail.AllComponentContainer);
-                    foreach (var queryType in queryTypeList)
+                    if (queryTypeList.Count == 0)
                     {
-                        var componentManagedType = queryType.GetManagedType();
-                        var componentTypeName = EntityQueryUtility.SpecifiedTypeName(componentManagedType);
-
-                        // Component toggle container.
-                        var componentTypeNameToggleContainer = new ComponentToggleWithAccessMode(GetAccessMode(queryType, readWriteTypeList));
-                        var componentTypeNameToggle = componentTypeNameToggleContainer.ComponentTypeNameToggle;
-
-                        componentTypeNameToggle.text = componentTypeName;
-                        componentTypeNameToggle.value = m_SearchFilter.ComponentNames.Any(comp => string.Equals(comp, componentTypeName, StringComparison.OrdinalIgnoreCase));
-
-                        componentTypeNameToggle.RegisterValueChangedCallback(evt =>
+                        var allEntityLabel = new Label(k_AllEntities);
+                        allComponentContainer.Add(allEntityLabel);
+                    }
+                    else
+                    {
+                        foreach (var queryType in queryTypeList)
                         {
-                            HandleComponentsAddRemoveEvents(evt, componentTypeNameToggle, componentTypeName);
-                        });
-                        allComponentContainer.Add(componentTypeNameToggleContainer);
+                            var componentManagedType = queryType.GetManagedType();
+                            var componentTypeName = EntityQueryUtility.SpecifiedTypeName(componentManagedType);
+
+                            // Component toggle container.
+                            var componentTypeNameToggleContainer = new ComponentToggleWithAccessMode(GetAccessMode(queryType, readWriteTypeList));
+                            var componentTypeNameToggle = componentTypeNameToggleContainer.ComponentTypeNameToggle;
+
+                            componentTypeNameToggle.text = componentTypeName;
+                            componentTypeNameToggle.value = m_SearchFilter.ComponentNames.Any(comp => string.Equals(comp, componentTypeName, StringComparison.OrdinalIgnoreCase));
+
+                            componentTypeNameToggle.RegisterValueChangedCallback(evt =>
+                            {
+                                HandleComponentsAddRemoveEvents(evt, componentTypeNameToggle, componentTypeName);
+                            });
+                            allComponentContainer.Add(componentTypeNameToggleContainer);
+                        }
                     }
                 }
 
                 // Entity match label
                 var matchCountContainer = eachRowContainer.Q(className: UssClasses.SystemScheduleWindow.Detail.EntityMatchCountContainer);
-                var matchCountLabel = new EntityMatchCountVisualElement { Query = query, CurrentWorld = Target.System.World };
+                var matchCountLabel = new EntityMatchCountVisualElement { Query = m_Query[i], CurrentWorld = Target.SystemHandle.World };
                 matchCountContainer.Add(matchCountLabel);
 
                 // Show more to unfold the results or less to fold.
@@ -328,19 +339,29 @@ namespace Unity.Entities.Editor
             }
         }
 
-        static string GetDetailSystemClass(ComponentSystemBase system)
+        static string GetDetailSystemClass(SystemHandle systemHandle)
         {
-            switch (system)
+            if (systemHandle == null)
+                return string.Empty;
+
+            if (systemHandle.Managed != null)
             {
-                case null:
-                    return "";
-                case EntityCommandBufferSystem _:
-                    return UssClasses.SystemScheduleWindow.Detail.CommandBufferIcon;
-                case ComponentSystemGroup _:
-                    return UssClasses.SystemScheduleWindow.Detail.GroupIcon;
-                case ComponentSystemBase _:
-                    return UssClasses.SystemScheduleWindow.Detail.SystemIcon;
+                switch (systemHandle.Managed)
+                {
+                    case EntityCommandBufferSystem _:
+                        return UssClasses.SystemScheduleWindow.Detail.CommandBufferIcon;
+                    case ComponentSystemGroup _:
+                        return UssClasses.SystemScheduleWindow.Detail.GroupIcon;
+                    case ComponentSystemBase _:
+                        return UssClasses.SystemScheduleWindow.Detail.SystemIcon;
+                }
             }
+            else if (systemHandle.Unmanaged.World != null)
+            {
+                return UssClasses.SystemScheduleWindow.Detail.UnmanagedSystemIcon;
+            }
+
+            return string.Empty;
         }
 
         void CreateToolBarForDetailSection()

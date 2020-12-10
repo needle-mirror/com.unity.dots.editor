@@ -109,7 +109,8 @@ namespace Unity.Entities.Editor
         static NativeArray<Entity> GetEntitiesByInstanceId(EntityManager entityManager, int instanceId, Allocator allocator = Allocator.TempJob)
         {
             //  First check for prefabs with the given instanceId.
-            using (var entities = GetEntitiesByInstanceId(entityManager.CreateEntityQuery(PrefabQueryDesc), instanceId))
+            using (var query = entityManager.CreateEntityQuery(PrefabQueryDesc))
+            using (var entities = GetEntitiesByInstanceId(query, instanceId))
             {
                 if (entities.Length > 0)
                 {
@@ -118,7 +119,8 @@ namespace Unity.Entities.Editor
             }
 
             // If we didn't find any, query and return any entity with the given instanceId.
-            using (var entities = GetEntitiesByInstanceId(entityManager.CreateEntityQuery(EntityGuidQueryDesc), instanceId))
+            using (var query = entityManager.CreateEntityQuery(EntityGuidQueryDesc))
+            using (var entities = GetEntitiesByInstanceId(query, instanceId))
             {
                 return entities.ToArray(allocator);
             }

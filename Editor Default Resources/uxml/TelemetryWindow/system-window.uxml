@@ -1,0 +1,12 @@
+<UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:VisualElement class="telemetry-window__section">
+        <ui:Label text="SystemTreeViewItem" class="telemetry-window__section-title"/>
+        <uie:IntegerField label="Active Instance Count" binding-path="SystemTreeViewItemActiveInstanceCount" />
+        <uie:IntegerField label="Pool size" binding-path="SystemTreeViewItemPoolSize" />
+    </ui:VisualElement>
+    <ui:VisualElement class="telemetry-window__section">
+        <ui:Label text="SystemInformationVisualElement" class="telemetry-window__section-title"/>
+        <uie:IntegerField label="Active Instance Count" binding-path="SystemInformationVisualElementActiveInstanceCount" />
+        <uie:IntegerField label="Pool size" binding-path="SystemInformationVisualElementPoolSize" />
+    </ui:VisualElement>
+</UXML>

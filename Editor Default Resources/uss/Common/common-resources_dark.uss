@@ -15,6 +15,7 @@
     --scripts-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Scripts/Scripts.png");
     --close-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/Close/Close.png");
     --system-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/System/System.png");
+    --unmanaged-system-icon: resource("Packages/com.unity.dots.editor/Editor Default Resources/icons/dark/UnmanagedSystem/UnmanagedSystem.png");
 }
 
 .entity-hierarchy__resources

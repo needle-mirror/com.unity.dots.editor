@@ -1,0 +1,9 @@
+.tab-view__tab-header
+{
+    background-color: #2A2A2A;
+}
+
+.tab-view__tab--active
+{
+    border-bottom-color: #0E81C1;
+}

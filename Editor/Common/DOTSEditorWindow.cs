@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Unity.Assertions;
+using Unity.Properties.UI;
 using Unity.Serialization.Editor;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -16,7 +16,7 @@ namespace Unity.Entities.Editor
 
         ToolbarMenu m_WorldSelector;
         VisualElement m_SearchFieldContainer;
-        ToolbarSearchField m_SearchField;
+        SearchElement m_SearchField;
         Image m_SearchIcon;
         bool m_PreviousShowAdvancedWorldsValue;
         World m_SelectedWorld;
@@ -64,6 +64,14 @@ namespace Unity.Entities.Editor
             }
         }
 
+        // Internal for unit tests
+        internal void ChangeCurrentWorld(World newWorld)
+        {
+            BaseState.SelectedWorldName = newWorld.Name;
+            SelectedWorld = newWorld;
+            Update();
+        }
+
         protected bool IsSearchFieldVisible => m_SearchField != null && UIElementHelper.IsVisible(m_SearchField);
 
         World FindSelectedWorld()
@@ -101,28 +109,27 @@ namespace Unity.Entities.Editor
             return m_WorldSelector;
         }
 
-        protected void AddSearchFieldContainer(VisualElement parent, string ussClass)
+        protected SearchElement AddSearchElement<TData>(VisualElement parent, string ussClass)
         {
             m_SearchFieldContainer = new VisualElement();
             m_SearchFieldContainer.AddToClassList(ussClass);
 
-            CreateSearchField(UssClasses.DotsEditorCommon.SearchField);
+            m_SearchField = new SearchElement();
+            m_SearchField.SetValueWithoutNotify(string.IsNullOrEmpty(BaseState.SearchFilter) ? string.Empty : BaseState.SearchFilter);
+            m_SearchField.AddToClassList(UssClasses.DotsEditorCommon.SearchField);
+            m_SearchField.RegisterSearchQueryHandler<TData>(query =>
+            {
+                if (BaseState.IsSearchFieldVisible)
+                    BaseState.SearchFilter = query.SearchString;
+            });
+
+            UIElementHelper.ToggleVisibility(m_SearchField, BaseState.IsSearchFieldVisible);
+
             m_SearchFieldContainer.Add(m_SearchField);
 
             parent.Add(m_SearchFieldContainer);
-        }
 
-        void CreateSearchField(string ussClass)
-        {
-            m_SearchField = new ToolbarSearchField
-            {
-                value = string.IsNullOrWhiteSpace(BaseState.SearchFilter) ? string.Empty : BaseState.SearchFilter
-            };
-            m_SearchField.AddToClassList(ussClass);
-            m_SearchField.Q("unity-cancel").AddToClassList(UssClasses.DotsEditorCommon.SearchFieldCancelButton);
-            m_SearchField.RegisterValueChangedCallback(OnFilterChanged);
-
-            UIElementHelper.ToggleVisibility(m_SearchField, BaseState.IsSearchFieldVisible);
+            return m_SearchField;
         }
 
         protected void SetSearchFieldVisibility(bool visible)
@@ -141,7 +148,7 @@ namespace Unity.Entities.Editor
                 UIElementHelper.Hide(m_SearchField);
             }
 
-            OnFilterChanged(SearchFilter);
+            m_SearchField.Search(SearchFilter);
         }
 
         protected void AddSearchIcon(VisualElement parent, string ussClass)
@@ -305,15 +312,8 @@ namespace Unity.Entities.Editor
             SetSearchFieldVisibility(true);
         }
 
-        void OnFilterChanged(ChangeEvent<string> evt)
-        {
-            BaseState.SearchFilter = evt.newValue;
-            OnFilterChanged(evt.newValue);
-        }
-
         protected abstract void OnUpdate();
         protected abstract void OnWorldSelected(World world);
-        protected abstract void OnFilterChanged(string filter);
 
         internal class BaseStateContainer
         {

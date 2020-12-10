@@ -6,25 +6,35 @@ using UnityEditor;
 
 namespace Unity.Entities.Editor
 {
-    class EntityHierarchyItem : ITreeViewItem, IPoolable
+    class EntityHierarchyItem : ITreeViewItem
     {
         static readonly string k_ChildrenListModificationExceptionMessage =
             L10n.Tr($"{nameof(EntityHierarchyItem)} does not allow external modifications to its list of children.");
+
+        internal static readonly BasicPool<EntityHierarchyItem> Pool = new BasicPool<EntityHierarchyItem>(() => new EntityHierarchyItem());
 
         readonly List<EntityHierarchyItem> m_Children = new List<EntityHierarchyItem>();
         bool m_ChildrenInitialized;
 
         // Caching name and pre-lowercased name to speed-up search
         string m_CachedName;
-        string m_CachedLowerCaseName;
+
+        // Public for binding with SearchElement
+        // ReSharper disable once InconsistentNaming
+        public string m_CachedLowerCaseName;
 
         IEntityHierarchy m_EntityHierarchy;
 
-        public void Initialize(ITreeViewItem parentItem, in EntityHierarchyNodeId nodeId, IEntityHierarchy entityHierarchy)
+        EntityHierarchyItem() { }
+
+        public static EntityHierarchyItem Acquire(ITreeViewItem parentItem, in EntityHierarchyNodeId nodeId, IEntityHierarchy entityHierarchy)
         {
-            parent = parentItem;
-            NodeId = nodeId;
-            m_EntityHierarchy = entityHierarchy;
+            var item = Pool.Acquire();
+            item.parent = parentItem;
+            item.NodeId = nodeId;
+            item.m_EntityHierarchy = entityHierarchy;
+
+            return item;
         }
 
         public EntityHierarchyNodeId NodeId { get; private set; }
@@ -48,7 +58,11 @@ namespace Unity.Entities.Editor
 
         public string CachedName => m_CachedName ?? (m_CachedName = HierarchyState.GetNodeName(NodeId));
 
-        public string GetCachedLowerCaseName() => m_CachedLowerCaseName ?? (m_CachedLowerCaseName = CachedName.ToLowerInvariant());
+        public void PrepareSearcheableName()
+        {
+            if (m_CachedLowerCaseName == null)
+                m_CachedLowerCaseName = CachedName.ToLowerInvariant();
+        }
 
         public int id => NodeId.GetHashCode();
 
@@ -64,24 +78,22 @@ namespace Unity.Entities.Editor
 
         void ITreeViewItem.RemoveChild(ITreeViewItem _) => throw new NotSupportedException(k_ChildrenListModificationExceptionMessage);
 
-        void IPoolable.Reset()
+        public void Release()
         {
             NodeId = default;
-
             m_CachedName = null;
             m_CachedLowerCaseName = null;
             m_EntityHierarchy = null;
             parent = null;
-            m_Children.Clear();
             m_ChildrenInitialized = false;
-        }
 
-        void IPoolable.ReturnToPool()
-        {
             foreach (var child in m_Children)
-                ((IPoolable)child).ReturnToPool();
+            {
+                child.Release();
+            }
 
-            EntityHierarchyPool.ReturnTreeViewItem(this);
+            m_Children.Clear();
+            Pool.Release(this);
         }
 
         void PopulateChildren()
@@ -90,8 +102,7 @@ namespace Unity.Entities.Editor
             {
                 foreach (var node in childNodes)
                 {
-                    var item = EntityHierarchyPool.GetTreeViewItem(this, node, m_EntityHierarchy);
-                    m_Children.Add(item);
+                    m_Children.Add(Acquire(this, node, m_EntityHierarchy));
                 }
             }
         }

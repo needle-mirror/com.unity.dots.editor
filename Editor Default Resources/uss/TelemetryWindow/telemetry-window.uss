@@ -1,0 +1,21 @@
+.telemetry-window__section
+{
+    padding: 5px;
+}
+
+.telemetry-window__section IntegerField
+{
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.telemetry-window__section-title
+{
+    -unity-font-style: bold;
+}
+
+.telemetry-window__page-title
+{
+    font-size: 14px;
+    -unity-text-align: middle-center;
+}

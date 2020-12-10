@@ -53,6 +53,11 @@
     background-image: var(--system-icon);
 }
 
+.system-schedule-item__icon--unmanaged-system
+{
+    background-image: var(--unmanaged-system-icon);
+}
+
 .system-schedule-item__icon--system-group
 {
     background-image: var(--group-icon);
@@ -70,7 +75,7 @@
 
 .system-schedule-item__name-label
 {
-    flex: 1; 
+    flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -98,32 +103,37 @@
 
 /*** Selected State ***/
 
-.unity-tree-view__item:checked .system-schedule-item__icon--system
+.unity-tree-view__item:checked,.unity-list-view__item:checked .system-schedule-item__icon--system
 {
     background-image: var(--system-icon--selected);
 }
 
-.unity-tree-view__item:checked .system-schedule-item__icon--system-group
+.unity-tree-view__item:checked,.unity-list-view__item:checked .system-schedule-item__icon--unmanaged-system
+{
+    background-image: var(--unmanaged-system-icon--selected);
+}
+
+.unity-tree-view__item:checked,.unity-list-view__item:checked .system-schedule-item__icon--system-group
 {
     background-image: var(--group-icon--selected);
 }
 
-.unity-tree-view__item:checked .system-schedule-item__icon--command-buffer
+.unity-tree-view__item:checked,.unity-list-view__item:checked .system-schedule-item__icon--command-buffer
 {
     background-image: var(--buffer-icon--selected);
 }
 
-.unity-tree-view__item:checked .system-schedule-item__name-label
+.unity-tree-view__item:checked,.unity-list-view__item:checked .system-schedule-item__name-label
 {
     color: var(--theme-line-selection-text-color);
 }
 
-.unity-tree-view__item:checked .system-schedule-item__matches-label
+.unity-tree-view__item:checked,.unity-list-view__item:checked .system-schedule-item__matches-label
 {
     color: var(--theme-line-selection-text-color);
 }
 
-.unity-tree-view__item:checked .system-schedule-item__time-label
+.unity-tree-view__item:checked,.unity-list-view__item:checked .system-schedule-item__time-label
 {
     color: var(--theme-line-selection-text-color);
 }

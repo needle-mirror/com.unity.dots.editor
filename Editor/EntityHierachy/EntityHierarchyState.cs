@@ -284,14 +284,14 @@ namespace Unity.Entities.Editor
                 m_AddedNodes.Clear();
             }
 
-            var hasMoves = m_MovedNodes.Count > 0;
-            if (hasMoves)
+            var hasMoves = false;
+            if (m_MovedNodes.Count > 0)
             {
                 foreach (var kvp in m_MovedNodes)
                 {
                     var node = kvp.Key;
                     var operation = kvp.Value;
-                    MoveNode(operation.FromNode, operation.ToNode, node, context);
+                    hasMoves |= MoveNode(operation.FromNode, operation.ToNode, node, context);
                 }
 
                 m_MovedNodes.Clear();
@@ -345,7 +345,7 @@ namespace Unity.Entities.Editor
             }
         }
 
-        void MoveNode(in EntityHierarchyNodeId previousParent, in EntityHierarchyNodeId newParent, in EntityHierarchyNodeId node, IEntityHierarchyGroupingContext context)
+        bool MoveNode(in EntityHierarchyNodeId previousParent, in EntityHierarchyNodeId newParent, in EntityHierarchyNodeId node, IEntityHierarchyGroupingContext context)
         {
             if (previousParent.Equals(default))
                 throw new ArgumentException("Trying to unparent from an invalid node.");
@@ -357,10 +357,10 @@ namespace Unity.Entities.Editor
                 throw new ArgumentException("Trying to add an invalid node to the tree.");
 
             if (previousParent.Equals(newParent))
-                return; // NOOP
+                return false; // NOOP
 
             if (m_Parents[node] == newParent)
-                return; // NOOP
+                return false; // NOOP
 
             RemoveChild(m_Children, previousParent, node);
             if (Exists(previousParent))
@@ -369,6 +369,7 @@ namespace Unity.Entities.Editor
             m_Parents[node] = newParent;
             AddChild(m_Children, newParent, node);
             m_Versions[newParent] = context.Version;
+            return true;
         }
 
         static void AddChild(NativeHashMap<EntityHierarchyNodeId, UnsafeHashMap<EntityHierarchyNodeId, byte>> children, in EntityHierarchyNodeId parentId, in EntityHierarchyNodeId newChild)

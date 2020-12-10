@@ -15,7 +15,10 @@
         "GUID:e6fd7f05e305677498be9a778f5ad209",
         "GUID:807be9350277eff4182cd3600de41d3a",
         "GUID:c38fb62397af04c51b143415e1db6d90",
-        "GUID:c0dd0d10738d4ad4a9de57c559d0ca1b"
+        "GUID:c0dd0d10738d4ad4a9de57c559d0ca1b",
+        "GUID:388060bf34f9a6a40bafbac77240e259",
+        "GUID:e78ca1c4f9cf59b4c988dfe82dea3e7f",
+        "GUID:416d137b1126dbf408443d029c73482a"
     ],
     "includePlatforms": [
         "Editor"
@@ -30,6 +33,5 @@
     "defineConstraints": [
         "UNITY_INCLUDE_TESTS"
     ],
-    "versionDefines": [],
     "noEngineReferences": false
 }

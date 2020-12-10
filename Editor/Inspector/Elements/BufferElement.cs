@@ -28,6 +28,16 @@ namespace Unity.Entities.Editor
             EditorUpdateUtility.EditModeQueuePlayerLoopUpdate();
         }
 
+        protected override void SetReadonly(VisualElement root)
+        {
+            // Buffers will generate a paginated list of elements. In read-only mode, we will selectively disable
+            // specific elements to keep navigation enabled. This will only work for the top-level list. Nested paginated
+            // lists will be completely disabled.
+            root.Q(className: "unity-properties__list-element__size")?.SetEnabled(false);
+            root.Q("properties-list-content")?.SetEnabled(false);
+            root.Q<Button>(className: "unity-properties__list-element__add-item-button")?.SetEnabled(false);
+        }
+
         protected override void OnPopulateMenu(DropdownMenu menu)
         {
             var buffer = m_Content.GetTarget<InspectedBuffer<TList, TElement>>();

@@ -26,6 +26,7 @@ namespace Unity.Entities.Editor
         public static class Templates
         {
             public static readonly UITemplate CommonResources = new UITemplate("Common/common-resources");
+            public static readonly UITemplate TabView = new UITemplate("Controls/TabView/tab-view");
 
             public static readonly UITemplate SystemSchedule = new UITemplate("SystemSchedule/system-schedule");
             public static readonly UITemplate SystemScheduleItem = new UITemplate("SystemSchedule/system-schedule-item");
@@ -39,6 +40,10 @@ namespace Unity.Entities.Editor
             public static readonly UITemplate EntityHierarchyToolbar = new UITemplate("EntityHierarchy/entity-hierarchy-toolbar");
             public static readonly UITemplate EntityHierarchyEnableLiveLinkMessage = new UITemplate("EntityHierarchy/entity-hierarchy-enable-live-link-message");
             public static readonly UITemplate EntityHierarchyItem = new UITemplate("EntityHierarchy/entity-hierarchy-item");
+
+            public static readonly UITemplate TelemetryWindow = new UITemplate("TelemetryWindow/telemetry-window");
+            public static readonly UITemplate EntityWindowTelemetry = new UITemplate("TelemetryWindow/entity-window");
+            public static readonly UITemplate SystemWindowTelemetry = new UITemplate("TelemetryWindow/system-window");
 
             public static class Inspector
             {

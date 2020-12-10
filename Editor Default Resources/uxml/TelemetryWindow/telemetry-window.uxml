@@ -1,0 +1,5 @@
+<UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:pui="Unity.Properties.UI">
+    <ui:ScrollView>
+        <pui:PropertyElement name="content" />
+    </ui:ScrollView>
+</UXML>

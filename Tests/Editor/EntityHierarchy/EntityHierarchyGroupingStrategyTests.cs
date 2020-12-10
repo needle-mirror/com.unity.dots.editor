@@ -281,6 +281,29 @@ namespace Unity.Entities.Editor.Tests
             }
         }
 
+        [Test]
+        public unsafe void State_DoNotDetectChangesWhenOnlyNoop()
+        {
+            World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
+
+            var entityA = World.EntityManager.CreateEntity();
+            var entityB = World.EntityManager.CreateEntity();
+            World.EntityManager.AddComponent<Parent>(entityA);
+            World.EntityManager.AddComponent<Parent>(entityB);
+
+            // new entities has been created, we expect a change to be detected here
+            Assert.That(GatherChangesAndApplyToStrategy(World.EntityManager.UniversalQuery), Is.True);
+
+            World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore->IncrementGlobalSystemVersion();
+
+            World.EntityManager.AddComponent<Scale>(entityA);
+            World.EntityManager.AddComponent<Scale>(entityB);
+
+            // Even though entities have changed archetype, the state should detect this change as a noop because
+            // the impacted entities should be detected as destroyed and recreated, and didn't change parent
+            Assert.That(GatherChangesAndApplyToStrategy(World.EntityManager.UniversalQuery), Is.False);
+        }
+
         unsafe void AssertInSameChunk(params Entity[] entities)
         {
             ulong chunkSequenceNumber = 0;
@@ -305,7 +328,7 @@ namespace Unity.Entities.Editor.Tests
             }
         }
 
-        void GatherChangesAndApplyToStrategy(EntityQuery? query = null)
+        bool GatherChangesAndApplyToStrategy(EntityQuery? query = null)
         {
             var entityJobHandle = m_EntityDiffer.GetEntityQueryMatchDiffAsync(query ?? World.EntityManager.UniversalQuery, m_NewEntities, m_RemovedEntities);
             using (var changes = m_ComponentDiffer.GatherComponentChangesAsync(query ?? World.EntityManager.UniversalQuery, Allocator.TempJob, out var componentJobHandle))
@@ -315,7 +338,7 @@ namespace Unity.Entities.Editor.Tests
                 m_Strategy.ApplyEntityChanges(m_NewEntities, m_RemovedEntities, this);
                 componentJobHandle.Complete();
                 m_Strategy.ApplyComponentDataChanges(typeof(Parent), changes, this);
-                m_Strategy.EndApply(this);
+                return m_Strategy.EndApply(this);
             }
         }
 

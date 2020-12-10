@@ -288,7 +288,7 @@ namespace Unity.Editor.Legacy
         static string GetComponentCategory(int t)
         {
             if (TypeManager.IsManagedComponent(t)) return "(Managed)";
-            if (TypeManager.IsSharedComponent(t)) return "(Shared)";
+            if (TypeManager.IsSharedComponentType(t)) return "(Shared)";
             return TypeManager.IsBuffer(t) ? "(Buffer)" : string.Empty;
         }
 
